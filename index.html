@@ -41,9 +41,11 @@
   .nav svg{width:19px;height:19px;flex-shrink:0}
   .foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding:12px 6px 0;border-top:1px solid var(--line)}
   .foot .who{display:flex;align-items:center;gap:9px;min-width:0}
-  .foot .av{width:28px;height:28px;flex-shrink:0;border-radius:50%;background:#E6F1FB;color:#185FA5;
+  .foot .av{width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#E6F1FB;color:#185FA5;
     display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
-  .foot .em{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .foot .id{min-width:0}
+  .foot .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .foot .em{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .linkbtn{background:none;border:none;color:var(--muted);font-size:12px;text-align:left;text-decoration:underline;padding:0}
   .main{flex:1;min-width:0;padding:22px 26px}
   .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -53,7 +55,7 @@
     border:1px solid var(--line);background:var(--panel);font-size:13px;width:auto}
   .btn:hover{border-color:#cfcec8}
   .btn.brand{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
-  .btn.full{width:100%}
+  .btn.full{width:100%;padding:11px}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .card .lbl{font-size:12px;color:var(--muted)}
@@ -80,14 +82,16 @@
   .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
   .field{display:flex;flex-direction:column;gap:4px}
   .field span{font-size:12px;color:var(--muted)}
-  .auth{max-width:400px;margin:8vh auto;background:var(--panel);border:1px solid var(--line);
-    border-radius:14px;padding:30px 32px}
-  .auth .tile{width:44px;height:44px;border-radius:11px;background:var(--brand);color:var(--brand-ink);
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;margin-bottom:14px}
-  .auth h1{font-size:22px;margin:0 0 4px}
-  .auth p.sub{color:var(--muted);margin:0 0 20px}
+  .auth{max-width:430px;margin:7vh auto;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:34px 36px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .auth .tile{width:46px;height:46px;border-radius:12px;background:var(--brand);color:var(--brand-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:25px;margin-bottom:16px}
+  .auth h1{font-size:23px;margin:0 0 4px}
+  .auth p.sub{color:var(--muted);margin:0 0 22px}
   .auth label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
-  .auth .grp{margin-bottom:14px}
+  .auth .opt{font-weight:400;color:var(--muted);font-size:12px}
+  .auth .grp{margin-bottom:16px}
+  .auth .ro{background:var(--bg);color:var(--muted)}
   .auth .err{background:#FBECEA;color:#A3241C;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
   .auth .ok{background:#EAF6EC;color:#1E6B33;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
   .auth .toggle{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
@@ -100,7 +104,7 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useMemo } = React;
+const { useState, useEffect } = React;
 
 const SUPABASE_URL = "https://fkhbjpyoajkadpfjexkb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZraGJqcHlvYWprYWRwZmpleGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2OTk0MTAsImV4cCI6MjA5OTI3NTQxMH0.LbCy66DxNry2Ybd0c5yM4lvw7A3QOGDhaFtCrpj0y7I";
@@ -181,13 +185,11 @@ function Auth(){
       {msg && <div className="ok">{msg}</div>}
       <div className="grp">
         <label>Email</label>
-        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com"
-          onKeyDown={e=>e.key==='Enter'&&enviar()} />
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" onKeyDown={e=>e.key==='Enter'&&enviar()} />
       </div>
       <div className="grp">
         <label>Senha</label>
-        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••"
-          onKeyDown={e=>e.key==='Enter'&&enviar()} />
+        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&enviar()} />
       </div>
       <button className="btn brand full" disabled={busy} onClick={enviar}>
         {busy ? 'Aguarde…' : (modo==='login' ? 'Entrar' : 'Criar conta')}
@@ -197,6 +199,43 @@ function Auth(){
           ? <span>Não tem conta? <button onClick={()=>{setModo('signup');setErro('');setMsg('');}}>Cadastre-se</button></span>
           : <span>Já tem conta? <button onClick={()=>{setModo('login');setErro('');setMsg('');}}>Entrar</button></span>}
       </div>
+    </div>
+  );
+}
+
+function Onboarding({user, onDone}){
+  const [nome, setNome] = useState('');
+  const [cargo, setCargo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState('');
+  async function concluir(){
+    setErro('');
+    if(!nome.trim()){ setErro('Como podemos te chamar?'); return; }
+    setBusy(true);
+    const { error } = await sb.from('perfis').upsert({ id:user.id, nome:nome.trim(), cargo:cargo.trim()||null, onboarded:true });
+    setBusy(false);
+    if(error){ setErro('Não consegui salvar: '+error.message); return; }
+    onDone();
+  }
+  return (
+    <div className="auth">
+      <div className="tile">M</div>
+      <h1>Bem-vindo ao MUVUCA 👋</h1>
+      <p className="sub">Falta só um passo pra deixar tudo do seu jeito.</p>
+      {erro && <div className="err">{erro}</div>}
+      <div className="grp">
+        <label>Seu nome</label>
+        <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Como podemos te chamar?" onKeyDown={e=>e.key==='Enter'&&concluir()} autoFocus />
+      </div>
+      <div className="grp">
+        <label>Cargo / função <span className="opt">(opcional)</span></label>
+        <input value={cargo} onChange={e=>setCargo(e.target.value)} placeholder="Ex.: Social Media, Community Manager" onKeyDown={e=>e.key==='Enter'&&concluir()} />
+      </div>
+      <div className="grp">
+        <label>Email</label>
+        <input className="ro" value={user.email} readOnly />
+      </div>
+      <button className="btn brand full" disabled={busy} onClick={concluir}>{busy ? 'Salvando…' : 'Entrar no MUVUCA'}</button>
     </div>
   );
 }
@@ -265,14 +304,9 @@ function Adicionar({cfg, clienteId, onAdd}){
     if(!f.texto.trim()){ alert('Escreva o texto do comentário.'); return; }
     setSalvando(true);
     const ok = await onAdd({
-      cliente_id: clienteId,
-      autor: f.autor || null, texto: f.texto, link_conteudo: f.link_conteudo || null,
-      origem: f.origem,
-      rede_id: f.rede_id?Number(f.rede_id):null,
-      produto_id: f.produto_id?Number(f.produto_id):null,
-      editoria_id: f.editoria_id?Number(f.editoria_id):null,
-      sentimento_id: f.sentimento_id?Number(f.sentimento_id):null,
-      triagem:'Pendente'
+      cliente_id: clienteId, autor: f.autor || null, texto: f.texto, link_conteudo: f.link_conteudo || null, origem: f.origem,
+      rede_id: f.rede_id?Number(f.rede_id):null, produto_id: f.produto_id?Number(f.produto_id):null,
+      editoria_id: f.editoria_id?Number(f.editoria_id):null, sentimento_id: f.sentimento_id?Number(f.sentimento_id):null, triagem:'Pendente'
     });
     setSalvando(false);
     if(ok) setF(vazio);
@@ -283,23 +317,15 @@ function Adicionar({cfg, clienteId, onAdd}){
       <div className="addgrid">
         <label className="field"><span>Autor</span><input value={f.autor} onChange={e=>set('autor',e.target.value)} placeholder="@usuario" /></label>
         <label className="field"><span>Rede</span>
-          <select value={f.rede_id} onChange={e=>set('rede_id',e.target.value)}>
-            <option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
-          </select></label>
+          <select value={f.rede_id} onChange={e=>set('rede_id',e.target.value)}><option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
         <label className="field"><span>Origem</span>
           <select value={f.origem} onChange={e=>set('origem',e.target.value)}><option>Feed</option><option>DM</option></select></label>
         <label className="field"><span>Produto</span>
-          <select value={f.produto_id} onChange={e=>set('produto_id',e.target.value)}>
-            <option value="">—</option>{cfg.produtos.map(pp=><option key={pp.id} value={pp.id}>{pp.nome}</option>)}
-          </select></label>
+          <select value={f.produto_id} onChange={e=>set('produto_id',e.target.value)}><option value="">—</option>{cfg.produtos.map(pp=><option key={pp.id} value={pp.id}>{pp.nome}</option>)}</select></label>
         <label className="field"><span>Editoria</span>
-          <select value={f.editoria_id} onChange={e=>set('editoria_id',e.target.value)}>
-            <option value="">—</option>{cfg.editorias.map(ed=><option key={ed.id} value={ed.id}>{ed.nome}</option>)}
-          </select></label>
+          <select value={f.editoria_id} onChange={e=>set('editoria_id',e.target.value)}><option value="">—</option>{cfg.editorias.map(ed=><option key={ed.id} value={ed.id}>{ed.nome}</option>)}</select></label>
         <label className="field"><span>Sentimento</span>
-          <select value={f.sentimento_id} onChange={e=>set('sentimento_id',e.target.value)}>
-            <option value="">—</option>{cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
-          </select></label>
+          <select value={f.sentimento_id} onChange={e=>set('sentimento_id',e.target.value)}><option value="">—</option>{cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
       </div>
       <label className="field" style={{marginBottom:10}}><span>Texto do comentário / DM</span>
         <textarea value={f.texto} onChange={e=>set('texto',e.target.value)} style={{minHeight:56}} placeholder="Cole aqui o comentário…" /></label>
@@ -354,7 +380,7 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
   );
 }
 
-function Painel({user, onSair}){
+function Painel({user, perfil, onSair}){
   const [status, setStatus] = useState('loading');
   const [erro, setErro] = useState('');
   const [clientes, setClientes] = useState([]);
@@ -406,6 +432,7 @@ function Painel({user, onSair}){
   }
 
   const clienteNome = clientes.find(c=>c.id===clienteId)?.nome || '';
+  const displayNome = perfil?.nome || user.email;
 
   return (
     <div className="app">
@@ -423,7 +450,10 @@ function Painel({user, onSair}){
           </button>
         ))}
         <div className="foot">
-          <div className="who"><div className="av">{iniciais(user.email)}</div><span className="em">{user.email}</span></div>
+          <div className="who">
+            <div className="av">{iniciais(displayNome)}</div>
+            <div className="id"><div className="nm">{displayNome}</div><div className="em">{user.email}</div></div>
+          </div>
           <button className="linkbtn" onClick={onSair}>Sair</button>
         </div>
       </aside>
@@ -443,6 +473,30 @@ function Painel({user, onSair}){
   );
 }
 
+function Gate({user, onSair}){
+  const [perfil, setPerfil] = useState(undefined);
+  const [erro, setErro] = useState('');
+  async function carregarPerfil(){
+    try{
+      const { data, error } = await sb.from('perfis').select('*').eq('id', user.id).maybeSingle();
+      if(error) throw error;
+      setPerfil(data || null);
+    }catch(e){ setErro(e.message||String(e)); }
+  }
+  useEffect(()=>{ carregarPerfil(); },[user.id]);
+  if(erro) return (
+    <div className="auth">
+      <h1>Ops</h1>
+      <p className="sub">{erro}</p>
+      <p style={{fontSize:13,color:'var(--muted)'}}>Se falar em "perfis", rode o SQL da tabela de perfis no Supabase e recarregue a página.</p>
+      <button className="btn" onClick={onSair}>Sair</button>
+    </div>
+  );
+  if(perfil===undefined) return <div className="empty" style={{paddingTop:'22vh'}}>Carregando…</div>;
+  if(!perfil || !perfil.onboarded) return <Onboarding user={user} onDone={carregarPerfil} />;
+  return <Painel user={user} perfil={perfil} onSair={onSair} />;
+}
+
 function App(){
   const [session, setSession] = useState(undefined);
   useEffect(()=>{
@@ -452,7 +506,7 @@ function App(){
   },[]);
   if(session===undefined) return <div className="empty" style={{paddingTop:'22vh'}}>Carregando…</div>;
   if(!session) return <Auth/>;
-  return <Painel user={session.user} onSair={()=>sb.auth.signOut()} />;
+  return <Gate user={session.user} onSair={()=>sb.auth.signOut()} />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
