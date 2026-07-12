@@ -97,6 +97,29 @@
   .auth .toggle{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
   .auth .toggle button{background:none;border:none;color:#185FA5;text-decoration:underline;font-size:13px;width:auto;padding:0}
   .empty{text-align:center;color:var(--muted);padding:40px 0}
+  .crumb{display:flex;align-items:center;gap:7px;margin-bottom:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+  .crumb button{background:none;border:none;color:var(--muted);font-size:13px;padding:0;text-decoration:underline}
+  .crumb button:hover{color:var(--ink)}
+  .crumb .sep{color:#c9c8c2}
+  .crumb .cur{color:var(--ink);font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px}
+  .tile2{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:left;
+    width:100%;display:flex;flex-direction:column;gap:10px;transition:border-color .12s, transform .12s}
+  .tile2:hover{border-color:var(--brand);transform:translateY(-1px)}
+  .tile2 .top{display:flex;align-items:center;gap:10px}
+  .tile2 .ic{width:36px;height:36px;border-radius:9px;background:var(--bg);display:flex;align-items:center;
+    justify-content:center;flex-shrink:0;font-size:15px;font-weight:700;color:var(--muted)}
+  .tile2 .nm{font-size:15px;font-weight:600}
+  .tile2 .ds{font-size:12px;color:var(--muted);line-height:1.45}
+  .tile2 .stats{display:flex;gap:14px;border-top:1px solid var(--line);padding-top:10px;margin-top:auto}
+  .tile2 .stats div{font-size:11px;color:var(--muted)}
+  .tile2 .stats b{display:block;font-size:15px;font-weight:600;color:var(--ink)}
+  .tile2 .go{font-size:12px;font-weight:600;color:var(--brand-ink);background:#FDF3D6;border-radius:6px;
+    padding:5px 9px;align-self:flex-start}
+  .tile2.novo{border-style:dashed;align-items:center;justify-content:center;text-align:center;color:var(--muted);min-height:140px}
+  .badge{font-size:11px;border-radius:5px;padding:2px 7px;font-weight:600}
+  .badge.on{background:#EAF6EC;color:#1E6B33}
+  .badge.off{background:var(--bg);color:var(--muted)}
   .soon{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:48px;text-align:center;color:var(--muted)}
 </style>
 </head>
@@ -111,18 +134,28 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MODULOS = [
-  { id:'dashboard', nome:'Dashboard' },
-  { id:'listening', nome:'Listening' },
+  { id:'projetos', nome:'Projetos' },
   { id:'community', nome:'Community' },
+  { id:'upload', nome:'Importar dados' },
   { id:'relatorios', nome:'Relatórios' },
-  { id:'calendario', nome:'Calendário' },
-  { id:'upload', nome:'Upload' },
   { id:'config', nome:'Configurações' },
+];
+
+const ANALITICOS = [
+  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Publicações e interações dia a dia. Picos, quedas e tendências.' },
+  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Comparativo mês a mês do volume publicado.' },
+  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias concentram mais atividade.' },
+  { id:'evol_hora',   nome:'Evolução por Hora',      desc:'Faixas de horário com mais interação.' },
+  { id:'sentimento',  nome:'Sentimento',             desc:'Distribuição entre positivo, negativo, dúvida e mais.' },
+  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários.' },
+  { id:'hashtags',    nome:'Hashtags',               desc:'Hashtags mais usadas nas publicações.' },
+  { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
 ];
 
 function Icon({name}){
   const p = {fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round'};
   const paths = {
+    projetos:<g {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g>,
     dashboard:<g {...p}><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>,
     listening:<g {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3"/></g>,
     community:<g {...p}><path d="M4 5h16v10H9l-4 4V5z"/></g>,
@@ -396,6 +429,129 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
   );
 }
 
+
+function Crumb({trilha}){
+  return (
+    <div className="crumb">
+      {trilha.map((t,i)=>(
+        <React.Fragment key={i}>
+          {i>0 && <span className="sep">›</span>}
+          {t.onClick ? <button onClick={t.onClick}>{t.label}</button> : <span className="cur">{t.label}</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, onNovoCliente}){
+  const [rede, setRede] = useState(null);   // rede selecionada
+  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
+  const cliente = clientes.find(c=>c.id===clienteId);
+
+  function abrirWorkspace(c){ setClienteId(c.id); setRede(null); setNivel('redes'); }
+  function abrirRede(r){ setRede(r); setNivel('centro'); }
+
+  async function novoCliente(){
+    const nome = prompt('Nome do novo cliente:');
+    if(nome && nome.trim()) onNovoCliente(nome.trim());
+  }
+
+  // ---- nível 1: workspaces ----
+  if(nivel==='workspaces'){
+    return (
+      <div>
+        <div className="head">
+          <div><h1>Projetos</h1><p>Cada cliente é um workspace independente.</p></div>
+        </div>
+        <div className="grid">
+          {clientes.map(c=>(
+            <button key={c.id} className="tile2" onClick={()=>abrirWorkspace(c)}>
+              <div className="top">
+                <div className="ic">{iniciais(c.nome)}</div>
+                <div className="nm">{c.nome}</div>
+              </div>
+              <div className="ds">Workspace com redes sociais, análises e relatórios.</div>
+              <div className="go">Abrir →</div>
+            </button>
+          ))}
+          <button className="tile2 novo" onClick={novoCliente}>+ Novo cliente</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- nível 2: redes do cliente ----
+  if(nivel==='redes'){
+    return (
+      <div>
+        <Crumb trilha={[
+          {label:'Projetos', onClick:()=>setNivel('workspaces')},
+          {label:cliente?.nome || '—'}
+        ]}/>
+        <div className="head">
+          <div><h1>{cliente?.nome}</h1><p>Redes sociais monitoradas neste workspace.</p></div>
+        </div>
+        <div className="grid">
+          {cfg.redes.map(r=>{
+            const coment = interacoes.filter(i=>i.rede_id===r.id).length;
+            return (
+              <button key={r.id} className="tile2" onClick={()=>abrirRede(r)}>
+                <div className="top">
+                  <div className="ic">{iniciais(r.nome)}</div>
+                  <div style={{minWidth:0}}>
+                    <div className="nm">{r.nome}</div>
+                    <span className={"badge "+(coment>0?'on':'off')}>{coment>0?'Com dados':'Sem dados'}</span>
+                  </div>
+                </div>
+                <div className="stats">
+                  <div><b>—</b>publicações</div>
+                  <div><b>{coment}</b>comentários</div>
+                </div>
+                <div className="go">Abrir →</div>
+              </button>
+            );
+          })}
+        </div>
+        <p style={{fontSize:12,color:'var(--muted)',marginTop:14}}>
+          Publicações aparecem aqui depois que você importar a planilha (módulo Importar dados).
+        </p>
+      </div>
+    );
+  }
+
+  // ---- nível 3: centro de inteligência ----
+  return (
+    <div>
+      <Crumb trilha={[
+        {label:'Projetos', onClick:()=>setNivel('workspaces')},
+        {label:cliente?.nome || '—', onClick:()=>setNivel('redes')},
+        {label:rede?.nome || '—'}
+      ]}/>
+      <div className="head">
+        <div>
+          <h1>{rede?.nome} · Centro de Inteligência</h1>
+          <p>Todas as análises disponíveis para este canal.</p>
+        </div>
+      </div>
+      <div className="grid">
+        {ANALITICOS.map(m=>(
+          <button key={m.id} className="tile2" onClick={()=>alert('Módulo "'+m.nome+'" entra na Etapa 3, depois da importação da planilha.')}>
+            <div className="top">
+              <div className="ic">▥</div>
+              <div className="nm">{m.nome}</div>
+            </div>
+            <div className="ds">{m.desc}</div>
+            <div className="stats">
+              <div><b>—</b>dados analisados</div>
+              <div><span className="badge off">Aguardando dados</span></div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Painel({user, perfil, onSair}){
   const [status, setStatus] = useState('loading');
   const [erro, setErro] = useState('');
@@ -403,7 +559,7 @@ function Painel({user, perfil, onSair}){
   const [clienteId, setClienteId] = useState(null);
   const [cfg, setCfg] = useState({redes:[],produtos:[],editorias:[],sentimentos:[]});
   const [interacoes, setInteracoes] = useState([]);
-  const [modulo, setModulo] = useState('community');
+  const [modulo, setModulo] = useState('projetos');
 
   useEffect(()=>{
     (async()=>{
@@ -447,6 +603,19 @@ function Painel({user, perfil, onSair}){
     return true;
   }
 
+  async function novoCliente(nome){
+    const { data, error } = await sb.from('clientes').insert({nome}).select().single();
+    if(error){ alert('Erro ao criar cliente: '+error.message); return; }
+    const cid = data.id;
+    const seeds = [];
+    for(const r of ['Instagram','Facebook','TikTok','YouTube','Spotify']) seeds.push(sb.from('redes').insert({cliente_id:cid, nome:r}));
+    const sents = [['Positivo','#7AC943'],['Negativo','#E63329'],['Neutro','#F5A623'],['Dúvida','#3FA9F5'],['Bot','#B8B8B8'],['Político','#111111']];
+    for(const [n,c] of sents) seeds.push(sb.from('categorias_sentimento').insert({cliente_id:cid, nome:n, cor:c}));
+    await Promise.all(seeds);
+    setClientes(prev=>[...prev, data]);
+    setClienteId(cid);
+  }
+
   const clienteNome = clientes.find(c=>c.id===clienteId)?.nome || '';
   const displayNome = perfil?.nome || user.email;
 
@@ -478,6 +647,8 @@ function Painel({user, perfil, onSair}){
           ? <div><div className="head"><div><h1>Ops</h1></div></div><div className="soon">{erro}</div></div>
           : status==='loading'
             ? <div className="empty">Carregando…</div>
+            : modulo==='projetos'
+              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} onNovoCliente={novoCliente} />
             : modulo==='community'
               ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} />
               : <div>
