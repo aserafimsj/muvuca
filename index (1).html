@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MUVUCA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --brand:#F5B301; --brand-ink:#3a2c00;
+    --bg:#F6F6F3; --panel:#FFFFFF; --line:#E8E7E2;
+    --ink:#2C2C2A; --muted:#77766F;
+    --pos:#7AC943; --neg:#E63329; --neu:#F5A623; --duv:#3FA9F5; --bot:#B8B8B8; --pol:#111111;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  select,input,textarea{font-family:inherit;font-size:13px;color:var(--ink);background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:9px 11px;outline:none;width:100%}
+  select:focus,input:focus,textarea:focus{border-color:var(--brand)}
+  .app{display:flex;min-height:100vh}
+  .side{width:210px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);
+    padding:16px 12px;display:flex;flex-direction:column;gap:3px}
+  .logo{display:flex;align-items:center;gap:9px;padding:0 6px 14px}
+  .logo .tile{width:28px;height:28px;border-radius:8px;background:var(--brand);color:var(--brand-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+  .logo b{font-size:16px;font-weight:600}
+  .switcher{display:flex;flex-direction:column;gap:3px;padding:9px 11px;margin-bottom:10px;
+    border:1px solid var(--line);border-radius:var(--radius);background:var(--bg)}
+  .switcher label{font-size:11px;color:var(--muted)}
+  .switcher select{border:none;background:transparent;padding:0;font-size:13px;font-weight:600}
+  .nav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius);
+    color:var(--muted);border:none;background:transparent;width:100%;text-align:left;font-size:14px}
+  .nav:hover{background:var(--bg)}
+  .nav.on{background:#FDF3D6;color:var(--brand-ink);font-weight:600}
+  .nav svg{width:19px;height:19px;flex-shrink:0}
+  .foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding:12px 6px 0;border-top:1px solid var(--line)}
+  .foot .who{display:flex;align-items:center;gap:9px;min-width:0}
+  .foot .av{width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#E6F1FB;color:#185FA5;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+  .foot .id{min-width:0}
+  .foot .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .foot .em{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .linkbtn{background:none;border:none;color:var(--muted);font-size:12px;text-align:left;text-decoration:underline;padding:0}
+  .main{flex:1;min-width:0;padding:22px 26px}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .head h1{margin:0;font-size:20px;font-weight:600}
+  .head p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 13px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel);font-size:13px;width:auto}
+  .btn:hover{border-color:#cfcec8}
+  .btn.brand{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .btn.full{width:100%;padding:11px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .lbl{font-size:12px;color:var(--muted)}
+  .card .val{font-size:26px;font-weight:600;margin-top:2px}
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .filters input,.filters select{width:auto;min-width:150px}
+  .row{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+  .row:last-child{border-bottom:1px solid var(--line)}
+  .row .av{width:34px;height:34px;flex-shrink:0;border-radius:50%;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted)}
+  .row .body{flex:1;min-width:0}
+  .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+  .meta .who{font-size:13px;font-weight:600}
+  .meta .net,.meta .prod{font-size:12px;color:var(--muted)}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .txt{font-size:13px;color:#4a4a46}
+  .ctrl{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0}
+  .ctrl select{width:auto;min-width:120px}
+  .sentbox{display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .reply{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .reply textarea{min-height:64px;resize:vertical}
+  .addwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
+  .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field span{font-size:12px;color:var(--muted)}
+  .auth{max-width:430px;margin:7vh auto;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:34px 36px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .auth .tile{width:46px;height:46px;border-radius:12px;background:var(--brand);color:var(--brand-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:25px;margin-bottom:16px}
+  .auth h1{font-size:23px;margin:0 0 4px}
+  .auth p.sub{color:var(--muted);margin:0 0 22px}
+  .auth label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+  .auth .opt{font-weight:400;color:var(--muted);font-size:12px}
+  .auth .grp{margin-bottom:16px}
+  .auth .ro{background:var(--bg);color:var(--muted)}
+  .auth .err{background:#FBECEA;color:#A3241C;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+  .auth .ok{background:#EAF6EC;color:#1E6B33;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+  .auth .toggle{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
+  .auth .toggle button{background:none;border:none;color:#185FA5;text-decoration:underline;font-size:13px;width:auto;padding:0}
+  .empty{text-align:center;color:var(--muted);padding:40px 0}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:36px;text-align:center;background:var(--panel);cursor:pointer}
+  .drop:hover{border-color:var(--brand);background:#FFFDF6}
+  .drop b{display:block;font-size:15px;margin-bottom:4px;color:var(--ink)}
+  .drop span{font-size:13px;color:var(--muted)}
+  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px}
+  .log h3{margin:0 0 10px;font-size:14px}
+  .log ul{margin:0;padding-left:18px}
+  .log li{font-size:13px;color:#4a4a46;margin-bottom:4px}
+  .aviso{background:#FBF3D6;border-left:3px solid var(--brand);border-radius:8px;padding:11px 13px;font-size:13px;margin-top:12px}
+  .crumb{display:flex;align-items:center;gap:7px;margin-bottom:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+  .crumb button{background:none;border:none;color:var(--muted);font-size:13px;padding:0;text-decoration:underline}
+  .crumb button:hover{color:var(--ink)}
+  .crumb .sep{color:#c9c8c2}
+  .crumb .cur{color:var(--ink);font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px}
+  .tile2{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:left;
+    width:100%;display:flex;flex-direction:column;gap:10px;transition:border-color .12s, transform .12s}
+  .tile2:hover{border-color:var(--brand);transform:translateY(-1px)}
+  .tile2 .top{display:flex;align-items:center;gap:10px}
+  .tile2 .ic{width:36px;height:36px;border-radius:9px;background:var(--bg);display:flex;align-items:center;
+    justify-content:center;flex-shrink:0;font-size:15px;font-weight:700;color:var(--muted)}
+  .tile2 .nm{font-size:15px;font-weight:600}
+  .tile2 .ds{font-size:12px;color:var(--muted);line-height:1.45}
+  .tile2 .stats{display:flex;gap:14px;border-top:1px solid var(--line);padding-top:10px;margin-top:auto}
+  .tile2 .stats div{font-size:11px;color:var(--muted)}
+  .tile2 .stats b{display:block;font-size:15px;font-weight:600;color:var(--ink)}
+  .tile2 .go{font-size:12px;font-weight:600;color:var(--brand-ink);background:#FDF3D6;border-radius:6px;
+    padding:5px 9px;align-self:flex-start}
+  .tile2.novo{border-style:dashed;align-items:center;justify-content:center;text-align:center;color:var(--muted);min-height:140px}
+  .badge{font-size:11px;border-radius:5px;padding:2px 7px;font-weight:600}
+  .badge.on{background:#EAF6EC;color:#1E6B33}
+  .badge.off{background:var(--bg);color:var(--muted)}
+  .soon{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:48px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const SUPABASE_URL = "https://fkhbjpyoajkadpfjexkb.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZraGJqcHlvYWprYWRwZmpleGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2OTk0MTAsImV4cCI6MjA5OTI3NTQxMH0.LbCy66DxNry2Ybd0c5yM4lvw7A3QOGDhaFtCrpj0y7I";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const MODULOS = [
+  { id:'projetos', nome:'Projetos' },
+  { id:'community', nome:'Community' },
+  { id:'upload', nome:'Importar dados' },
+  { id:'relatorios', nome:'Relatórios' },
+  { id:'config', nome:'Configurações' },
+];
+
+const ANALITICOS = [
+  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Publicações e interações dia a dia. Picos, quedas e tendências.' },
+  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Comparativo mês a mês do volume publicado.' },
+  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias concentram mais atividade.' },
+  { id:'evol_hora',   nome:'Evolução por Hora',      desc:'Faixas de horário com mais interação.' },
+  { id:'sentimento',  nome:'Sentimento',             desc:'Distribuição entre positivo, negativo, dúvida e mais.' },
+  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários.' },
+  { id:'hashtags',    nome:'Hashtags',               desc:'Hashtags mais usadas nas publicações.' },
+  { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
+];
+
+function Icon({name}){
+  const p = {fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round'};
+  const paths = {
+    projetos:<g {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g>,
+    dashboard:<g {...p}><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>,
+    listening:<g {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3"/></g>,
+    community:<g {...p}><path d="M4 5h16v10H9l-4 4V5z"/></g>,
+    relatorios:<g {...p}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></g>,
+    calendario:<g {...p}><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></g>,
+    upload:<g {...p}><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/><path d="M12 15V4M8 8l4-4 4 4"/></g>,
+    config:<g {...p}><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h6M14 18h6"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></g>,
+  };
+  return <svg viewBox="0 0 24 24">{paths[name]||paths.community}</svg>;
+}
+function iniciais(txt){
+  if(!txt) return "?";
+  const t = txt.replace(/^@/,'').trim();
+  const parts = t.split(/[\s.]+/).filter(Boolean);
+  return ((parts[0]?.[0]||"") + (parts[1]?.[0]||"")).toUpperCase() || t.slice(0,2).toUpperCase();
+}
+function corSent(nome){
+  return {Positivo:'var(--pos)',Negativo:'var(--neg)',Neutro:'var(--neu)','Dúvida':'var(--duv)',Bot:'var(--bot)','Político':'var(--pol)'}[nome] || '#ccc';
+}
+function traduzErro(m){
+  m = (m||'').toLowerCase();
+  if(m.includes('invalid login')) return 'Email ou senha incorretos.';
+  if(m.includes('already registered') || m.includes('already been registered')) return 'Esse email já tem conta. Tente entrar.';
+  if(m.includes('password should be')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  if(m.includes('email not confirmed')) return 'Confirme seu email antes de entrar (ou peça pra desligar a confirmação).';
+  if(m.includes('rate limit')) return 'Muitas tentativas. Espere um minutinho e tente de novo.';
+  return m ? ('Erro: '+m) : 'Algo deu errado. Tente de novo.';
+}
+
+function Auth(){
+  const [modo, setModo] = useState('login');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function enviar(){
+    setErro(''); setMsg('');
+    if(!email.trim() || !senha){ setErro('Preencha email e senha.'); return; }
+    if(senha.length < 6){ setErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    setBusy(true);
+    try{
+      if(modo==='login'){
+        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: senha });
+        if(error) setErro(traduzErro(error.message));
+      } else {
+        const { data, error } = await sb.auth.signUp({ email: email.trim(), password: senha });
+        if(error) setErro(traduzErro(error.message));
+        else if(!data.session) setMsg('Conta criada! Se aparecer pedido de confirmação por email, verifique sua caixa de entrada e depois entre.');
+      }
+    }catch(e){ setErro(traduzErro(e.message)); }
+    setBusy(false);
+  }
+  return (
+    <div className="auth">
+      <div className="tile">M</div>
+      <h1>{modo==='login' ? 'Entrar no MUVUCA' : 'Criar sua conta'}</h1>
+      <p className="sub">{modo==='login' ? 'Use seu email e senha.' : 'É rápido — email e uma senha de pelo menos 6 caracteres.'}</p>
+      {erro && <div className="err">{erro}</div>}
+      {msg && <div className="ok">{msg}</div>}
+      <div className="grp">
+        <label>Email</label>
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" onKeyDown={e=>e.key==='Enter'&&enviar()} />
+      </div>
+      <div className="grp">
+        <label>Senha</label>
+        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&enviar()} />
+      </div>
+      <button className="btn brand full" disabled={busy} onClick={enviar}>
+        {busy ? 'Aguarde…' : (modo==='login' ? 'Entrar' : 'Criar conta')}
+      </button>
+      <div className="toggle">
+        {modo==='login'
+          ? <span>Não tem conta? <button onClick={()=>{setModo('signup');setErro('');setMsg('');}}>Cadastre-se</button></span>
+          : <span>Já tem conta? <button onClick={()=>{setModo('login');setErro('');setMsg('');}}>Entrar</button></span>}
+      </div>
+    </div>
+  );
+}
+
+function Onboarding({user, onDone}){
+  const [f, setF] = useState({nome:'', cargo:'', equipe:'', telefone:''});
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState('');
+  const set = (k,v)=>setF(p=>({...p,[k]:v}));
+  async function concluir(){
+    setErro('');
+    if(!f.nome.trim()){ setErro('Como podemos te chamar?'); return; }
+    setBusy(true);
+    const { error } = await sb.from('perfis').upsert({
+      id: user.id,
+      nome: f.nome.trim(),
+      cargo: f.cargo.trim() || null,
+      equipe: f.equipe.trim() || null,
+      telefone: f.telefone.trim() || null,
+      onboarded: true
+    });
+    setBusy(false);
+    if(error){ setErro('Não consegui salvar: '+error.message); return; }
+    onDone();
+  }
+  const enter = e => e.key==='Enter' && concluir();
+  return (
+    <div className="auth">
+      <div className="tile">M</div>
+      <h1>Bem-vindo ao MUVUCA 👋</h1>
+      <p className="sub">Complete seu cadastro para deixarmos tudo do seu jeito.</p>
+      {erro && <div className="err">{erro}</div>}
+      <div className="grp">
+        <label>Nome</label>
+        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Como podemos te chamar?" onKeyDown={enter} autoFocus />
+      </div>
+      <div className="grp">
+        <label>Email</label>
+        <input className="ro" value={user.email} readOnly />
+      </div>
+      <div className="grp">
+        <label>Cargo / função <span className="opt">(opcional)</span></label>
+        <input value={f.cargo} onChange={e=>set('cargo',e.target.value)} placeholder="Ex.: Social Media, Community Manager" onKeyDown={enter} />
+      </div>
+      <div className="grp">
+        <label>Equipe / squad <span className="opt">(opcional)</span></label>
+        <input value={f.equipe} onChange={e=>set('equipe',e.target.value)} placeholder="Ex.: Squad Odin" onKeyDown={enter} />
+      </div>
+      <div className="grp">
+        <label>Telefone <span className="opt">(opcional)</span></label>
+        <input value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="(11) 99999-9999" onKeyDown={enter} />
+      </div>
+      <button className="btn brand full" disabled={busy} onClick={concluir}>{busy ? 'Salvando…' : 'Entrar no MUVUCA'}</button>
+    </div>
+  );
+}
+
+function Linha({it, cfg, onCampo}){
+  const [aberto, setAberto] = useState(false);
+  const [resp, setResp] = useState(it.resposta || "");
+  const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
+  const rede = cfg.redes.find(r=>r.id===it.rede_id);
+  const prod = cfg.produtos.find(pp=>pp.id===it.produto_id);
+  const edit = cfg.editorias.find(e=>e.id===it.editoria_id);
+  return (
+    <div className="row">
+      <div className="av">{iniciais(it.autor)}</div>
+      <div className="body">
+        <div className="meta">
+          <span className="who">{it.autor || 'Sem autor'}</span>
+          {rede && <span className="net">· {rede.nome}</span>}
+          {it.origem && <span className="tag">{it.origem}</span>}
+          {prod && <span className="prod">· {prod.nome}</span>}
+          {edit && <span className="tag">{edit.nome}</span>}
+        </div>
+        <div className="txt">{it.texto}</div>
+        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
+        <div>
+          <button className="btn" style={{marginTop:10,padding:'5px 10px'}} onClick={()=>setAberto(!aberto)}>
+            {it.resposta ? 'Editar resposta' : 'Responder'}
+          </button>
+        </div>
+        {aberto && (
+          <div className="reply">
+            <textarea value={resp} onChange={e=>setResp(e.target.value)} placeholder="Escreva a resposta sugerida…" />
+            <div>
+              <button className="btn brand" style={{padding:'6px 12px'}}
+                onClick={async()=>{ await onCampo(it.id,'resposta',resp); await onCampo(it.id,'triagem','Respondido'); setAberto(false); }}>
+                Salvar resposta
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="ctrl">
+        <div className="sentbox">
+          <span className="dot" style={{background: corSent(sent?.nome)}}></span>
+          <select value={it.sentimento_id || ''} onChange={e=>onCampo(it.id,'sentimento_id', e.target.value?Number(e.target.value):null)}>
+            <option value="">Sentimento…</option>
+            {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+        </div>
+        <select value={it.triagem || 'Pendente'} onChange={e=>onCampo(it.id,'triagem', e.target.value)}>
+          <option>Pendente</option>
+          <option>Respondido</option>
+          <option>Ignorar</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function Adicionar({cfg, clienteId, onAdd}){
+  const vazio = {autor:'',texto:'',link_conteudo:'',origem:'Feed',rede_id:'',produto_id:'',editoria_id:'',sentimento_id:''};
+  const [f, setF] = useState(vazio);
+  const [salvando, setSalvando] = useState(false);
+  const set = (k,v)=>setF(p=>({...p,[k]:v}));
+  async function salvar(){
+    if(!f.texto.trim()){ alert('Escreva o texto do comentário.'); return; }
+    setSalvando(true);
+    const ok = await onAdd({
+      cliente_id: clienteId, autor: f.autor || null, texto: f.texto, link_conteudo: f.link_conteudo || null, origem: f.origem,
+      rede_id: f.rede_id?Number(f.rede_id):null, produto_id: f.produto_id?Number(f.produto_id):null,
+      editoria_id: f.editoria_id?Number(f.editoria_id):null, sentimento_id: f.sentimento_id?Number(f.sentimento_id):null, triagem:'Pendente'
+    });
+    setSalvando(false);
+    if(ok) setF(vazio);
+  }
+  return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:12}}>Adicionar interação</div>
+      <div className="addgrid">
+        <label className="field"><span>Autor</span><input value={f.autor} onChange={e=>set('autor',e.target.value)} placeholder="@usuario" /></label>
+        <label className="field"><span>Rede</span>
+          <select value={f.rede_id} onChange={e=>set('rede_id',e.target.value)}><option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
+        <label className="field"><span>Origem</span>
+          <select value={f.origem} onChange={e=>set('origem',e.target.value)}><option>Feed</option><option>DM</option></select></label>
+        <label className="field"><span>Produto</span>
+          <select value={f.produto_id} onChange={e=>set('produto_id',e.target.value)}><option value="">—</option>{cfg.produtos.map(pp=><option key={pp.id} value={pp.id}>{pp.nome}</option>)}</select></label>
+        <label className="field"><span>Editoria</span>
+          <select value={f.editoria_id} onChange={e=>set('editoria_id',e.target.value)}><option value="">—</option>{cfg.editorias.map(ed=><option key={ed.id} value={ed.id}>{ed.nome}</option>)}</select></label>
+        <label className="field"><span>Sentimento</span>
+          <select value={f.sentimento_id} onChange={e=>set('sentimento_id',e.target.value)}><option value="">—</option>{cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
+      </div>
+      <label className="field" style={{marginBottom:10}}><span>Texto do comentário / DM</span>
+        <textarea value={f.texto} onChange={e=>set('texto',e.target.value)} style={{minHeight:56}} placeholder="Cole aqui o comentário…" /></label>
+      <label className="field" style={{marginBottom:12}}><span>Link do conteúdo (opcional)</span>
+        <input value={f.link_conteudo} onChange={e=>set('link_conteudo',e.target.value)} placeholder="https://…" /></label>
+      <button className="btn brand" disabled={salvando} onClick={salvar}>{salvando?'Salvando…':'Adicionar'}</button>
+    </div>
+  );
+}
+
+function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
+  const [busca, setBusca] = useState('');
+  const [fOrigem, setFOrigem] = useState('');
+  const [fSent, setFSent] = useState('');
+  const [mostrarAdd, setMostrarAdd] = useState(false);
+  const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
+  const total = interacoes.length;
+  const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
+  const duv = interacoes.filter(i=>nomeSent(i)==='Dúvida').length;
+  const neg = interacoes.filter(i=>nomeSent(i)==='Negativo').length;
+  const vis = interacoes.filter(i=>{
+    if(fOrigem && i.origem!==fOrigem) return false;
+    if(fSent && String(i.sentimento_id)!==fSent) return false;
+    if(busca){ const q=busca.toLowerCase(); if(!((i.texto||'').toLowerCase().includes(q) || (i.autor||'').toLowerCase().includes(q))) return false; }
+    return true;
+  });
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Community management</h1><p>Comentários e DMs</p></div>
+        <button className="btn brand" onClick={()=>setMostrarAdd(!mostrarAdd)}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
+      </div>
+      <div className="cards">
+        <div className="card"><div className="lbl">Total</div><div className="val">{total}</div></div>
+        <div className="card"><div className="lbl">Pendentes</div><div className="val">{pend}</div></div>
+        <div className="card"><div className="lbl">Dúvidas</div><div className="val">{duv}</div></div>
+        <div className="card"><div className="lbl">Negativos</div><div className="val">{neg}</div></div>
+      </div>
+      {mostrarAdd && <Adicionar cfg={cfg} clienteId={clienteId} onAdd={onAdd} />}
+      <div className="filters">
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor ou texto…" />
+        <select value={fOrigem} onChange={e=>setFOrigem(e.target.value)}><option value="">Origem: todas</option><option>Feed</option><option>DM</option></select>
+        <select value={fSent} onChange={e=>setFSent(e.target.value)}>
+          <option value="">Sentimento: todos</option>
+          {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+        </select>
+      </div>
+      {vis.length===0
+        ? <div className="empty">Nenhuma interação por aqui ainda. Clique em <b>+ Adicionar</b> para começar.</div>
+        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} />)}
+    </div>
+  );
+}
+
+
+function Crumb({trilha}){
+  return (
+    <div className="crumb">
+      {trilha.map((t,i)=>(
+        <React.Fragment key={i}>
+          {i>0 && <span className="sep">›</span>}
+          {t.onClick ? <button onClick={t.onClick}>{t.label}</button> : <span className="cur">{t.label}</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente}){
+  const [rede, setRede] = useState(null);   // rede selecionada
+  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
+  const cliente = clientes.find(c=>c.id===clienteId);
+
+  function abrirWorkspace(c){ setClienteId(c.id); setRede(null); setNivel('redes'); }
+  function abrirRede(r){ setRede(r); setNivel('centro'); }
+
+  async function novoCliente(){
+    const nome = prompt('Nome do novo cliente:');
+    if(nome && nome.trim()) onNovoCliente(nome.trim());
+  }
+
+  // ---- nível 1: workspaces ----
+  if(nivel==='workspaces'){
+    return (
+      <div>
+        <div className="head">
+          <div><h1>Projetos</h1><p>Cada cliente é um workspace independente.</p></div>
+        </div>
+        <div className="grid">
+          {clientes.map(c=>(
+            <button key={c.id} className="tile2" onClick={()=>abrirWorkspace(c)}>
+              <div className="top">
+                <div className="ic">{iniciais(c.nome)}</div>
+                <div className="nm">{c.nome}</div>
+              </div>
+              <div className="ds">Workspace com redes sociais, análises e relatórios.</div>
+              <div className="go">Abrir →</div>
+            </button>
+          ))}
+          <button className="tile2 novo" onClick={novoCliente}>+ Novo cliente</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- nível 2: redes do cliente ----
+  if(nivel==='redes'){
+    return (
+      <div>
+        <Crumb trilha={[
+          {label:'Projetos', onClick:()=>setNivel('workspaces')},
+          {label:cliente?.nome || '—'}
+        ]}/>
+        <div className="head">
+          <div><h1>{cliente?.nome}</h1><p>Redes sociais monitoradas neste workspace.</p></div>
+        </div>
+        <div className="grid">
+          {cfg.redes.map(r=>{
+            const coment = interacoes.filter(i=>i.rede_id===r.id).length;
+            const pubs = publicacoes.filter(p=>p.rede_id===r.id).length;
+            return (
+              <button key={r.id} className="tile2" onClick={()=>abrirRede(r)}>
+                <div className="top">
+                  <div className="ic">{iniciais(r.nome)}</div>
+                  <div style={{minWidth:0}}>
+                    <div className="nm">{r.nome}</div>
+                    <span className={"badge "+((coment+pubs)>0?'on':'off')}>{(coment+pubs)>0?'Com dados':'Sem dados'}</span>
+                  </div>
+                </div>
+                <div className="stats">
+                  <div><b>{pubs}</b>publicações</div>
+                  <div><b>{coment}</b>comentários</div>
+                </div>
+                <div className="go">Abrir →</div>
+              </button>
+            );
+          })}
+        </div>
+
+      </div>
+    );
+  }
+
+  // ---- nível 3: centro de inteligência ----
+  return (
+    <div>
+      <Crumb trilha={[
+        {label:'Projetos', onClick:()=>setNivel('workspaces')},
+        {label:cliente?.nome || '—', onClick:()=>setNivel('redes')},
+        {label:rede?.nome || '—'}
+      ]}/>
+      <div className="head">
+        <div>
+          <h1>{rede?.nome} · Centro de Inteligência</h1>
+          <p>Todas as análises disponíveis para este canal.</p>
+        </div>
+      </div>
+      <div className="grid">
+        {ANALITICOS.map(m=>(
+          <button key={m.id} className="tile2" onClick={()=>alert('Módulo "'+m.nome+'" entra na Etapa 3, depois da importação da planilha.')}>
+            <div className="top">
+              <div className="ic">▥</div>
+              <div className="nm">{m.nome}</div>
+            </div>
+            <div className="ds">{m.desc}</div>
+            <div className="stats">
+              <div><b>—</b>dados analisados</div>
+              <div><span className="badge off">Aguardando dados</span></div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function norm(t){
+  return String(t||'').toLowerCase().replace(/\n/g,' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function num(v){
+  if(v===null||v===undefined||v==='') return null;
+  if(typeof v==='number') return v;
+  const n = parseFloat(String(v).replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?null:n;
+}
+function toDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return null;
+}
+function acharCabecalho(linhas, chave){
+  for(let i=0;i<Math.min(linhas.length,12);i++){
+    const l = (linhas[i]||[]).map(norm);
+    if(l.some(c=>c.includes(chave))) return i;
+  }
+  return -1;
+}
+function mapaColunas(header){
+  const m = {};
+  header.forEach((h,i)=>{
+    const n = norm(h); if(!n) return;
+    const pago = n.includes('pago') || n.includes('paga');
+    const suf = pago ? '_pago' : '_org';
+    if(n.startsWith('data')) m.data=i;
+    else if(n.includes('link')||n.includes('usuario')&&n.includes('link')) m.link=i;
+    else if(n==='veiculo') m.veiculo=i;
+    else if(n==='formato') m.formato=i;
+    else if(n==='produto') m.produto=i;
+    else if(n==='editoria') m.editoria=i;
+    else if(n.includes('statu')) m.status=i;
+    else if(n.includes('visualizac')) m['visu'+suf]=i;
+    else if(n.includes('alcance')) m['alcance'+suf]=i;
+    else if(n.includes('curtida')) m['curtidas'+suf]=i;
+    else if(n.includes('comentario')) m['coment'+suf]=i;
+    else if(n.includes('compartilha')) m['compart'+suf]=i;
+    else if(n.includes('salvamento')) m['salvos'+suf]=i;
+    else if(n.includes('engajamento total')) m['engaj'+suf]=i;
+    else if(n.includes('taxa')) m['tx_engaj'+suf]=i;
+  });
+  return m;
+}
+
+function Importar({clienteId, cfg, onFim}){
+  const [busy, setBusy] = useState(false);
+  const [rel, setRel] = useState(null);
+
+  function acharId(lista, nome){
+    const n = norm(nome);
+    const hit = lista.find(x=>norm(x.nome)===n);
+    return hit ? hit.id : null;
+  }
+  async function garantir(tabela, lista, nome, novos){
+    if(!nome) return null;
+    let id = acharId(lista, nome);
+    if(id) return id;
+    const { data, error } = await sb.from(tabela).insert({cliente_id:clienteId, nome:String(nome).trim()}).select().single();
+    if(error) return null;
+    lista.push(data); novos.push(String(nome).trim());
+    return data.id;
+  }
+
+  async function processar(file){
+    setBusy(true); setRel(null);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const redes = [...cfg.redes], produtos=[...cfg.produtos], editorias=[...cfg.editorias];
+      const sents = cfg.sentimentos;
+      const novosProd=[], novasEd=[], novasRedes=[];
+      let posts=0, dms=0, puladas=0;
+      const detalhes=[];
+
+      for(const sn of wb.SheetNames){
+        const linhas = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:false, cellDates:true, defval:''});
+        const n = norm(sn);
+
+        // ---------- PUBLICAÇÕES ----------
+        if(n.startsWith('resultados')){
+          const hi = acharCabecalho(linhas, 'formato');
+          if(hi<0) continue;
+          const cols = mapaColunas(linhas[hi]);
+          let conta=0;
+          for(let i=hi+1;i<linhas.length;i++){
+            const L = linhas[i]; if(!L) continue;
+            const data = toDate(L[cols.data]);
+            if(!data) continue;
+            const redeNome = L[cols.veiculo];
+            const rid = await garantir('redes', redes, redeNome, novasRedes);
+            const pid = await garantir('produtos', produtos, L[cols.produto], novosProd);
+            const eid = await garantir('editorias', editorias, L[cols.editoria], novasEd);
+            const rec = { cliente_id:clienteId, rede_id:rid, produto_id:pid, editoria_id:eid,
+              data_post:data, link:L[cols.link]||null, formato:L[cols.formato]||null, status:L[cols.status]||null };
+            for(const k of ['visu','alcance','curtidas','coment','compart','salvos','engaj','tx_engaj'])
+              for(const suf of ['_org','_pago'])
+                rec[k+suf] = cols[k+suf]!==undefined ? num(L[cols[k+suf]]) : null;
+            const { error } = await sb.from('publicacoes').insert(rec);
+            if(error) puladas++; else { posts++; conta++; }
+          }
+          if(conta) detalhes.push(conta+' publicações de '+sn.replace(/^Resultados\s*/i,''));
+        }
+
+        // ---------- DMs ----------
+        if(n.startsWith('dms')){
+          const hi = acharCabecalho(linhas, 'mensagem recebida');
+          if(hi<0) continue;
+          const H = linhas[hi].map(norm);
+          const idx = k => H.findIndex(h=>h.includes(k));
+          const cData=idx('data'), cVeic=idx('veiculo'), cUser=idx('usuario'), cProd=idx('produto'),
+                cSent=idx('sentimento'), cMsg=idx('mensagem recebida'), cResp=idx('resposta cm'), cStat=idx('statu');
+          let conta=0;
+          for(let i=hi+1;i<linhas.length;i++){
+            const L = linhas[i]; if(!L) continue;
+            const msg = cMsg>=0 ? String(L[cMsg]||'').trim() : '';
+            if(!msg) continue;
+            const rid = await garantir('redes', redes, L[cVeic], novasRedes);
+            const pid = await garantir('produtos', produtos, L[cProd], novosProd);
+            const sNome = norm(L[cSent]);
+            const sHit = sents.find(x=>norm(x.nome)===sNome);
+            const resposta = cResp>=0 ? String(L[cResp]||'').trim() : '';
+            const st = cStat>=0 ? norm(L[cStat]) : '';
+            const rec = { cliente_id:clienteId, rede_id:rid, produto_id:pid, origem:'DM',
+              sentimento_id: sHit?sHit.id:null, autor: cUser>=0?String(L[cUser]||'').trim()||null:null,
+              texto: msg, resposta: resposta||null,
+              triagem: (st.includes('respondido')||resposta) ? 'Respondido' : 'Pendente',
+              data_publicacao: toDate(L[cData]) };
+            const { error } = await sb.from('interacoes').insert(rec);
+            if(error) puladas++; else { dms++; conta++; }
+          }
+          if(conta) detalhes.push(conta+' DMs de "'+sn.trim()+'"');
+        }
+      }
+
+      setRel({posts, dms, puladas, detalhes, novosProd, novasEd, novasRedes});
+      onFim();
+    }catch(e){
+      setRel({erro: e.message||String(e)});
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Importar dados</h1><p>Suba a planilha de publicações ou a de DMs. O MUVUCA lê as abas sozinho.</p></div>
+      </div>
+      <label className="drop" style={{display:'block'}}>
+        <input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}}
+          onChange={e=>{ const f=e.target.files[0]; if(f) processar(f); e.target.value=''; }} disabled={busy} />
+        <b>{busy ? 'Importando…' : 'Clique aqui para escolher a planilha'}</b>
+        <span>Aceita .xlsx e .csv — abas "Resultados…" viram publicações, abas "DMs…" viram interações.</span>
+      </label>
+
+      {rel && rel.erro && <div className="log"><h3>Não consegui ler</h3><p style={{fontSize:13,color:'#A3241C'}}>{rel.erro}</p></div>}
+
+      {rel && !rel.erro && (
+        <div className="log">
+          <h3>Importação concluída ✅</h3>
+          <ul>
+            <li><b>{rel.posts}</b> publicações importadas</li>
+            <li><b>{rel.dms}</b> DMs importadas</li>
+            {rel.detalhes.map((d,i)=><li key={i}>{d}</li>)}
+            {rel.puladas>0 && <li>{rel.puladas} linha(s) não puderam ser gravadas</li>}
+          </ul>
+          {(rel.novosProd.length>0 || rel.novasEd.length>0 || rel.novasRedes.length>0) && (
+            <div className="aviso">
+              <b>⚠️ Nomes novos criados</b> — confira se não é erro de digitação:<br/>
+              {rel.novasRedes.length>0 && <>Redes: {rel.novasRedes.join(', ')}<br/></>}
+              {rel.novosProd.length>0 && <>Produtos: {rel.novosProd.join(', ')}<br/></>}
+              {rel.novasEd.length>0 && <>Editorias: {rel.novasEd.join(', ')}</>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Painel({user, perfil, onSair}){
+  const [status, setStatus] = useState('loading');
+  const [erro, setErro] = useState('');
+  const [clientes, setClientes] = useState([]);
+  const [clienteId, setClienteId] = useState(null);
+  const [cfg, setCfg] = useState({redes:[],produtos:[],editorias:[],sentimentos:[]});
+  const [interacoes, setInteracoes] = useState([]);
+  const [publicacoes, setPublicacoes] = useState([]);
+  const [modulo, setModulo] = useState('projetos');
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const {data,error} = await sb.from('clientes').select('*').order('id');
+        if(error) throw error;
+        setClientes(data||[]);
+        if(data && data.length) setClienteId(data[0].id); else setStatus('ready');
+      }catch(e){ setErro(e.message||String(e)); setStatus('erro'); }
+    })();
+  },[]);
+
+  useEffect(()=>{ if(clienteId) carregar(clienteId); },[clienteId]);
+
+  async function carregar(cid){
+    setStatus('loading');
+    try{
+      const [r,p,e,s,i,pb] = await Promise.all([
+        sb.from('redes').select('*').eq('cliente_id',cid).order('nome'),
+        sb.from('produtos').select('*').eq('cliente_id',cid).order('nome'),
+        sb.from('editorias').select('*').eq('cliente_id',cid).order('nome'),
+        sb.from('categorias_sentimento').select('*').eq('cliente_id',cid).order('id'),
+        sb.from('interacoes').select('*').eq('cliente_id',cid).order('id',{ascending:false}),
+        sb.from('publicacoes').select('*').eq('cliente_id',cid).order('data_post',{ascending:false}),
+      ]);
+      for(const x of [r,p,e,s,i]) if(x.error) throw x.error;
+      setCfg({redes:r.data||[],produtos:p.data||[],editorias:e.data||[],sentimentos:s.data||[]});
+      setInteracoes(i.data||[]);
+      setPublicacoes(pb.error ? [] : (pb.data||[]));
+      setStatus('ready');
+    }catch(ex){ setErro(ex.message||String(ex)); setStatus('erro'); }
+  }
+
+  async function onCampo(id, campo, valor){
+    const {error} = await sb.from('interacoes').update({[campo]:valor}).eq('id',id);
+    if(error){ alert('Erro ao salvar: '+error.message); return; }
+    setInteracoes(prev=>prev.map(x=>x.id===id?{...x,[campo]:valor}:x));
+  }
+  async function onAdd(payload){
+    const {data,error} = await sb.from('interacoes').insert(payload).select().single();
+    if(error){ alert('Erro ao adicionar: '+error.message); return false; }
+    setInteracoes(prev=>[data,...prev]);
+    return true;
+  }
+
+  async function novoCliente(nome){
+    const { data, error } = await sb.from('clientes').insert({nome}).select().single();
+    if(error){ alert('Erro ao criar cliente: '+error.message); return; }
+    const cid = data.id;
+    const seeds = [];
+    for(const r of ['Instagram','Facebook','TikTok','YouTube','Spotify']) seeds.push(sb.from('redes').insert({cliente_id:cid, nome:r}));
+    const sents = [['Positivo','#7AC943'],['Negativo','#E63329'],['Neutro','#F5A623'],['Dúvida','#3FA9F5'],['Bot','#B8B8B8'],['Político','#111111']];
+    for(const [n,c] of sents) seeds.push(sb.from('categorias_sentimento').insert({cliente_id:cid, nome:n, cor:c}));
+    await Promise.all(seeds);
+    setClientes(prev=>[...prev, data]);
+    setClienteId(cid);
+  }
+
+  const clienteNome = clientes.find(c=>c.id===clienteId)?.nome || '';
+  const displayNome = perfil?.nome || user.email;
+
+  return (
+    <div className="app">
+      <aside className="side">
+        <div className="logo"><div className="tile">M</div><b>muvuca</b></div>
+        <div className="switcher">
+          <label>Cliente</label>
+          <select value={clienteId||''} onChange={e=>setClienteId(Number(e.target.value))}>
+            {clientes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </div>
+        {MODULOS.map(m=>(
+          <button key={m.id} className={"nav"+(modulo===m.id?" on":"")} onClick={()=>setModulo(m.id)}>
+            <Icon name={m.id}/>{m.nome}
+          </button>
+        ))}
+        <div className="foot">
+          <div className="who">
+            <div className="av">{iniciais(displayNome)}</div>
+            <div className="id"><div className="nm">{displayNome}</div><div className="em">{perfil?.cargo || user.email}</div></div>
+          </div>
+          <button className="linkbtn" onClick={onSair}>Sair</button>
+        </div>
+      </aside>
+      <main className="main">
+        {status==='erro'
+          ? <div><div className="head"><div><h1>Ops</h1></div></div><div className="soon">{erro}</div></div>
+          : status==='loading'
+            ? <div className="empty">Carregando…</div>
+            : modulo==='projetos'
+              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} />
+            : modulo==='upload'
+              ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
+            : modulo==='community'
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} />
+              : <div>
+                  <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
+                  <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>
+                </div>}
+      </main>
+    </div>
+  );
+}
+
+function Gate({user, onSair}){
+  const [perfil, setPerfil] = useState(undefined);
+  const [erro, setErro] = useState('');
+  async function carregarPerfil(){
+    try{
+      const { data, error } = await sb.from('perfis').select('*').eq('id', user.id).maybeSingle();
+      if(error) throw error;
+      setPerfil(data || null);
+    }catch(e){ setErro(e.message||String(e)); }
+  }
+  useEffect(()=>{ carregarPerfil(); },[user.id]);
+  if(erro) return (
+    <div className="auth">
+      <h1>Ops</h1>
+      <p className="sub">{erro}</p>
+      <p style={{fontSize:13,color:'var(--muted)'}}>Se falar em "perfis", rode o SQL da tabela de perfis no Supabase e recarregue a página.</p>
+      <button className="btn" onClick={onSair}>Sair</button>
+    </div>
+  );
+  if(perfil===undefined) return <div className="empty" style={{paddingTop:'22vh'}}>Carregando…</div>;
+  if(!perfil || !perfil.onboarded) return <Onboarding user={user} onDone={carregarPerfil} />;
+  return <Painel user={user} perfil={perfil} onSair={onSair} />;
+}
+
+function App(){
+  const [session, setSession] = useState(undefined);
+  useEffect(()=>{
+    sb.auth.getSession().then(({data})=> setSession(data.session || null));
+    const { data } = sb.auth.onAuthStateChange((_e, s)=> setSession(s));
+    return ()=>{ data.subscription.unsubscribe(); };
+  },[]);
+  if(session===undefined) return <div className="empty" style={{paddingTop:'22vh'}}>Carregando…</div>;
+  if(!session) return <Auth/>;
+  return <Gate user={session.user} onSair={()=>sb.auth.signOut()} />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
