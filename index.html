@@ -204,36 +204,52 @@ function Auth(){
 }
 
 function Onboarding({user, onDone}){
-  const [nome, setNome] = useState('');
-  const [cargo, setCargo] = useState('');
+  const [f, setF] = useState({nome:'', cargo:'', equipe:'', telefone:''});
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
+  const set = (k,v)=>setF(p=>({...p,[k]:v}));
   async function concluir(){
     setErro('');
-    if(!nome.trim()){ setErro('Como podemos te chamar?'); return; }
+    if(!f.nome.trim()){ setErro('Como podemos te chamar?'); return; }
     setBusy(true);
-    const { error } = await sb.from('perfis').upsert({ id:user.id, nome:nome.trim(), cargo:cargo.trim()||null, onboarded:true });
+    const { error } = await sb.from('perfis').upsert({
+      id: user.id,
+      nome: f.nome.trim(),
+      cargo: f.cargo.trim() || null,
+      equipe: f.equipe.trim() || null,
+      telefone: f.telefone.trim() || null,
+      onboarded: true
+    });
     setBusy(false);
     if(error){ setErro('Não consegui salvar: '+error.message); return; }
     onDone();
   }
+  const enter = e => e.key==='Enter' && concluir();
   return (
     <div className="auth">
       <div className="tile">M</div>
       <h1>Bem-vindo ao MUVUCA 👋</h1>
-      <p className="sub">Falta só um passo pra deixar tudo do seu jeito.</p>
+      <p className="sub">Complete seu cadastro para deixarmos tudo do seu jeito.</p>
       {erro && <div className="err">{erro}</div>}
       <div className="grp">
-        <label>Seu nome</label>
-        <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Como podemos te chamar?" onKeyDown={e=>e.key==='Enter'&&concluir()} autoFocus />
-      </div>
-      <div className="grp">
-        <label>Cargo / função <span className="opt">(opcional)</span></label>
-        <input value={cargo} onChange={e=>setCargo(e.target.value)} placeholder="Ex.: Social Media, Community Manager" onKeyDown={e=>e.key==='Enter'&&concluir()} />
+        <label>Nome</label>
+        <input value={f.nome} onChange={e=>set('nome',e.target.value)} placeholder="Como podemos te chamar?" onKeyDown={enter} autoFocus />
       </div>
       <div className="grp">
         <label>Email</label>
         <input className="ro" value={user.email} readOnly />
+      </div>
+      <div className="grp">
+        <label>Cargo / função <span className="opt">(opcional)</span></label>
+        <input value={f.cargo} onChange={e=>set('cargo',e.target.value)} placeholder="Ex.: Social Media, Community Manager" onKeyDown={enter} />
+      </div>
+      <div className="grp">
+        <label>Equipe / squad <span className="opt">(opcional)</span></label>
+        <input value={f.equipe} onChange={e=>set('equipe',e.target.value)} placeholder="Ex.: Squad Odin" onKeyDown={enter} />
+      </div>
+      <div className="grp">
+        <label>Telefone <span className="opt">(opcional)</span></label>
+        <input value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="(11) 99999-9999" onKeyDown={enter} />
       </div>
       <button className="btn brand full" disabled={busy} onClick={concluir}>{busy ? 'Salvando…' : 'Entrar no MUVUCA'}</button>
     </div>
@@ -452,7 +468,7 @@ function Painel({user, perfil, onSair}){
         <div className="foot">
           <div className="who">
             <div className="av">{iniciais(displayNome)}</div>
-            <div className="id"><div className="nm">{displayNome}</div><div className="em">{user.email}</div></div>
+            <div className="id"><div className="nm">{displayNome}</div><div className="em">{perfil?.cargo || user.email}</div></div>
           </div>
           <button className="linkbtn" onClick={onSair}>Sair</button>
         </div>
