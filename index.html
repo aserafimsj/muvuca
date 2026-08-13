@@ -139,6 +139,9 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
+/* ============================================================
+   CONFIG & CONSTANTES
+   ============================================================ */
 const SUPABASE_URL = "https://fkhbjpyoajkadpfjexkb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZraGJqcHlvYWprYWRwZmpleGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2OTk0MTAsImV4cCI6MjA5OTI3NTQxMH0.LbCy66DxNry2Ybd0c5yM4lvw7A3QOGDhaFtCrpj0y7I";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -162,6 +165,9 @@ const ANALITICOS = [
   { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
 ];
 
+/* ============================================================
+   HELPERS DE UI (ícones, iniciais, cores, tradução de erros)
+   ============================================================ */
 function Icon({name}){
   const p = {fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round'};
   const paths = {
@@ -195,6 +201,9 @@ function traduzErro(m){
   return m ? ('Erro: '+m) : 'Algo deu errado. Tente de novo.';
 }
 
+/* ============================================================
+   AUTENTICAÇÃO & ONBOARDING
+   ============================================================ */
 function Auth(){
   const [modo, setModo] = useState('login');
   const [email, setEmail] = useState('');
@@ -299,9 +308,13 @@ function Onboarding({user, onDone}){
   );
 }
 
+/* ============================================================
+   COMMUNITY MANAGEMENT (linha, formulário e listagem)
+   ============================================================ */
 function Linha({it, cfg, onCampo}){
   const [aberto, setAberto] = useState(false);
   const [resp, setResp] = useState(it.resposta || "");
+  useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
   const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
   const rede = cfg.redes.find(r=>r.id===it.rede_id);
   const prod = cfg.produtos.find(pp=>pp.id===it.produto_id);
@@ -318,7 +331,7 @@ function Linha({it, cfg, onCampo}){
           {edit && <span className="tag">{edit.nome}</span>}
         </div>
         <div className="txt">{it.texto}</div>
-        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
+        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
         <div>
           <button className="btn" style={{marginTop:10,padding:'5px 10px'}} onClick={()=>setAberto(!aberto)}>
             {it.resposta ? 'Editar resposta' : 'Responder'}
@@ -440,6 +453,9 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
 }
 
 
+/* ============================================================
+   PROJETOS (navegação workspace › redes › centro de inteligência)
+   ============================================================ */
 function Crumb({trilha}){
   return (
     <div className="crumb">
@@ -562,6 +578,9 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
 }
 
 
+/* ============================================================
+   IMPORTAÇÃO DE PLANILHAS (helpers de parse + módulo Importar)
+   ============================================================ */
 function norm(t){
   return String(t||'').toLowerCase().replace(/\n/g,' ')
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
@@ -596,7 +615,7 @@ function mapaColunas(header){
     const pago = n.includes('pago') || n.includes('paga');
     const suf = pago ? '_pago' : '_org';
     if(n.startsWith('data')) m.data=i;
-    else if(n.includes('link')||n.includes('usuario')&&n.includes('link')) m.link=i;
+    else if(n.includes('link')) m.link=i;
     else if(n==='veiculo') m.veiculo=i;
     else if(n==='formato') m.formato=i;
     else if(n==='produto') m.produto=i;
@@ -749,6 +768,9 @@ function Importar({clienteId, cfg, onFim}){
   );
 }
 
+/* ============================================================
+   SHELL DA APLICAÇÃO (Painel, Gate de perfil e App raiz)
+   ============================================================ */
 function Painel({user, perfil, onSair}){
   const [status, setStatus] = useState('loading');
   const [erro, setErro] = useState('');
