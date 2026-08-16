@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --brand:#F5B301; --brand-ink:#3a2c00;
@@ -97,6 +98,15 @@
   .auth .toggle{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
   .auth .toggle button{background:none;border:none;color:#185FA5;text-decoration:underline;font-size:13px;width:auto;padding:0}
   .empty{text-align:center;color:var(--muted);padding:40px 0}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:36px;text-align:center;background:var(--panel);cursor:pointer}
+  .drop:hover{border-color:var(--brand);background:#FFFDF6}
+  .drop b{display:block;font-size:15px;margin-bottom:4px;color:var(--ink)}
+  .drop span{font-size:13px;color:var(--muted)}
+  .log{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px}
+  .log h3{margin:0 0 10px;font-size:14px}
+  .log ul{margin:0;padding-left:18px}
+  .log li{font-size:13px;color:#4a4a46;margin-bottom:4px}
+  .aviso{background:#FBF3D6;border-left:3px solid var(--brand);border-radius:8px;padding:11px 13px;font-size:13px;margin-top:12px}
   .crumb{display:flex;align-items:center;gap:7px;margin-bottom:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
   .crumb button{background:none;border:none;color:var(--muted);font-size:13px;padding:0;text-decoration:underline}
   .crumb button:hover{color:var(--ink)}
@@ -129,6 +139,9 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
+/* ============================================================
+   CONFIG & CONSTANTES
+   ============================================================ */
 const SUPABASE_URL = "https://fkhbjpyoajkadpfjexkb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZraGJqcHlvYWprYWRwZmpleGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2OTk0MTAsImV4cCI6MjA5OTI3NTQxMH0.LbCy66DxNry2Ybd0c5yM4lvw7A3QOGDhaFtCrpj0y7I";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -152,6 +165,9 @@ const ANALITICOS = [
   { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
 ];
 
+/* ============================================================
+   HELPERS DE UI (ícones, iniciais, cores, tradução de erros)
+   ============================================================ */
 function Icon({name}){
   const p = {fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round'};
   const paths = {
@@ -185,6 +201,9 @@ function traduzErro(m){
   return m ? ('Erro: '+m) : 'Algo deu errado. Tente de novo.';
 }
 
+/* ============================================================
+   AUTENTICAÇÃO & ONBOARDING
+   ============================================================ */
 function Auth(){
   const [modo, setModo] = useState('login');
   const [email, setEmail] = useState('');
@@ -289,9 +308,13 @@ function Onboarding({user, onDone}){
   );
 }
 
+/* ============================================================
+   COMMUNITY MANAGEMENT (linha, formulário e listagem)
+   ============================================================ */
 function Linha({it, cfg, onCampo}){
   const [aberto, setAberto] = useState(false);
   const [resp, setResp] = useState(it.resposta || "");
+  useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
   const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
   const rede = cfg.redes.find(r=>r.id===it.rede_id);
   const prod = cfg.produtos.find(pp=>pp.id===it.produto_id);
@@ -308,7 +331,7 @@ function Linha({it, cfg, onCampo}){
           {edit && <span className="tag">{edit.nome}</span>}
         </div>
         <div className="txt">{it.texto}</div>
-        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
+        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
         <div>
           <button className="btn" style={{marginTop:10,padding:'5px 10px'}} onClick={()=>setAberto(!aberto)}>
             {it.resposta ? 'Editar resposta' : 'Responder'}
@@ -430,6 +453,9 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
 }
 
 
+/* ============================================================
+   PROJETOS (navegação workspace › redes › centro de inteligência)
+   ============================================================ */
 function Crumb({trilha}){
   return (
     <div className="crumb">
@@ -443,7 +469,7 @@ function Crumb({trilha}){
   );
 }
 
-function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, onNovoCliente}){
+function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente}){
   const [rede, setRede] = useState(null);   // rede selecionada
   const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
   const cliente = clientes.find(c=>c.id===clienteId);
@@ -494,17 +520,18 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, onNovoCli
         <div className="grid">
           {cfg.redes.map(r=>{
             const coment = interacoes.filter(i=>i.rede_id===r.id).length;
+            const pubs = publicacoes.filter(p=>p.rede_id===r.id).length;
             return (
               <button key={r.id} className="tile2" onClick={()=>abrirRede(r)}>
                 <div className="top">
                   <div className="ic">{iniciais(r.nome)}</div>
                   <div style={{minWidth:0}}>
                     <div className="nm">{r.nome}</div>
-                    <span className={"badge "+(coment>0?'on':'off')}>{coment>0?'Com dados':'Sem dados'}</span>
+                    <span className={"badge "+((coment+pubs)>0?'on':'off')}>{(coment+pubs)>0?'Com dados':'Sem dados'}</span>
                   </div>
                 </div>
                 <div className="stats">
-                  <div><b>—</b>publicações</div>
+                  <div><b>{pubs}</b>publicações</div>
                   <div><b>{coment}</b>comentários</div>
                 </div>
                 <div className="go">Abrir →</div>
@@ -512,9 +539,7 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, onNovoCli
             );
           })}
         </div>
-        <p style={{fontSize:12,color:'var(--muted)',marginTop:14}}>
-          Publicações aparecem aqui depois que você importar a planilha (módulo Importar dados).
-        </p>
+
       </div>
     );
   }
@@ -552,6 +577,200 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, onNovoCli
   );
 }
 
+
+/* ============================================================
+   IMPORTAÇÃO DE PLANILHAS (helpers de parse + módulo Importar)
+   ============================================================ */
+function norm(t){
+  return String(t||'').toLowerCase().replace(/\n/g,' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function num(v){
+  if(v===null||v===undefined||v==='') return null;
+  if(typeof v==='number') return v;
+  const n = parseFloat(String(v).replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?null:n;
+}
+function toDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return null;
+}
+function acharCabecalho(linhas, chave){
+  for(let i=0;i<Math.min(linhas.length,12);i++){
+    const l = (linhas[i]||[]).map(norm);
+    if(l.some(c=>c.includes(chave))) return i;
+  }
+  return -1;
+}
+function mapaColunas(header){
+  const m = {};
+  header.forEach((h,i)=>{
+    const n = norm(h); if(!n) return;
+    const pago = n.includes('pago') || n.includes('paga');
+    const suf = pago ? '_pago' : '_org';
+    if(n.startsWith('data')) m.data=i;
+    else if(n.includes('link')) m.link=i;
+    else if(n==='veiculo') m.veiculo=i;
+    else if(n==='formato') m.formato=i;
+    else if(n==='produto') m.produto=i;
+    else if(n==='editoria') m.editoria=i;
+    else if(n.includes('statu')) m.status=i;
+    else if(n.includes('visualizac')) m['visu'+suf]=i;
+    else if(n.includes('alcance')) m['alcance'+suf]=i;
+    else if(n.includes('curtida')) m['curtidas'+suf]=i;
+    else if(n.includes('comentario')) m['coment'+suf]=i;
+    else if(n.includes('compartilha')) m['compart'+suf]=i;
+    else if(n.includes('salvamento')) m['salvos'+suf]=i;
+    else if(n.includes('engajamento total')) m['engaj'+suf]=i;
+    else if(n.includes('taxa')) m['tx_engaj'+suf]=i;
+  });
+  return m;
+}
+
+function Importar({clienteId, cfg, onFim}){
+  const [busy, setBusy] = useState(false);
+  const [rel, setRel] = useState(null);
+
+  function acharId(lista, nome){
+    const n = norm(nome);
+    const hit = lista.find(x=>norm(x.nome)===n);
+    return hit ? hit.id : null;
+  }
+  async function garantir(tabela, lista, nome, novos){
+    if(!nome) return null;
+    let id = acharId(lista, nome);
+    if(id) return id;
+    const { data, error } = await sb.from(tabela).insert({cliente_id:clienteId, nome:String(nome).trim()}).select().single();
+    if(error) return null;
+    lista.push(data); novos.push(String(nome).trim());
+    return data.id;
+  }
+
+  async function processar(file){
+    setBusy(true); setRel(null);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const redes = [...cfg.redes], produtos=[...cfg.produtos], editorias=[...cfg.editorias];
+      const sents = cfg.sentimentos;
+      const novosProd=[], novasEd=[], novasRedes=[];
+      let posts=0, dms=0, puladas=0;
+      const detalhes=[];
+
+      for(const sn of wb.SheetNames){
+        const linhas = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:false, cellDates:true, defval:''});
+        const n = norm(sn);
+
+        // ---------- PUBLICAÇÕES ----------
+        if(n.startsWith('resultados')){
+          const hi = acharCabecalho(linhas, 'formato');
+          if(hi<0) continue;
+          const cols = mapaColunas(linhas[hi]);
+          let conta=0;
+          for(let i=hi+1;i<linhas.length;i++){
+            const L = linhas[i]; if(!L) continue;
+            const data = toDate(L[cols.data]);
+            if(!data) continue;
+            const redeNome = L[cols.veiculo];
+            const rid = await garantir('redes', redes, redeNome, novasRedes);
+            const pid = await garantir('produtos', produtos, L[cols.produto], novosProd);
+            const eid = await garantir('editorias', editorias, L[cols.editoria], novasEd);
+            const rec = { cliente_id:clienteId, rede_id:rid, produto_id:pid, editoria_id:eid,
+              data_post:data, link:L[cols.link]||null, formato:L[cols.formato]||null, status:L[cols.status]||null };
+            for(const k of ['visu','alcance','curtidas','coment','compart','salvos','engaj','tx_engaj'])
+              for(const suf of ['_org','_pago'])
+                rec[k+suf] = cols[k+suf]!==undefined ? num(L[cols[k+suf]]) : null;
+            const { error } = await sb.from('publicacoes').insert(rec);
+            if(error) puladas++; else { posts++; conta++; }
+          }
+          if(conta) detalhes.push(conta+' publicações de '+sn.replace(/^Resultados\s*/i,''));
+        }
+
+        // ---------- DMs ----------
+        if(n.startsWith('dms')){
+          const hi = acharCabecalho(linhas, 'mensagem recebida');
+          if(hi<0) continue;
+          const H = linhas[hi].map(norm);
+          const idx = k => H.findIndex(h=>h.includes(k));
+          const cData=idx('data'), cVeic=idx('veiculo'), cUser=idx('usuario'), cProd=idx('produto'),
+                cSent=idx('sentimento'), cMsg=idx('mensagem recebida'), cResp=idx('resposta cm'), cStat=idx('statu');
+          let conta=0;
+          for(let i=hi+1;i<linhas.length;i++){
+            const L = linhas[i]; if(!L) continue;
+            const msg = cMsg>=0 ? String(L[cMsg]||'').trim() : '';
+            if(!msg) continue;
+            const rid = await garantir('redes', redes, L[cVeic], novasRedes);
+            const pid = await garantir('produtos', produtos, L[cProd], novosProd);
+            const sNome = norm(L[cSent]);
+            const sHit = sents.find(x=>norm(x.nome)===sNome);
+            const resposta = cResp>=0 ? String(L[cResp]||'').trim() : '';
+            const st = cStat>=0 ? norm(L[cStat]) : '';
+            const rec = { cliente_id:clienteId, rede_id:rid, produto_id:pid, origem:'DM',
+              sentimento_id: sHit?sHit.id:null, autor: cUser>=0?String(L[cUser]||'').trim()||null:null,
+              texto: msg, resposta: resposta||null,
+              triagem: (st.includes('respondido')||resposta) ? 'Respondido' : 'Pendente',
+              data_publicacao: toDate(L[cData]) };
+            const { error } = await sb.from('interacoes').insert(rec);
+            if(error) puladas++; else { dms++; conta++; }
+          }
+          if(conta) detalhes.push(conta+' DMs de "'+sn.trim()+'"');
+        }
+      }
+
+      setRel({posts, dms, puladas, detalhes, novosProd, novasEd, novasRedes});
+      onFim();
+    }catch(e){
+      setRel({erro: e.message||String(e)});
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Importar dados</h1><p>Suba a planilha de publicações ou a de DMs. O MUVUCA lê as abas sozinho.</p></div>
+      </div>
+      <label className="drop" style={{display:'block'}}>
+        <input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}}
+          onChange={e=>{ const f=e.target.files[0]; if(f) processar(f); e.target.value=''; }} disabled={busy} />
+        <b>{busy ? 'Importando…' : 'Clique aqui para escolher a planilha'}</b>
+        <span>Aceita .xlsx e .csv — abas "Resultados…" viram publicações, abas "DMs…" viram interações.</span>
+      </label>
+
+      {rel && rel.erro && <div className="log"><h3>Não consegui ler</h3><p style={{fontSize:13,color:'#A3241C'}}>{rel.erro}</p></div>}
+
+      {rel && !rel.erro && (
+        <div className="log">
+          <h3>Importação concluída ✅</h3>
+          <ul>
+            <li><b>{rel.posts}</b> publicações importadas</li>
+            <li><b>{rel.dms}</b> DMs importadas</li>
+            {rel.detalhes.map((d,i)=><li key={i}>{d}</li>)}
+            {rel.puladas>0 && <li>{rel.puladas} linha(s) não puderam ser gravadas</li>}
+          </ul>
+          {(rel.novosProd.length>0 || rel.novasEd.length>0 || rel.novasRedes.length>0) && (
+            <div className="aviso">
+              <b>⚠️ Nomes novos criados</b> — confira se não é erro de digitação:<br/>
+              {rel.novasRedes.length>0 && <>Redes: {rel.novasRedes.join(', ')}<br/></>}
+              {rel.novosProd.length>0 && <>Produtos: {rel.novosProd.join(', ')}<br/></>}
+              {rel.novasEd.length>0 && <>Editorias: {rel.novasEd.join(', ')}</>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   SHELL DA APLICAÇÃO (Painel, Gate de perfil e App raiz)
+   ============================================================ */
 function Painel({user, perfil, onSair}){
   const [status, setStatus] = useState('loading');
   const [erro, setErro] = useState('');
@@ -559,6 +778,7 @@ function Painel({user, perfil, onSair}){
   const [clienteId, setClienteId] = useState(null);
   const [cfg, setCfg] = useState({redes:[],produtos:[],editorias:[],sentimentos:[]});
   const [interacoes, setInteracoes] = useState([]);
+  const [publicacoes, setPublicacoes] = useState([]);
   const [modulo, setModulo] = useState('projetos');
 
   useEffect(()=>{
@@ -577,16 +797,18 @@ function Painel({user, perfil, onSair}){
   async function carregar(cid){
     setStatus('loading');
     try{
-      const [r,p,e,s,i] = await Promise.all([
+      const [r,p,e,s,i,pb] = await Promise.all([
         sb.from('redes').select('*').eq('cliente_id',cid).order('nome'),
         sb.from('produtos').select('*').eq('cliente_id',cid).order('nome'),
         sb.from('editorias').select('*').eq('cliente_id',cid).order('nome'),
         sb.from('categorias_sentimento').select('*').eq('cliente_id',cid).order('id'),
         sb.from('interacoes').select('*').eq('cliente_id',cid).order('id',{ascending:false}),
+        sb.from('publicacoes').select('*').eq('cliente_id',cid).order('data_post',{ascending:false}),
       ]);
       for(const x of [r,p,e,s,i]) if(x.error) throw x.error;
       setCfg({redes:r.data||[],produtos:p.data||[],editorias:e.data||[],sentimentos:s.data||[]});
       setInteracoes(i.data||[]);
+      setPublicacoes(pb.error ? [] : (pb.data||[]));
       setStatus('ready');
     }catch(ex){ setErro(ex.message||String(ex)); setStatus('erro'); }
   }
@@ -648,7 +870,9 @@ function Painel({user, perfil, onSair}){
           : status==='loading'
             ? <div className="empty">Carregando…</div>
             : modulo==='projetos'
-              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} onNovoCliente={novoCliente} />
+              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} />
+            : modulo==='upload'
+              ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
               ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} />
               : <div>
