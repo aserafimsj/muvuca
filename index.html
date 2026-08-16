@@ -191,6 +191,11 @@ function iniciais(txt){
 function corSent(nome){
   return {Positivo:'var(--pos)',Negativo:'var(--neg)',Neutro:'var(--neu)','Dúvida':'var(--duv)',Bot:'var(--bot)','Político':'var(--pol)'}[nome] || '#ccc';
 }
+// Endereço da própria página, sem hash nem parâmetros — é para cá que o
+// link de recuperação de senha traz o usuário de volta.
+function urlBase(){
+  return window.location.origin + window.location.pathname;
+}
 function traduzErro(m){
   m = (m||'').toLowerCase();
   if(m.includes('invalid login')) return 'Email ou senha incorretos.';
@@ -213,13 +218,21 @@ function Auth(){
   const [busy, setBusy] = useState(false);
   async function enviar(){
     setErro(''); setMsg('');
-    if(!email.trim() || !senha){ setErro('Preencha email e senha.'); return; }
-    if(senha.length < 6){ setErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if(!email.trim()){ setErro('Preencha seu email.'); return; }
+    if(modo!=='recuperar'){
+      if(!senha){ setErro('Preencha email e senha.'); return; }
+      if(senha.length < 6){ setErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    }
     setBusy(true);
     try{
       if(modo==='login'){
         const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: senha });
         if(error) setErro(traduzErro(error.message));
+      } else if(modo==='recuperar'){
+        const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: urlBase() });
+        if(error) setErro(traduzErro(error.message));
+        // Mensagem propositalmente neutra: não confirma se o email tem conta ou não.
+        else setMsg('Se existir uma conta com esse email, enviamos um link para você criar uma senha nova. Confira a caixa de entrada — e o spam também.');
       } else {
         const { data, error } = await sb.auth.signUp({ email: email.trim(), password: senha });
         if(error) setErro(traduzErro(error.message));
@@ -228,29 +241,80 @@ function Auth(){
     }catch(e){ setErro(traduzErro(e.message)); }
     setBusy(false);
   }
+  const trocar = m => { setModo(m); setErro(''); setMsg(''); };
+  const titulo = {login:'Entrar no MUVUCA', signup:'Criar sua conta', recuperar:'Esqueci minha senha'}[modo];
+  const sub = {
+    login:'Use seu email e senha.',
+    signup:'É rápido — email e uma senha de pelo menos 6 caracteres.',
+    recuperar:'Digite seu email e enviamos um link para você criar uma senha nova.'
+  }[modo];
+  const rotulo = {login:'Entrar', signup:'Criar conta', recuperar:'Enviar link de recuperação'}[modo];
   return (
     <div className="auth">
       <div className="tile">M</div>
-      <h1>{modo==='login' ? 'Entrar no MUVUCA' : 'Criar sua conta'}</h1>
-      <p className="sub">{modo==='login' ? 'Use seu email e senha.' : 'É rápido — email e uma senha de pelo menos 6 caracteres.'}</p>
+      <h1>{titulo}</h1>
+      <p className="sub">{sub}</p>
       {erro && <div className="err">{erro}</div>}
       {msg && <div className="ok">{msg}</div>}
       <div className="grp">
         <label>Email</label>
         <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" onKeyDown={e=>e.key==='Enter'&&enviar()} />
       </div>
-      <div className="grp">
-        <label>Senha</label>
-        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&enviar()} />
-      </div>
+      {modo!=='recuperar' && (
+        <div className="grp">
+          <label>Senha</label>
+          <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&enviar()} />
+          {modo==='login' && <button className="linkbtn" style={{marginTop:8}} onClick={()=>trocar('recuperar')}>Esqueci minha senha</button>}
+        </div>
+      )}
       <button className="btn brand full" disabled={busy} onClick={enviar}>
-        {busy ? 'Aguarde…' : (modo==='login' ? 'Entrar' : 'Criar conta')}
+        {busy ? 'Aguarde…' : rotulo}
       </button>
       <div className="toggle">
-        {modo==='login'
-          ? <span>Não tem conta? <button onClick={()=>{setModo('signup');setErro('');setMsg('');}}>Cadastre-se</button></span>
-          : <span>Já tem conta? <button onClick={()=>{setModo('login');setErro('');setMsg('');}}>Entrar</button></span>}
+        {modo==='login'     && <span>Não tem conta? <button onClick={()=>trocar('signup')}>Cadastre-se</button></span>}
+        {modo==='signup'    && <span>Já tem conta? <button onClick={()=>trocar('login')}>Entrar</button></span>}
+        {modo==='recuperar' && <span>Lembrou a senha? <button onClick={()=>trocar('login')}>Voltar para o login</button></span>}
       </div>
+    </div>
+  );
+}
+
+// Tela mostrada quando a pessoa volta pelo link de recuperação recebido por email.
+function NovaSenha({onPronto}){
+  const [senha, setSenha] = useState('');
+  const [senha2, setSenha2] = useState('');
+  const [erro, setErro] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function salvar(){
+    setErro('');
+    if(senha.length < 6){ setErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if(senha !== senha2){ setErro('As duas senhas não são iguais.'); return; }
+    setBusy(true);
+    try{
+      const { error } = await sb.auth.updateUser({ password: senha });
+      if(error){ setErro(traduzErro(error.message)); setBusy(false); return; }
+      // Limpa o token de recuperação da barra de endereço.
+      window.history.replaceState(null, '', urlBase());
+      onPronto();
+    }catch(e){ setErro(traduzErro(e.message)); }
+    setBusy(false);
+  }
+  const enter = e => e.key==='Enter' && salvar();
+  return (
+    <div className="auth">
+      <div className="tile">M</div>
+      <h1>Criar nova senha</h1>
+      <p className="sub">Escolha uma senha de pelo menos 6 caracteres.</p>
+      {erro && <div className="err">{erro}</div>}
+      <div className="grp">
+        <label>Nova senha</label>
+        <input type="password" value={senha} onChange={e=>setSenha(e.target.value)} placeholder="••••••••" onKeyDown={enter} autoFocus />
+      </div>
+      <div className="grp">
+        <label>Repita a nova senha</label>
+        <input type="password" value={senha2} onChange={e=>setSenha2(e.target.value)} placeholder="••••••••" onKeyDown={enter} />
+      </div>
+      <button className="btn brand full" disabled={busy} onClick={salvar}>{busy ? 'Salvando…' : 'Salvar nova senha'}</button>
     </div>
   );
 }
@@ -910,12 +974,19 @@ function Gate({user, onSair}){
 
 function App(){
   const [session, setSession] = useState(undefined);
+  // O link enviado por email volta para cá com "type=recovery" no endereço.
+  // Nesse caso mostramos a tela de nova senha em vez de entrar direto no painel.
+  const [recuperando, setRecuperando] = useState(()=> window.location.hash.includes('type=recovery'));
   useEffect(()=>{
     sb.auth.getSession().then(({data})=> setSession(data.session || null));
-    const { data } = sb.auth.onAuthStateChange((_e, s)=> setSession(s));
+    const { data } = sb.auth.onAuthStateChange((evento, s)=>{
+      if(evento==='PASSWORD_RECOVERY') setRecuperando(true);
+      setSession(s);
+    });
     return ()=>{ data.subscription.unsubscribe(); };
   },[]);
   if(session===undefined) return <div className="empty" style={{paddingTop:'22vh'}}>Carregando…</div>;
+  if(recuperando && session) return <NovaSenha onPronto={()=>setRecuperando(false)} />;
   if(!session) return <Auth/>;
   return <Gate user={session.user} onSair={()=>sb.auth.signOut()} />;
 }
