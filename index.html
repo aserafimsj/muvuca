@@ -431,6 +431,130 @@ function Linha({it, cfg, onCampo}){
   );
 }
 
+/* ---------- parser de texto colado (portado do Zmetrics) ----------
+   O texto copiado da tela do Instagram / Meta Business Suite vem com links
+   markdown [texto](url), nomes de usuário, barras de tempo/curtidas e botões.
+   A limpeza é estrutural: resolve os links (mantém o texto, descarta a URL);
+   tempo = número+unidade; curtidas = número+palavra; e uma linha só é
+   descartada se for INTEIRA ruído.
+
+   MARCA é um caractere de controle usado internamente para sinalizar
+   "esta linha é um nome de usuário vindo de um link markdown". Escrito como
+   String.fromCharCode de proposito: como literal ele fica invisivel no editor. */
+const MARCA = String.fromCharCode(1);
+
+const UI_UNIT = /(?:\d+\s*(?:segundos?|minutos?|horas?|dias?|semanas?|mes(?:es)?|m[eê]s|anos?|seg|min|hrs?|sem|s|h|d|m|a|w|y)\b|agora(?:\s+há\s+pouco)?|just\s+now|now|edit(?:ed|ado)?|\d[\d.,]*\s*(?:curtidas?|gostos?|likes?|coment[áa]rios?|respostas?|replies|partilhas?|compartilhamentos?|visualiza[çc][õo]es|views|rea[çc][õo]es|seguidor(?:es)?|followers?)|ver\s+(?:as\s+)?\d*\s*respostas?(?:\s*\(\s*\d+\s*\))?|ocultar\s+respostas?|hide\s+replies|ver\s+tradu[çc][ãa]o|see\s+translation|ver\s+mais|see\s+more|responder|reply|curtir|like|gostar|gosto|message|mensagem|gerenciar|editar|excluir|delete|seguir|follow|partilhar|share|traduzir|verificad\w*|verified)/giu;
+
+function isUiLine(line){
+  return line.replace(UI_UNIT, ' ').replace(/[\s·•|—–…]+/gu, '').trim() === '';
+}
+
+const HANDLE = /^@?([A-Za-z0-9._]{2,30})(?:\s+([\s\S]+))?$/;
+
+function parsePaste(raw){
+  let txt = raw.replace(/\[([^\]]*)\]\([^)]*\)/g, (_, t) => {
+    t = (t || '').trim();
+    return isUiLine(t) ? ' ' + t + ' ' : '\n' + MARCA + t + '\n';
+  });
+  txt = txt.replace(/https?:\/\/\S+/g, ' ');
+  const lines = txt.split(/\r?\n/)
+    .map(l => l.replace(/^[\s>]*[*\-–—•·]+\s*/, '').trim())
+    .filter(l => l.length > 0);
+  const out = [];
+  let pending = null;
+  const flush = () => { if(pending){ out.push(pending); pending = null; } };
+  for(const line of lines){
+    if(line[0] === MARCA){ flush(); pending = {author: line.slice(1).trim(), text: ''}; continue; }
+    if(isUiLine(line)) continue;
+    if(pending){ pending.text = line; out.push(pending); pending = null; continue; }
+    const m = line.match(HANDLE);
+    if(m && m[2] && m[2].trim()) out.push({author: m[1], text: m[2].trim()});
+    else out.push({author: '', text: line});
+  }
+  flush();
+  return out
+    .map(c => ({author: c.author || '', text: (c.text || '').trim()}))
+    .filter(c => c.text)
+    .map((c, i) => ({id: i + 1, author: c.author, text: c.text}));
+}
+
+/* ---------- colar em lote ----------
+   Duas etapas: colar e revisar. O parser erra às vezes, porque o texto
+   copiado da tela varia muito — então nada vai para o banco antes de a
+   pessoa conferir como cada comentário foi separado. */
+function ColarLote({cfg, clienteId, onAddLote}){
+  const [raw, setRaw] = useState('');
+  const [linhas, setLinhas] = useState(null);
+  const [rede, setRede] = useState('');
+  const [origem, setOrigem] = useState('Feed');
+  const [link, setLink] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  function separar(){
+    const r = parsePaste(raw);
+    if(!r.length){ alert('Não encontrei nenhum comentário nesse texto.'); return; }
+    setLinhas(r);
+  }
+  const upd = (id, campo, valor) => setLinhas(p => p.map(x => x.id===id ? {...x, [campo]:valor} : x));
+  const remover = id => setLinhas(p => p.filter(x => x.id !== id));
+  const validas = linhas ? linhas.filter(l => l.text.trim()) : [];
+
+  async function salvar(){
+    if(!validas.length){ alert('Nenhum comentário para adicionar.'); return; }
+    setSalvando(true);
+    const ok = await onAddLote(validas.map(l => ({
+      cliente_id: clienteId,
+      autor: l.author || null,
+      texto: l.text,
+      link_conteudo: link || null,
+      origem,
+      rede_id: rede ? Number(rede) : null,
+      produto_id: null, editoria_id: null, sentimento_id: null,
+      triagem: 'Pendente'
+    })));
+    setSalvando(false);
+    if(ok){ setRaw(''); setLinhas(null); setLink(''); }
+  }
+
+  if(linhas) return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:4}}>Revisar — {linhas.length} comentário(s)</div>
+      <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Confira como cada um foi separado. Corrija o que estiver errado e remova o que não for comentário. Nada foi salvo ainda.</div>
+      <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:320,overflowY:'auto',marginBottom:12}}>
+        {linhas.map(l => (
+          <div key={l.id} style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+            <input value={l.author} onChange={e=>upd(l.id,'author',e.target.value)} placeholder="autor" style={{flex:'0 0 150px'}} />
+            <textarea value={l.text} onChange={e=>upd(l.id,'text',e.target.value)} style={{flex:1,minHeight:38}} />
+            <button className="btn" title="Remover" onClick={()=>remover(l.id)} style={{flex:'none'}}>×</button>
+          </div>
+        ))}
+      </div>
+      <div className="addgrid" style={{marginBottom:12}}>
+        <label className="field"><span>Rede (vale para o lote)</span>
+          <select value={rede} onChange={e=>setRede(e.target.value)}><option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
+        <label className="field"><span>Origem</span>
+          <select value={origem} onChange={e=>setOrigem(e.target.value)}><option>Feed</option><option>DM</option></select></label>
+        <label className="field"><span>Link do conteúdo (opcional)</span>
+          <input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://…" /></label>
+      </div>
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn brand" disabled={salvando||!validas.length} onClick={salvar}>{salvando?'Salvando…':'Adicionar '+validas.length+' comentário(s)'}</button>
+        <button className="btn" disabled={salvando} onClick={()=>setLinhas(null)}>Voltar</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:4}}>Colar comentários em lote</div>
+      <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Copie o bloco de comentários da tela e cole abaixo. O sistema separa autor e texto e descarta o ruído da interface — tempo, "Responder", curtidas.</div>
+      <label className="field" style={{marginBottom:12}}>
+        <textarea value={raw} onChange={e=>setRaw(e.target.value)} style={{minHeight:150}} placeholder={'mariana.invest\nQuando o Tesouro Reserva chega no meu banco?\n2 d\nResponder'} /></label>
+      <button className="btn brand" disabled={!raw.trim()} onClick={separar}>Separar comentários →</button>
+    </div>
+  );
+}
+
 function Adicionar({cfg, clienteId, onAdd}){
   const vazio = {autor:'',texto:'',link_conteudo:'',origem:'Feed',rede_id:'',produto_id:'',editoria_id:'',sentimento_id:''};
   const [f, setF] = useState(vazio);
@@ -472,11 +596,12 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
-function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
+function Community({cfg, interacoes, clienteId, onCampo, onAdd, onAddLote}){
   const [busca, setBusca] = useState('');
   const [fOrigem, setFOrigem] = useState('');
   const [fSent, setFSent] = useState('');
   const [mostrarAdd, setMostrarAdd] = useState(false);
+  const [mostrarColar, setMostrarColar] = useState(false);
   const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
   const total = interacoes.length;
   const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
@@ -492,7 +617,10 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
     <div>
       <div className="head">
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
-        <button className="btn brand" onClick={()=>setMostrarAdd(!mostrarAdd)}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
+          <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
+        </div>
       </div>
       <div className="cards">
         <div className="card"><div className="lbl">Total</div><div className="val">{total}</div></div>
@@ -500,6 +628,7 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
         <div className="card"><div className="lbl">Dúvidas</div><div className="val">{duv}</div></div>
         <div className="card"><div className="lbl">Negativos</div><div className="val">{neg}</div></div>
       </div>
+      {mostrarColar && <ColarLote cfg={cfg} clienteId={clienteId} onAddLote={onAddLote} />}
       {mostrarAdd && <Adicionar cfg={cfg} clienteId={clienteId} onAdd={onAdd} />}
       <div className="filters">
         <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor ou texto…" />
@@ -888,6 +1017,15 @@ function Painel({user, perfil, onSair}){
     setInteracoes(prev=>[data,...prev]);
     return true;
   }
+  // Lote: uma única inserção. Se qualquer linha falhar, o Postgres desfaz
+  // todas — melhor do que gravar metade e deixar o usuário sem saber quais.
+  async function onAddLote(payloads){
+    if(!payloads.length) return false;
+    const {data,error} = await sb.from('interacoes').insert(payloads).select();
+    if(error){ alert('Erro ao adicionar o lote: '+error.message+'\nNenhum comentário foi salvo.'); return false; }
+    setInteracoes(prev=>[...(data||[]).slice().reverse(), ...prev]);
+    return true;
+  }
 
   async function novoCliente(nome){
     const { data, error } = await sb.from('clientes').insert({nome}).select().single();
@@ -938,7 +1076,7 @@ function Painel({user, perfil, onSair}){
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
-              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} />
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>
