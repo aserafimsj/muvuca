@@ -449,7 +449,13 @@ function isUiLine(line){
   return line.replace(UI_UNIT, ' ').replace(/[\s·•|—–…]+/gu, '').trim() === '';
 }
 
-const HANDLE = /^@?([A-Za-z0-9._]{2,30})(?:\s+([\s\S]+))?$/;
+/* Linha que é SÓ um nome de usuário. É assim que o Instagram Web entrega:
+   uma linha com o @, a linha seguinte com o comentário. */
+const SO_USUARIO = /^@?([A-Za-z0-9._]{2,30})$/;
+/* "handle + texto na mesma linha" só conta como autor quando há @ explícito.
+   Sem essa exigência, "Quando o Tesouro Reserva…" virava autor="Quando", e um
+   comentário que MENCIONA alguém era atribuído a quem foi mencionado. */
+const HANDLE = /^@([A-Za-z0-9._]{2,30})\s+([\s\S]+)$/;
 
 function parsePaste(raw){
   let txt = raw.replace(/\[([^\]]*)\]\([^)]*\)/g, (_, t) => {
@@ -467,6 +473,8 @@ function parsePaste(raw){
     if(line[0] === MARCA){ flush(); pending = {author: line.slice(1).trim(), text: ''}; continue; }
     if(isUiLine(line)) continue;
     if(pending){ pending.text = line; out.push(pending); pending = null; continue; }
+    const so = line.match(SO_USUARIO);
+    if(so){ pending = {author: so[1], text: ''}; continue; }
     const m = line.match(HANDLE);
     if(m && m[2] && m[2].trim()) out.push({author: m[1], text: m[2].trim()});
     else out.push({author: '', text: line});
