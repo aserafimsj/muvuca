@@ -486,6 +486,83 @@ function parsePaste(raw){
     .map((c, i) => ({id: i + 1, author: c.author, text: c.text}));
 }
 
+/* ---------- classificação por IA ----------
+   Coletar e classificar são coisas separadas de propósito. Importar não gasta
+   nada; classificar gasta — por isso só acontece quando a pessoa manda, vendo
+   antes quantos comentários e quanto deve custar. */
+
+// Preços por milhão de tokens. Ajuste se a tabela da Anthropic mudar.
+const PRECO_ENTRADA = 3, PRECO_SAIDA = 15;
+// Estimativa por comentário, antes de rodar. O prompt de sistema vai uma vez
+// por lote de 4, então o custo por comentário já inclui essa fatia.
+const CUSTO_ESTIMADO_POR_COMENTARIO = 0.002;
+
+const semAcento = s => (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function idPorNome(lista, nome){
+  if(!nome) return null;
+  const n = semAcento(nome);
+  const hit = (lista||[]).find(x => semAcento(x.nome) === n);
+  return hit ? hit.id : null;
+}
+// A IA devolve o produto em minúsculo; o banco guarda o nome de exibição.
+const PRODUTO_DA_IA = {selic:'Selic', prefixado:'Prefixado', ipca:'IPCA+', reserva:'Reserva', educa:'Educa+', nenhum:null};
+
+function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
+  const [rodando, setRodando] = useState(false);
+  const [progresso, setProgresso] = useState({feitos:0, total:0});
+  const [resumo, setResumo] = useState(null);
+
+  // Só entram os que ainda não têm sentimento. Quem já foi classificado — pela
+  // IA ou à mão — fica de fora: nunca reclassificamos por cima.
+  const alvos = interacoes.filter(i => !i.sentimento_id);
+  const custo = (alvos.length * CUSTO_ESTIMADO_POR_COMENTARIO).toFixed(2);
+
+  async function rodar(){
+    setRodando(true); setResumo(null); setProgresso({feitos:0, total:alvos.length});
+    const r = await onClassificar(alvos, feitos => setProgresso({feitos, total:alvos.length}));
+    setRodando(false); setResumo(r);
+  }
+
+  return (
+    <div className="addwrap" style={{marginBottom:14}}>
+      <div style={{fontWeight:600,marginBottom:8}}>Classificar com IA</div>
+
+      {resumo ? (
+        <div>
+          <div style={{fontSize:13,marginBottom:10,lineHeight:1.6}}>
+            <div>{resumo.ok} comentário(s) classificado(s).</div>
+            {resumo.juridico > 0 && <div style={{color:'var(--neu)',fontWeight:600}}>⚠️ {resumo.juridico} marcado(s) pela IA como tema sensível — revise antes de responder.</div>}
+            {resumo.falhas > 0 && <div style={{color:'var(--neg)'}}>{resumo.falhas} não puderam ser classificados. Pode rodar de novo.</div>}
+            {resumo.tokens && <div style={{color:'var(--muted)',fontSize:12,marginTop:6}}>Custo real: US$ {resumo.custoReal} · {resumo.tokens.entrada.toLocaleString('pt-BR')} tokens de entrada, {resumo.tokens.saida.toLocaleString('pt-BR')} de saída</div>}
+            {resumo.erro && <div style={{color:'var(--neg)',marginTop:6}}>{resumo.erro}</div>}
+          </div>
+          <button className="btn" onClick={()=>{setResumo(null); onFechar();}}>Fechar</button>
+        </div>
+      ) : rodando ? (
+        <div style={{fontSize:13}}>
+          <div style={{marginBottom:8}}>Classificando {progresso.feitos} de {progresso.total}…</div>
+          <div style={{height:6,background:'var(--line)',borderRadius:99,overflow:'hidden'}}>
+            <div style={{height:'100%',width:(progresso.total?(progresso.feitos/progresso.total)*100:0)+'%',background:'var(--brand)',transition:'width .2s'}} />
+          </div>
+          <div style={{color:'var(--muted)',marginTop:8,fontSize:12}}>Não feche a aba até terminar.</div>
+        </div>
+      ) : (
+        <div>
+          <div style={{fontSize:13,marginBottom:12,lineHeight:1.6}}>
+            <div><b>{alvos.length}</b> comentário(s) sem classificação, do cliente <b>{clienteNome}</b>.</div>
+            <div style={{color:'var(--muted)'}}>Custo estimado: <b>US$ {custo}</b>. É estimativa — o valor real aparece ao terminar.</div>
+            <div style={{color:'var(--muted)',marginTop:6}}>A IA preenche sentimento, produto e um rascunho de resposta. <b>Só preenche o que está vazio</b> — nada que você editou à mão é sobrescrito. A triagem (Pendente/Respondido) não é alterada.</div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn brand" onClick={rodar}>Classificar {alvos.length}</button>
+            <button className="btn" onClick={onFechar}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- colar em lote ----------
    Duas etapas: colar e revisar. O parser erra às vezes, porque o texto
    copiado da tela varia muito — então nada vai para o banco antes de a
@@ -604,12 +681,14 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
-function Community({cfg, interacoes, clienteId, onCampo, onAdd, onAddLote}){
+function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar}){
   const [busca, setBusca] = useState('');
   const [fOrigem, setFOrigem] = useState('');
   const [fSent, setFSent] = useState('');
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [mostrarColar, setMostrarColar] = useState(false);
+  const [mostrarIA, setMostrarIA] = useState(false);
+  const semClass = interacoes.filter(i=>!i.sentimento_id).length;
   const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
   const total = interacoes.length;
   const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
@@ -626,7 +705,8 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd, onAddLote}){
       <div className="head">
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
-          <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
+          <button className="btn" disabled={!semClass} title={semClass?'':'Nenhum comentário sem classificação'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
+          <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false); setMostrarIA(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
           <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
         </div>
       </div>
@@ -636,6 +716,7 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd, onAddLote}){
         <div className="card"><div className="lbl">Dúvidas</div><div className="val">{duv}</div></div>
         <div className="card"><div className="lbl">Negativos</div><div className="val">{neg}</div></div>
       </div>
+      {mostrarIA && <ClassificarIA interacoes={interacoes} clienteNome={clienteNome} onClassificar={onClassificar} onFechar={()=>setMostrarIA(false)} />}
       {mostrarColar && <ColarLote cfg={cfg} clienteId={clienteId} onAddLote={onAddLote} />}
       {mostrarAdd && <Adicionar cfg={cfg} clienteId={clienteId} onAdd={onAdd} />}
       <div className="filters">
@@ -1035,6 +1116,67 @@ function Painel({user, perfil, onSair}){
     return true;
   }
 
+  /* Classifica em lotes de 4. Regra fundamental: o humano sempre vence — só
+     preenchemos campo que está vazio, nunca sobrescrevemos o que alguém editou.
+     A triagem não é tocada: no MUVUCA ela é estado de trabalho
+     (Pendente/Respondido), não recomendação da IA. */
+  async function onClassificar(alvos, aoProgredir){
+    const TAM = 4;
+    let ok = 0, falhas = 0, juridico = 0, entrada = 0, saida = 0, erro = '';
+
+    for(let i = 0; i < alvos.length; i += TAM){
+      const lote = alvos.slice(i, i + TAM);
+      try {
+        const resp = await fetch('/api/classify', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            cliente: clienteNome,
+            batch: lote.map(it => ({id: it.id, autor: it.autor, texto: it.texto}))
+          })
+        });
+        if(!resp.ok){
+          let msg = 'Falha na classificação ('+resp.status+')';
+          try { const j = await resp.json(); if(j.error) msg = j.error; } catch(e){}
+          throw new Error(msg);
+        }
+        const {results, uso} = await resp.json();
+        if(uso){ entrada += uso.input_tokens || 0; saida += uso.output_tokens || 0; }
+
+        for(const it of lote){
+          const r = (results || []).find(x => x.i === it.id);
+          if(!r){ falhas++; continue; }
+          if(r.needsLegal) juridico++;
+
+          const mud = {};
+          if(!it.sentimento_id){
+            const sid = idPorNome(cfg.sentimentos, r.sentimento);
+            if(sid) mud.sentimento_id = sid;
+          }
+          if(!it.produto_id){
+            const nome = PRODUTO_DA_IA[semAcento(r.produto)];
+            const pid = nome ? idPorNome(cfg.produtos, nome) : null;
+            if(pid) mud.produto_id = pid;
+          }
+          if(!String(it.resposta || '').trim() && r.rascunho) mud.resposta = r.rascunho;
+
+          if(!Object.keys(mud).length){ ok++; continue; }
+          const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
+          if(error){ falhas++; continue; }
+          setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
+          ok++;
+        }
+      } catch(e){
+        falhas += lote.length;
+        if(!erro) erro = String(e.message || e);
+      }
+      if(aoProgredir) aoProgredir(Math.min(i + TAM, alvos.length));
+    }
+
+    const custoReal = ((entrada/1e6)*PRECO_ENTRADA + (saida/1e6)*PRECO_SAIDA).toFixed(4);
+    return {ok, falhas, juridico, erro, custoReal, tokens: (entrada||saida) ? {entrada, saida} : null};
+  }
+
   async function novoCliente(nome){
     const { data, error } = await sb.from('clientes').insert({nome}).select().single();
     if(error){ alert('Erro ao criar cliente: '+error.message); return; }
@@ -1084,7 +1226,7 @@ function Painel({user, perfil, onSair}){
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
-              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} />
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>
