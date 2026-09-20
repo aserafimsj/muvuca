@@ -16,7 +16,7 @@ const LOTE_MAXIMO = 40;
 
 // Muda a cada alteração desta função. Serve para saber, de fora, QUAL versão a
 // hospedagem está servindo — sem isso, "já publicou?" vira adivinhação.
-const VERSAO = "2026-09-20-c";
+const VERSAO = "2026-09-20-d";
 
 // Regras específicas do Tesouro Direto. Produto financeiro público tem
 // exigências de linguagem que não valem para outros clientes.
@@ -146,7 +146,16 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         // Para cortar custo, troque por "claude-haiku-4-5" (mais barato e rápido).
         model: "claude-sonnet-5",
-        max_tokens: 2000,
+        // Sem este campo o modelo LIGA O RACIOCÍNIO SOZINHO, e o raciocínio
+        // gasta do mesmo teto de max_tokens da resposta. Era essa a causa da
+        // falha silenciosa: o pensamento comia o teto, o JSON vinha cortado no
+        // meio e a função devolvia lista vazia com status 200. Classificar
+        // comentário com regra escrita não precisa de raciocínio — desligar
+        // corrige a falha E sai mais barato.
+        thinking: { type: "disabled" },
+        // Teto de segurança, não orçamento: só se paga o que for realmente
+        // gerado. Deixar folgado não custa nada e evita corte no meio.
+        max_tokens: 8000,
         system: montarSystem(body.cliente),
         messages: [
           {
@@ -164,14 +173,57 @@ module.exports = async function handler(req, res) {
       res.status(502).json({ error: data.error.message || "Erro na API da Anthropic" });
       return;
     }
+    // Erro que não veio no formato esperado (gateway, HTML de proxy). Sem isto,
+    // um corpo estranho seguiria adiante e viraria "lista vazia" mais abaixo.
+    if (!r.ok) {
+      res.status(502).json({ error: `A API da Anthropic respondeu ${r.status} sem detalhar o motivo. (versão ${VERSAO})` });
+      return;
+    }
+
+    // A resposta foi cortada por falta de espaço: o JSON está pela metade e
+    // NÃO dá para aproveitar. Antes isso virava lista vazia com status 200 —
+    // o lote inteiro falhava em silêncio, já cobrado. Agora é erro explícito.
+    if (data.stop_reason === "max_tokens") {
+      res.status(502).json({
+        error:
+          `A resposta da IA foi cortada por tamanho (lote de ${batch.length}). ` +
+          `Tente um lote menor. (versão ${VERSAO})`,
+      });
+      return;
+    }
+    // A IA recusou o conteúdo. Sem este aviso viraria "lista vazia" também.
+    if (data.stop_reason === "refusal") {
+      res.status(502).json({ error: `A IA recusou classificar este lote por política de conteúdo. (versão ${VERSAO})` });
+      return;
+    }
 
     const text = (data.content || [])
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("\n");
+
     const ini = text.indexOf("[");
     const fim = text.lastIndexOf("]");
-    const results = ini !== -1 && fim !== -1 ? JSON.parse(text.slice(ini, fim + 1)) : [];
+    if (ini === -1 || fim === -1 || fim < ini) {
+      res.status(502).json({
+        error:
+          "A IA respondeu em um formato inesperado (não veio a lista JSON). " +
+          `Início da resposta: ${JSON.stringify(text.slice(0, 120))} (versão ${VERSAO})`,
+      });
+      return;
+    }
+
+    let results;
+    try {
+      results = JSON.parse(text.slice(ini, fim + 1));
+    } catch (e) {
+      res.status(502).json({ error: `A lista devolvida pela IA não é um JSON válido: ${e.message} (versão ${VERSAO})` });
+      return;
+    }
+    if (!Array.isArray(results)) {
+      res.status(502).json({ error: `A IA devolveu ${typeof results} em vez de uma lista. (versão ${VERSAO})` });
+      return;
+    }
 
     // uso real devolvido pela API — permite mostrar custo verdadeiro, não só estimativa
     const uso = data.usage || null;
