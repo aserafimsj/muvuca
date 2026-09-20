@@ -14,6 +14,10 @@
 
 const LOTE_MAXIMO = 40;
 
+// Muda a cada alteração desta função. Serve para saber, de fora, QUAL versão a
+// hospedagem está servindo — sem isso, "já publicou?" vira adivinhação.
+const VERSAO = "2026-09-20-c";
+
 // Regras específicas do Tesouro Direto. Produto financeiro público tem
 // exigências de linguagem que não valem para outros clientes.
 const REGRAS_TESOURO_DIRETO = `
@@ -56,7 +60,31 @@ Cada item tem um "i". Devolva um objeto por item:
 Responda APENAS com um array JSON na mesma ordem. Sem markdown.`;
 }
 
+// Informações de ambiente úteis para diagnóstico. NUNCA inclui valor de chave —
+// só nomes de variáveis e o tamanho da chave, que não permite reconstruí-la.
+function diagnostico() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  return {
+    versao: VERSAO,
+    chave_encontrada: !!key,
+    chave_tamanho: key ? key.length : 0,
+    ambiente: process.env.VERCEL_ENV || null,
+    projeto: process.env.VERCEL_PROJECT_PRODUCTION_URL || null,
+    deploy: process.env.VERCEL_URL || null,
+    branch: process.env.VERCEL_GIT_COMMIT_REF || null,
+    commit: process.env.VERCEL_GIT_COMMIT_SHA ? process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7) : null,
+    variaveis_anthropic: Object.keys(process.env).filter((k) => /anthropic/i.test(k)),
+  };
+}
+
 module.exports = async function handler(req, res) {
+  // Abrir o endereço no navegador (GET) devolve a ficha de diagnóstico. É o
+  // único jeito de o dono do projeto, que não é programador, conferir sozinho
+  // qual versão está no ar e se a chave chegou — sem gastar nada com a IA.
+  if (req.method === "GET") {
+    res.status(200).json(diagnostico());
+    return;
+  }
   if (req.method !== "POST") {
     res.status(405).json({ error: "Use POST" });
     return;
@@ -68,6 +96,7 @@ module.exports = async function handler(req, res) {
     // sido configurada no projeto errado, no ambiente errado, ou sem
     // republicar. Dizer ONDE a função está procurando resolve em segundos.
     const onde = [
+      "versão " + VERSAO,
       process.env.VERCEL_ENV ? "ambiente: " + process.env.VERCEL_ENV : null,
       process.env.VERCEL_URL ? "deploy: " + process.env.VERCEL_URL : null,
       process.env.VERCEL_GIT_COMMIT_REF ? "branch: " + process.env.VERCEL_GIT_COMMIT_REF : null,
