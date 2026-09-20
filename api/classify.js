@@ -64,7 +64,28 @@ module.exports = async function handler(req, res) {
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    res.status(500).json({ error: "ANTHROPIC_API_KEY não configurada na hospedagem." });
+    // Diagnóstico: quando a chave não aparece, o motivo quase sempre é ter
+    // sido configurada no projeto errado, no ambiente errado, ou sem
+    // republicar. Dizer ONDE a função está procurando resolve em segundos.
+    const onde = [
+      process.env.VERCEL_ENV ? "ambiente: " + process.env.VERCEL_ENV : null,
+      process.env.VERCEL_URL ? "deploy: " + process.env.VERCEL_URL : null,
+      process.env.VERCEL_GIT_COMMIT_REF ? "branch: " + process.env.VERCEL_GIT_COMMIT_REF : null,
+    ].filter(Boolean).join(" · ");
+    // Nomes parecidos já configurados por engano (nunca mostra o valor).
+    // Só ANTHROPIC*, para pegar erros de digitação como "anthropic_api_key",
+    // "ANTHROPIC_KEY" ou um espaço sobrando no fim do nome.
+    const parecidas = Object.keys(process.env)
+      .filter((k) => /anthropic/i.test(k) && k !== "ANTHROPIC_BASE_URL")
+      .slice(0, 5)
+      .map((k) => '"' + k + '"')
+      .join(", ");
+    res.status(500).json({
+      error:
+        "ANTHROPIC_API_KEY não configurada na hospedagem." +
+        (onde ? " (" + onde + ")" : "") +
+        (parecidas ? " Variáveis parecidas encontradas: " + parecidas + "." : " Nenhuma variável parecida foi encontrada neste deploy."),
+    });
     return;
   }
 
