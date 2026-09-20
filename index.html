@@ -512,9 +512,14 @@ function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
   const [progresso, setProgresso] = useState({feitos:0, total:0});
   const [resumo, setResumo] = useState(null);
 
-  // Só entram os que ainda não têm sentimento. Quem já foi classificado — pela
-  // IA ou à mão — fica de fora: nunca reclassificamos por cima.
-  const alvos = interacoes.filter(i => !i.sentimento_id);
+  // Quem pode receber ajuda da IA: qualquer comentário em que ALGUM dos campos
+  // que ela preenche ainda esteja vazio. Usar só "não tem sentimento" era
+  // grosseiro demais — quem definia o sentimento à mão ficava sem poder pedir
+  // o rascunho de resposta, que é justamente o que faltava.
+  const faltaAlgo = i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim();
+  const alvos = interacoes.filter(faltaAlgo);
+  const semSent = alvos.filter(i => !i.sentimento_id).length;
+  const semResp = alvos.filter(i => !String(i.resposta||'').trim()).length;
   const custo = (alvos.length * CUSTO_ESTIMADO_POR_COMENTARIO).toFixed(2);
 
   async function rodar(){
@@ -549,9 +554,14 @@ function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
       ) : (
         <div>
           <div style={{fontSize:13,marginBottom:12,lineHeight:1.6}}>
-            <div><b>{alvos.length}</b> comentário(s) sem classificação, do cliente <b>{clienteNome}</b>.</div>
-            <div style={{color:'var(--muted)'}}>Custo estimado: <b>US$ {custo}</b>. É estimativa — o valor real aparece ao terminar.</div>
-            <div style={{color:'var(--muted)',marginTop:6}}>A IA preenche sentimento, produto e um rascunho de resposta. <b>Só preenche o que está vazio</b> — nada que você editou à mão é sobrescrito. A triagem (Pendente/Respondido) não é alterada.</div>
+            <div><b>{alvos.length}</b> comentário(s) podem receber ajuda da IA, do cliente <b>{clienteNome}</b>.</div>
+            <div style={{color:'var(--muted)'}}>
+              {semSent > 0 && <span>{semSent} sem sentimento</span>}
+              {semSent > 0 && semResp > 0 && <span> · </span>}
+              {semResp > 0 && <span>{semResp} sem rascunho de resposta</span>}
+            </div>
+            <div style={{color:'var(--muted)',marginTop:4}}>Custo estimado: <b>US$ {custo}</b>. É estimativa — o valor real aparece ao terminar.</div>
+            <div style={{color:'var(--muted)',marginTop:6}}>A IA preenche sentimento, produto e um rascunho de resposta. <b>Só preenche o que está vazio</b> — o sentimento que você definiu à mão fica como está. A triagem (Pendente/Respondido) não é alterada.</div>
           </div>
           <div style={{display:'flex',gap:8}}>
             <button className="btn brand" onClick={rodar}>Classificar {alvos.length}</button>
@@ -578,10 +588,14 @@ function ColarLote({cfg, clienteId, onAddLote}){
   function separar(){
     const r = parsePaste(raw);
     if(!r.length){ alert('Não encontrei nenhum comentário nesse texto.'); return; }
-    setLinhas(r);
+    setLinhas(r.map(x => ({...x, link: ''})));
   }
   const upd = (id, campo, valor) => setLinhas(p => p.map(x => x.id===id ? {...x, [campo]:valor} : x));
   const remover = id => setLinhas(p => p.filter(x => x.id !== id));
+  // O campo do lote preenche todas as linhas de uma vez; depois cada uma pode
+  // ser ajustada. Comentários de posts diferentes — ou DMs, que não têm post —
+  // não podem ser forçados a compartilhar o mesmo link.
+  const aplicarLinkATodos = valor => { setLink(valor); setLinhas(p => p.map(x => ({...x, link: valor}))); };
   const validas = linhas ? linhas.filter(l => l.text.trim()) : [];
 
   async function salvar(){
@@ -591,7 +605,7 @@ function ColarLote({cfg, clienteId, onAddLote}){
       cliente_id: clienteId,
       autor: l.author || null,
       texto: l.text,
-      link_conteudo: link || null,
+      link_conteudo: (l.link || '').trim() || null,
       origem,
       rede_id: rede ? Number(rede) : null,
       produto_id: null, editoria_id: null, sentimento_id: null,
@@ -607,10 +621,13 @@ function ColarLote({cfg, clienteId, onAddLote}){
       <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Confira como cada um foi separado. Corrija o que estiver errado e remova o que não for comentário. Nada foi salvo ainda.</div>
       <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:320,overflowY:'auto',marginBottom:12}}>
         {linhas.map(l => (
-          <div key={l.id} style={{display:'flex',gap:8,alignItems:'flex-start'}}>
-            <input value={l.author} onChange={e=>upd(l.id,'author',e.target.value)} placeholder="autor" style={{flex:'0 0 150px'}} />
-            <textarea value={l.text} onChange={e=>upd(l.id,'text',e.target.value)} style={{flex:1,minHeight:38}} />
-            <button className="btn" title="Remover" onClick={()=>remover(l.id)} style={{flex:'none'}}>×</button>
+          <div key={l.id} style={{display:'flex',flexDirection:'column',gap:4,paddingBottom:8,borderBottom:'1px solid var(--line)'}}>
+            <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+              <input value={l.author} onChange={e=>upd(l.id,'author',e.target.value)} placeholder="autor" style={{flex:'0 0 150px'}} />
+              <textarea value={l.text} onChange={e=>upd(l.id,'text',e.target.value)} style={{flex:1,minHeight:38}} />
+              <button className="btn" title="Remover" onClick={()=>remover(l.id)} style={{flex:'none'}}>×</button>
+            </div>
+            <input value={l.link||''} onChange={e=>upd(l.id,'link',e.target.value)} placeholder="link do post deste comentário (opcional — deixe vazio para DM)" style={{fontSize:12}} />
           </div>
         ))}
       </div>
@@ -619,8 +636,8 @@ function ColarLote({cfg, clienteId, onAddLote}){
           <select value={rede} onChange={e=>setRede(e.target.value)}><option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
         <label className="field"><span>Origem</span>
           <select value={origem} onChange={e=>setOrigem(e.target.value)}><option>Feed</option><option>DM</option></select></label>
-        <label className="field"><span>Link do conteúdo (opcional)</span>
-          <input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://…" /></label>
+        <label className="field"><span>Link do post — preenche todos de uma vez</span>
+          <input value={link} onChange={e=>aplicarLinkATodos(e.target.value)} placeholder="https://… (ajustável linha a linha acima)" /></label>
       </div>
       <div style={{display:'flex',gap:8}}>
         <button className="btn brand" disabled={salvando||!validas.length} onClick={salvar}>{salvando?'Salvando…':'Adicionar '+validas.length+' comentário(s)'}</button>
@@ -688,7 +705,7 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [mostrarColar, setMostrarColar] = useState(false);
   const [mostrarIA, setMostrarIA] = useState(false);
-  const semClass = interacoes.filter(i=>!i.sentimento_id).length;
+  const semClass = interacoes.filter(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim()).length;
   const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
   const total = interacoes.length;
   const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
@@ -705,7 +722,7 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
       <div className="head">
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
-          <button className="btn" disabled={!semClass} title={semClass?'':'Nenhum comentário sem classificação'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
+          <button className="btn" disabled={!semClass} title={semClass?'':'Todos os comentários já estão completos'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
           <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false); setMostrarIA(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
           <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
         </div>
