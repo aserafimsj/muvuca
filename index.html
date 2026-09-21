@@ -153,6 +153,22 @@
   .litem b{color:var(--ink)}
   .ldot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
   .legenda .lpct{font-size:11px}
+  /* --- evolução diária --- */
+  .filtrosativos{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+  .filtrosativos b{color:var(--ink);letter-spacing:.5px;font-size:11px}
+  .filtrosativos .alerta{color:#8A6516;font-weight:600}
+  .colunadia{cursor:pointer}
+  .colunadia:hover rect:first-child{fill:rgba(245,179,1,.09)}
+  .detlinha{display:grid;grid-template-columns:minmax(90px,14%) 1fr minmax(120px,auto);
+    gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+  .detautor{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dettexto{color:#4a4a46;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .detsent{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);justify-content:flex-end}
+  @media(max-width:560px){
+    .detlinha{grid-template-columns:1fr;gap:3px}
+    .detsent{justify-content:flex-start}
+    .dettexto{white-space:normal}
+  }
   .bnota{font-size:11.5px;color:var(--muted);margin-bottom:10px}
   .bvazio{font-size:12.5px;color:var(--muted);padding:14px 0}
   .barras{display:flex;flex-direction:column;gap:7px;margin-top:8px}
@@ -731,19 +747,37 @@ function serieDiaria(itens){
 /* A mesma linha do tempo, quebrada por alguma dimensão (o "Por sentimento").
    Reaproveita serieDiaria para os dias, de modo que todas as linhas tenham
    exatamente o mesmo eixo — séries com eixos diferentes não se comparam. */
-function serieDiariaPor(itens, valorDe){
+function serieDiariaPor(itens, valorDe, semNome){
   const base = serieDiaria(itens);
-  if(!base.length) return {dias: [], series: []};
+  if(!base.length) return {dias: [], series: [], totais: []};
   const dias = base.map(p => p.dia);
-  const nomes = contarPor(itens, valorDe).map(d => d.nome);
+
+  /* O mesmo balde de "sem valor" do contarPor, e pelo mesmo motivo. Sem ele,
+     o comentário sem sentimento sumia da pilha em silêncio, e a soma das
+     fatias não fechava com o total do dia — a barra ficaria menor do que o
+     número escrito em cima dela. */
+  const daCategoria = i => {
+    const v = valorDe(i);
+    return (v === null || v === undefined || v === '') ? semNome : String(v);
+  };
+  const nomes = contarPor(itens, valorDe, semNome).map(d => d.nome);
+
   const series = nomes.map(nome => ({
     nome,
     valores: dias.map(dia => itens.filter(i => {
       const d = dataDoComentario(i);
-      return d && chaveDia(inicioDoDia(d)) === dia && String(valorDe(i)) === nome;
+      return d && chaveDia(inicioDoDia(d)) === dia && daCategoria(i) === nome;
     }).length),
   }));
-  return {dias, series};
+  return {dias, series, totais: base.map(p => p.n)};
+}
+
+// Os comentários de um dia, na ordem em que aparecem na lista.
+function doDia(itens, dia){
+  return itens.filter(i => {
+    const d = dataDoComentario(i);
+    return d && chaveDia(inicioDoDia(d)) === dia;
+  });
 }
 
 /* ---------- exportação CSV ----------
@@ -1894,6 +1928,186 @@ function Dashboard({cfg, interacoes, clienteNome}){
 }
 
 /* ============================================================
+   EVOLUÇÃO DIÁRIA
+   Primeiro módulo analítico de verdade. Barras empilhadas por sentimento, uma
+   por dia, com o total escrito em cima — e, ao clicar num dia, a lista dos
+   comentários daquele dia. O gráfico responde "quando", a lista responde
+   "o quê": número sem poder ver o que há por trás dele não resolve nada.
+   ============================================================ */
+const MOSTRA_DE_INICIO = 8;
+
+function BarrasDia({dias, series, totais, corDe, escolhido, aoEscolher}){
+  const L=44, R=10, T=26, B=46, W=1000, H=330;
+  const maior = topoDoEixo(Math.max(1, ...totais));
+  const faixa = (W-L-R) / Math.max(1, dias.length);
+  const larg = Math.max(3, Math.min(34, faixa - 6));
+  const esc = v => (H-T-B) * (v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  /* Com 30 dias cabe uma data em cada barra; com 90, não cabe. Mostra uma a
+     cada N para os rótulos não virarem uma mancha preta ilegível. */
+  const passo = Math.ceil(dias.length / 22);
+  const curto = d => { const x = dataLocal(d); return x ? `${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}` : d; };
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+      aria-label={`Comentários por dia, de ${dias[0]} a ${dias[dias.length-1]}`}>
+      {[0,.5,1].map(f=>(
+        <g key={f}>
+          <line x1={L} x2={W-R} y1={T+(H-T-B)*(1-f)} y2={T+(H-T-B)*(1-f)} className="gradelinha" />
+          <text x={L-6} y={T+(H-T-B)*(1-f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+        </g>
+      ))}
+      {dias.map((dia,k)=>{
+        let base = H-B;
+        const total = totais[k];
+        const on = escolhido === dia;
+        return (
+          <g key={dia} className="colunadia" onClick={()=>aoEscolher(on ? null : dia)}>
+            {/* Área de clique da coluna inteira: acertar uma barra de 3px de
+                largura com o mouse é tarefa para ninguém. */}
+            <rect x={cx(k)-faixa/2} y={T-14} width={faixa} height={H-T-B+14}
+              fill={on ? 'rgba(245,179,1,.14)' : 'transparent'} />
+            {series.map(s=>{
+              const h = esc(s.valores[k]);
+              if(h <= 0) return null;
+              base -= h;
+              return <rect key={s.nome} x={cx(k)-larg/2} y={base} width={larg}
+                height={Math.max(1, h - (h > 3 ? 1.5 : 0))} fill={corDe(s.nome)}
+                // Apagar as outras colunas a 40% tirava a leitura do conjunto;
+                // o fundo amarelo já marca qual foi escolhida.
+                opacity={escolhido && !on ? .62 : 1}>
+                <title>{`${curto(dia)} · ${s.nome}: ${s.valores[k]}`}</title>
+              </rect>;
+            })}
+            {total > 0 && <text x={cx(k)} y={base-6} className="valtxt" textAnchor="middle">{total}</text>}
+            {(k % passo === 0 || k === dias.length-1) && (
+              <text x={cx(k)} y={H-B+16} className="eixotxt" textAnchor="middle"
+                transform={passo === 1 && faixa < 26 ? `rotate(-45 ${cx(k)} ${H-B+16})` : ''}>{curto(dia)}</text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function EvolucaoDiaria({cfg, interacoes, cliente, rede}){
+  const [periodo, setPeriodo] = useState('28d');
+  const [de, setDe] = useState('');
+  const [ate, setAte] = useState('');
+  const [dia, setDia] = useState(null);
+  const [mostrar, setMostrar] = useState(MOSTRA_DE_INICIO);
+
+  const {de:d0, ate:d1} = resolvePeriodo(periodo, de, ate);
+  const nomeSent = i => cfg.sentimentos.find(s => s.id === i.sentimento_id)?.nome || null;
+
+  // Recorte: este cliente, esta rede, fora da lixeira, dentro do período.
+  const daRede = interacoes.filter(i => !naLixeira(i) && i.rede_id === rede.id);
+  const itens  = daRede.filter(i => noPeriodo(i, periodo, d0, d1));
+  const semData = daRede.filter(i => !dataDoComentario(i)).length;
+
+  const {dias, series, totais} = serieDiariaPor(itens, nomeSent, 'Sem sentimento');
+  const corDe = nome => corSent(nome);
+  const total = totais.reduce((a,n)=>a+n, 0);
+
+  const doDiaEscolhido = dia ? doDia(itens, dia) : [];
+  useEffect(()=>{ setMostrar(MOSTRA_DE_INICIO); }, [dia]);
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          <h1>Evolução Diária</h1>
+          <p>{cliente?.nome} · {rede?.nome}</p>
+        </div>
+      </div>
+
+      <div className="periodo">
+        <label className="campo" style={{flex:'0 1 200px'}}><span>Período</span>
+          <select value={periodo} onChange={e=>{setPeriodo(e.target.value); setDia(null);}}>
+            {PERIODOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        {periodo === 'custom' && (
+          <>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>De</span>
+              <input type="date" value={de} onChange={e=>{setDe(e.target.value); setDia(null);}} /></label>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>Até</span>
+              <input type="date" value={ate} onChange={e=>{setAte(e.target.value); setDia(null);}} /></label>
+          </>
+        )}
+        <div className="resumoper">
+          <div className="quando">{periodo==='total' ? 'Todo o período' : `${fmtBR(d0)} — ${fmtBR(d1)}`}</div>
+          <div className="quantos"><b>{total.toLocaleString('pt-BR')}</b> comentário(s) em {dias.length} dia(s)</div>
+        </div>
+      </div>
+
+      {/* A linha de filtros ativos, como na referência: quem olha o gráfico
+          precisa saber de que recorte ele veio, sem ter de deduzir. */}
+      <div className="filtrosativos">
+        <b>FILTROS ATIVOS</b>{' '}
+        {cliente?.nome} · {rede?.nome} · {periodo==='total' ? 'todo o período' : `${fmtBR(d0)} até ${fmtBR(d1)}`} ·{' '}
+        {total.toLocaleString('pt-BR')} comentário(s) ·{' '}
+        {series.map(s => `${s.nome}: ${s.valores.reduce((a,n)=>a+n,0)}`).join(' · ') || 'sem classificação'}
+        {semData > 0 && <> · <span className="alerta">{semData} sem data, fora deste gráfico</span></>}
+      </div>
+
+      {dias.length === 0 ? (
+        <div className="empty">
+          Nenhum comentário deste canal neste período.
+          {semData > 0 && <> Há {semData} comentário(s) sem data de publicação — eles não entram em recorte por período. Preencha a data no cartão, em Community.</>}
+        </div>
+      ) : (
+        <>
+          <div className="bloco">
+            <BarrasDia dias={dias} series={series} totais={totais} corDe={corDe}
+              escolhido={dia} aoEscolher={setDia} />
+            <div className="legenda">
+              {series.map(s=>(
+                <span key={s.nome} className="litem">
+                  <span className="ldot" style={{background:corDe(s.nome)}} />{s.nome}
+                  <b>{s.valores.reduce((a,n)=>a+n,0)}</b>
+                </span>
+              ))}
+              <span className="litem" style={{marginLeft:'auto',color:'var(--muted)'}}>
+                {dia ? 'Clique de novo na barra para fechar o detalhamento.' : 'Clique numa barra para ver os comentários do dia.'}
+              </span>
+            </div>
+          </div>
+
+          {dia && (
+            <div className="bloco" style={{marginTop:14}}>
+              <div className="bcab">
+                <div className="btit">{fmtBR(dataLocal(dia))}</div>
+                <div className="bnota" style={{margin:0}}>{doDiaEscolhido.length} comentário(s)</div>
+              </div>
+              {doDiaEscolhido.slice(0, mostrar).map(i=>(
+                <div key={i.id} className="detlinha">
+                  <span className="detautor">{i.autor ? '@'+String(i.autor).replace(/^@/,'') : 'sem @'}</span>
+                  <span className="dettexto">{i.texto}</span>
+                  <span className="detsent">
+                    <span className="ldot" style={{background:corSent(nomeSent(i))}} />
+                    {nomeSent(i) || 'Sem sentimento'}
+                  </span>
+                </div>
+              ))}
+              {doDiaEscolhido.length > mostrar && (
+                <div style={{textAlign:'center',marginTop:10}}>
+                  <button className="btn" onClick={()=>setMostrar(doDiaEscolhido.length)}>
+                    Ver todos os {doDiaEscolhido.length}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    CONTEÚDOS
    O mural de publicações. No Zmetrics é um cadastro manual — você cola o link
    de cada post — porque lá não existe importação. Aqui não se cadastra nada:
@@ -2121,11 +2335,16 @@ function Crumb({trilha}){
 
 function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente, irPara}){
   const [rede, setRede] = useState(null);   // rede selecionada
-  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
+  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro | analise
+  const [analise, setAnalise] = useState(null);      // qual modulo analitico esta aberto
   const cliente = clientes.find(c=>c.id===clienteId);
 
   function abrirWorkspace(c){ setClienteId(c.id); setRede(null); setNivel('redes'); }
   function abrirRede(r){ setRede(r); setNivel('centro'); }
+  // Os modulos analiticos que ja existem de verdade. Card que nao esta aqui
+  // continua dizendo, honestamente, que a tela ainda nao foi construida.
+  const MODULOS_PRONTOS = {evol_diaria: EvolucaoDiaria};
+  function abrirAnalise(id){ setAnalise(id); setNivel('analise'); }
 
   async function novoCliente(){
     const nome = prompt('Nome do novo cliente:');
@@ -2194,6 +2413,24 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
     );
   }
 
+  // ---- nível 4: um módulo analítico aberto ----
+  if(nivel==='analise' && MODULOS_PRONTOS[analise]){
+    const Modulo = MODULOS_PRONTOS[analise];
+    const nome = ANALITICOS.find(a => a.id === analise)?.nome || 'Análise';
+    return (
+      <div>
+        <Crumb trilha={[
+          {label:'Projetos', onClick:()=>setNivel('workspaces')},
+          {label:cliente?.nome || '—', onClick:()=>setNivel('redes')},
+          {label:rede?.nome || '—', onClick:()=>setNivel('centro')},
+          {label:nome}
+        ]}/>
+        <Modulo cfg={cfg} interacoes={interacoes} publicacoes={publicacoes}
+          cliente={cliente} rede={rede} />
+      </div>
+    );
+  }
+
   // ---- nível 3: centro de inteligência ----
   return (
     <div>
@@ -2213,7 +2450,11 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
           const e = estadoAnalitico(m.id, interacoes, publicacoes, rede);
           return (
             <button key={m.id} className="tile2" title={e.explica}
-              onClick={()=>{ if(e.estado === 'pronto' && irPara) irPara('relatorios'); else alert(e.explica); }}>
+              onClick={()=>{
+                if(MODULOS_PRONTOS[m.id] && e.estado !== 'sem_dados') abrirAnalise(m.id);
+                else if(e.estado === 'pronto' && irPara) irPara('relatorios');
+                else alert(e.explica);
+              }}>
               <div className="top">
                 <div className="ic">▥</div>
                 <div className="nm">{m.nome}</div>

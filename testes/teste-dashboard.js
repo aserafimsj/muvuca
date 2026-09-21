@@ -6,13 +6,13 @@ const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const ini = html.indexOf('const PERIODOS = [');
-const fimIdx = html.indexOf('\n}', html.indexOf('function serieDiariaPor'));
+const fimIdx = html.indexOf('\n}', html.indexOf('function doDia'));
 if(ini < 0 || fimIdx < 0){ console.error('FALHA: nao achei as funcoes do dashboard no index.html'); process.exit(2); }
 const fonte = html.slice(ini, fimIdx + 2);
 
 const M = eval('(function(){' + fonte + `
 return {resolvePeriodo, noPeriodo, dataDoComentario, contarPor, cruzarPor, serieDiaria,
-        serieDiariaPor, inicioDoDia, fimDoDia, dataLocal, chaveDia, topoDoEixo};})()`);
+        serieDiariaPor, doDia, inicioDoDia, fimDoDia, dataLocal, chaveDia, topoDoEixo};})()`);
 
 const r = [];
 const check = (nome, ok, extra='') => { r.push(!!ok); console.log((ok?'  OK  ':' FALHA')+` | ${nome}${extra?' -> '+extra:''}`); };
@@ -151,6 +151,36 @@ check('Negativo: 1, 0, 1', neg.valores.join(',') === '1,0,1', neg.valores.join('
 check('a soma das linhas bate com o total de entrada',
   porSent.series.reduce((a,s)=>a+s.valores.reduce((x,v)=>x+v,0),0) === 3);
 check('sem datas nao quebra', M.serieDiariaPor([{data_publicacao:null, ia_em:null}], i=>i.s).dias.length === 0);
+
+console.log('\n--- pilha do dia fecha com o total do dia ---');
+// O defeito que existia: comentario SEM sentimento sumia da pilha em silencio.
+// A barra ficava menor do que o numero escrito em cima dela.
+const mistura = [
+  {data_publicacao:'2026-09-01', s:'Negativo'},
+  {data_publicacao:'2026-09-01', s:null},        // sem sentimento
+  {data_publicacao:'2026-09-02', s:'Dúvida'},
+];
+const emp = M.serieDiariaPor(mistura, i=>i.s, 'Sem sentimento');
+check('o sem sentimento vira balde proprio',
+  emp.series.some(x => x.nome === 'Sem sentimento'), emp.series.map(x=>x.nome).join(','));
+check('devolve o total de cada dia', emp.totais.join(',') === '2,1', emp.totais.join(','));
+emp.dias.forEach((d,k) => {
+  const soma = emp.series.reduce((a,x)=>a+x.valores[k],0);
+  check(`dia ${d}: pilha soma ${soma}, total ${emp.totais[k]}`, soma === emp.totais[k]);
+});
+check('a soma geral bate com a entrada',
+  emp.totais.reduce((a,n)=>a+n,0) === mistura.length);
+// Sem o balde, o sem sentimento some — e e por isso que ele existe.
+const semBalde = M.serieDiariaPor(mistura, i=>i.s);
+check('sem o balde, a pilha NAO fecha (por isso o balde existe)',
+  semBalde.series.reduce((a,x)=>a+x.valores[0],0) !== semBalde.totais[0]);
+
+console.log('\n--- comentarios de um dia ---');
+check('acha os do dia certo', M.doDia(mistura, '2026-09-01').length === 2);
+check('nao mistura com o vizinho', M.doDia(mistura, '2026-09-02').length === 1);
+check('dia sem nada devolve lista vazia', M.doDia(mistura, '2026-09-03').length === 0);
+check('sem data nao entra em dia nenhum',
+  M.doDia([{data_publicacao:null}], '2026-09-01').length === 0);
 
 console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
 process.exit(r.every(Boolean) ? 0 : 1);

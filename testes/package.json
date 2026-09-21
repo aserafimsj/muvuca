@@ -3,7 +3,7 @@
   "private": true,
   "description": "Bancada de teste do MUVUCA. Fica FORA da publicacao (ver ../.vercelignore).",
   "scripts": {
-    "teste": "node valida-jsx.js && node teste-esquema.js && node teste-classify.js && node teste-filtros.js && node teste-dashboard.js && node teste-csv.js && node teste-conteudos.js && node teste-estados.js && node roda-bancada.js && node roda-dash.js && node roda-conteudos.js && node roda-app.js && node audita-telas.js"
+    "teste": "node valida-jsx.js && node teste-esquema.js && node teste-classify.js && node teste-filtros.js && node teste-dashboard.js && node teste-csv.js && node teste-conteudos.js && node teste-estados.js && node roda-bancada.js && node roda-dash.js && node roda-conteudos.js && node roda-evolucao.js && node roda-app.js && node audita-telas.js"
   },
   "devDependencies": {
     "@babel/standalone": "^7.23.2",
