@@ -512,14 +512,24 @@ function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
   const [progresso, setProgresso] = useState({feitos:0, total:0});
   const [resumo, setResumo] = useState(null);
 
-  // Quem pode receber ajuda da IA: qualquer comentário em que ALGUM dos campos
-  // que ela preenche ainda esteja vazio. Usar só "não tem sentimento" era
-  // grosseiro demais — quem definia o sentimento à mão ficava sem poder pedir
-  // o rascunho de resposta, que é justamente o que faltava.
+  const [incluirVistos, setIncluirVistos] = useState(false);
+
+  // Quem vai para a IA: por padrão, só quem ela NUNCA viu (ia_em vazio).
+  //
+  // O critério anterior era "tem algum campo vazio", e isso cobrava de novo
+  // pelo mesmo comentário para sempre: a IA deixa campo vazio DE PROPÓSITO
+  // quando não há o que preencher — "Boa noite" não fala de produto, spam não
+  // ganha rascunho. Esses nunca ficavam "completos", então voltavam em toda
+  // rodada. O carimbo ia_em separa "a IA nunca olhou" de "olhou e concluiu que
+  // não havia nada a pôr" — exatamente a diferença que o código não sabia ver.
+  const nuncaVisto = i => !i.ia_em;
   const faltaAlgo = i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim();
-  const alvos = interacoes.filter(faltaAlgo);
+  const alvos = interacoes.filter(i => incluirVistos ? faltaAlgo(i) : nuncaVisto(i));
   const semSent = alvos.filter(i => !i.sentimento_id).length;
   const semResp = alvos.filter(i => !String(i.resposta||'').trim()).length;
+  // Quantos a IA já viu mas seguem com buraco — é o que se ganharia pagando de
+  // novo. Zero significa que não há nada a recuperar, e a opção nem aparece.
+  const vistosComBuraco = interacoes.filter(i => i.ia_em && faltaAlgo(i)).length;
   const custo = (alvos.length * CUSTO_ESTIMADO_POR_COMENTARIO).toFixed(2);
 
   async function rodar(){
@@ -562,9 +572,19 @@ function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
             </div>
             <div style={{color:'var(--muted)',marginTop:4}}>Custo estimado: <b>US$ {custo}</b>. É estimativa — o valor real aparece ao terminar.</div>
             <div style={{color:'var(--muted)',marginTop:6}}>A IA preenche sentimento, produto e um rascunho de resposta. <b>Só preenche o que está vazio</b> — o sentimento que você definiu à mão fica como está. A triagem (Pendente/Respondido) não é alterada.</div>
+            <div style={{color:'var(--muted)',marginTop:6}}>Cada comentário é enviado <b>uma vez só</b>. Quem a IA já analisou não volta na próxima rodada, mesmo que tenha ficado com campo vazio — muitos ficam vazios porque não há o que preencher.</div>
           </div>
+          {vistosComBuraco > 0 && (
+            <label style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,marginBottom:12,cursor:'pointer'}}>
+              <input type="checkbox" checked={incluirVistos} onChange={e=>setIncluirVistos(e.target.checked)} style={{marginTop:3}} />
+              <span>
+                Pagar de novo por {vistosComBuraco} que a IA já analisou e seguem com campo vazio.
+                <span style={{color:'var(--muted)'}}> Normalmente não vale: costuma ser comentário sem produto ou spam sem resposta. Use só se achar que a IA errou.</span>
+              </span>
+            </label>
+          )}
           <div style={{display:'flex',gap:8}}>
-            <button className="btn brand" onClick={rodar}>Classificar {alvos.length}</button>
+            <button className="btn brand" disabled={!alvos.length} onClick={rodar}>Classificar {alvos.length}</button>
             <button className="btn" onClick={onFechar}>Cancelar</button>
           </div>
         </div>
@@ -705,7 +725,14 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [mostrarColar, setMostrarColar] = useState(false);
   const [mostrarIA, setMostrarIA] = useState(false);
-  const semClass = interacoes.filter(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim()).length;
+  // O número no botão é quantos a IA ainda NÃO analisou — o que ela tem de
+  // novo para fazer. Contar "campos vazios" mostrava 29 quando havia 3 novos,
+  // e o número só crescia, porque campo vazio de propósito nunca se resolve.
+  const semClass = interacoes.filter(i => !i.ia_em).length;
+  // O botão continua clicável quando não há novidade mas sobrou algum buraco:
+  // é por ele que se chega à opção de pagar de novo por aqueles. Sem isso, o
+  // botão ficaria cinza e a opção ficaria inalcançável.
+  const podeIA = semClass > 0 || interacoes.some(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim());
   const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
   const total = interacoes.length;
   const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
@@ -722,7 +749,7 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
       <div className="head">
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
-          <button className="btn" disabled={!semClass} title={semClass?'':'Todos os comentários já estão completos'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
+          <button className="btn" disabled={!podeIA} title={podeIA?'':'A IA já analisou todos os comentários'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
           <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false); setMostrarIA(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
           <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
         </div>
@@ -1177,7 +1204,12 @@ function Painel({user, perfil, onSair}){
           }
           if(!String(it.resposta || '').trim() && r.rascunho) mud.resposta = r.rascunho;
 
-          if(!Object.keys(mud).length){ ok++; continue; }
+          // Carimbo de "a IA já analisou este comentário". Gravado SEMPRE,
+          // inclusive quando não houve nada a preencher — era justamente esse
+          // caso (produto "nenhum", spam sem rascunho) que devolvia o
+          // comentário para a fila e fazia pagar de novo pelo mesmo trabalho.
+          // Por isso não existe mais atalho de "nada mudou, pula o update".
+          mud.ia_em = new Date().toISOString();
           const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
           if(error){ falhas++; continue; }
           setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
