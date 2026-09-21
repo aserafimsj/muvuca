@@ -25,6 +25,8 @@ npm run teste
 | Arquivo | O que verifica |
 |---|---|
 | `valida-jsx.js` | Se o `index.html` compila. Pega erro de digitação que deixaria a tela branca. |
+| `teste-esquema.js` | **Se toda coluna que o código grava existe mesmo no banco.** Nasceu de um erro real: o código passou a gravar `ia_em` e companhia em colunas que nunca foram criadas — a IA respondia, o custo era cobrado, e a gravação morria em silêncio. Passou despercebido por várias etapas. Compara contra `esquema-real.json`. |
+| `monta-app.js` / `roda-app.js` | **O aplicativo inteiro**, do login ao último módulo, com um Supabase de mentira. As outras bancadas testam componentes isolados; esta é a única que exercita a *ligação* entre eles: prop esquecida, módulo sem rota, dado de um cliente vazando para outro. |
 | `teste-classify.js` | A função da IA contra respostas simuladas: boa, cortada no meio, recusada, sem JSON, JSON inválido, erro da Anthropic e gateway quebrado. Nenhuma pode virar falha silenciosa. |
 | `teste-filtros.js` | A regra "este comentário passa no filtro?" sem navegador. Cobre os casos chatos: comentário sem data num recorte de datas, campo vazio que não pode virar coringa, filtros somados com E e não OU. |
 | `teste-estados.js` | Os estados dos cards de análise. Impede que "sem dados", "falta preencher tal campo" e "a tela ainda não foi feita" voltem a virar um único "Aguardando dados" genérico. |
@@ -39,7 +41,25 @@ npm run teste
 
 `roda-bancada.js` também salva `cartao.png`, útil para olhar o resultado.
 
-## Regra
+## Regras aprendidas na marra
 
-Um teste que falha por culpa da própria bancada não vale nada. Se algo falhar,
-confirme primeiro que o defeito é do MUVUCA, e não do arquivo de teste.
+**Um teste que falha por culpa da própria bancada não vale nada.** Se algo
+falhar, confirme primeiro que o defeito é do MUVUCA, e não do arquivo de
+teste. Já aconteceu três vezes nesta obra — as contagens estavam erradas no
+teste, não no código.
+
+**Pior que um teste que falha é um que passa sem testar.** O texto do
+comentário mora num `<textarea>`, e conteúdo de textarea é **valor**, não
+texto:
+
+- `innerText` **não** enxerga → um teste do tipo "isto não deve aparecer"
+  passa sempre, sem testar nada;
+- `textContent` enxerga o valor **inicial**, mas não acompanha edição → passa
+  sobre dado velho.
+
+O certo é `inputValue()`. Dois testes desta bancada passavam por engano por
+causa disso.
+
+**Bancada desatualizada dá falso alarme nos dois sentidos** — acusa defeito
+já corrigido, ou esconde um que acabou de entrar. Por isso `roda-*.js`
+remonta a própria página antes de rodar.

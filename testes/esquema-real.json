@@ -1,0 +1,26 @@
+{
+  "_origem": "Colunas lidas do banco de producao pelo dono do projeto em 21/09/2026, com a consulta de information_schema do COMO-CONFERIR-O-BANCO.md, mais as quatro colunas ia_* criadas pela MIGRACAO-TELA-DE-COMENTARIOS.md e confirmadas na tela.",
+  "_porque": "Guarda contra o erro que aconteceu de verdade nesta obra: o codigo passou a gravar ia_em, ia_triagem, ia_motivo e ia_juridico em colunas que nunca foram criadas. O botao da IA respondia, o custo era cobrado, e a gravacao morria. Ninguem percebeu por varias etapas. Se o codigo voltar a usar coluna que nao esta nesta lista, o teste reprova e diz que falta migracao.",
+  "_como_atualizar": "So acrescente uma coluna aqui DEPOIS de ela existir no banco de verdade, e cite a migracao que a criou.",
+
+  "interacoes": [
+    "id", "cliente_id", "rede_id", "origem", "editoria_id", "produto_id",
+    "sentimento_id", "autor", "texto", "link_conteudo", "triagem", "resposta",
+    "data_publicacao", "criado_em",
+    "ia_em", "ia_triagem", "ia_motivo", "ia_juridico"
+  ],
+
+  "publicacoes": [
+    "id", "cliente_id", "rede_id", "produto_id", "editoria_id", "data_post",
+    "link", "formato", "status",
+    "visu_org", "alcance_org", "curtidas_org", "coment_org", "compart_org",
+    "salvos_org", "engaj_org", "tx_engaj_org",
+    "visu_pago", "alcance_pago", "curtidas_pago", "coment_pago", "compart_pago",
+    "salvos_pago", "engaj_pago", "tx_engaj_pago",
+    "criado_em"
+  ],
+
+  "_removidas": {
+    "data_coment": "Criada por engano na etapa 1, duplicando data_publicacao. Nunca chegou a existir no banco; o codigo foi corrigido para usar data_publicacao."
+  }
+}

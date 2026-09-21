@@ -82,7 +82,11 @@ require('./monta-bancada.js');
 
   await chip('Dúvida').click(); await page.waitForTimeout(250);
   check('clicar em Duvida deixa 1 comentario', await linhas() === 1);
-  check('e e o comentario certo', (await page.locator('.row').first().textContent()).includes('investir'));
+  // Le o VALOR do campo, nao o texto renderizado: textContent mostra o valor
+  // INICIAL do textarea e nao acompanha edicao, entao um teste assim pode
+  // passar sobre um dado velho.
+  check('e e o comentario certo',
+    (await page.locator('.row').first().locator('textarea.txtedit').inputValue()).includes('investir'));
   check('aparece o botao de limpar', await page.getByRole('button', {name:'Limpar filtros'}).count() === 1);
   await page.getByRole('button', {name:'Limpar filtros'}).click(); await page.waitForTimeout(250);
   check('limpar devolve os 3', await linhas() === 3);
@@ -90,7 +94,8 @@ require('./monta-bancada.js');
 
   await chip('Jurídico/STN').click(); await page.waitForTimeout(250);
   check('filtrar por Juridico deixa 1', await linhas() === 1);
-  check('e e o caso sensivel', (await page.locator('.row').first().textContent()).includes('aposta'));
+  check('e e o caso sensivel',
+    (await page.locator('.row').first().locator('textarea.txtedit').inputValue()).includes('aposta'));
   await page.getByRole('button', {name:'Limpar filtros'}).click(); await page.waitForTimeout(250);
 
   await page.locator('.filters input').first().fill('bitcoin'); await page.waitForTimeout(300);
