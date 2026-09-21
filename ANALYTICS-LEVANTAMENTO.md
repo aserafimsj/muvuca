@@ -32,7 +32,15 @@ pedido quer evitar.
 **Decidido:** a coluna que fica é `data_publicacao`. A migração está desenhada
 na seção 5 e **ainda não foi executada**.
 
-### 1.2 A hora é destruída na leitura da planilha — e dá para recuperar
+### 1.2 A hora é destruída na leitura da planilha
+
+> **Não bloqueia mais nada.** O card "Evolução por Hora" foi eliminado a
+> pedido do dono do projeto, e era o único consumidor dessa informação. O
+> achado fica registrado porque continua verdadeiro, e porque a conclusão
+> importa se o assunto voltar: **nada foi perdido para sempre.**
+>
+> A importação **não foi alterada** — mexer nela sem nenhum consumidor seria
+> risco sem contrapartida.
 
 A importação lê a planilha com `raw:false` (`index.html`, linha 1957), o que
 converte cada célula para o **texto formatado**. Se a célula está formatada
@@ -144,7 +152,7 @@ aviso nenhum.
 | Evolução diária | `interacoes` | `data_publicacao` | **Parcial** | unir as duas colunas; colar em lote não grava data |
 | Volume mensal | `interacoes` | `data_publicacao` | **Parcial** | idem; e o texto do card fala de "volume publicado", que é outra coisa |
 | Dia da semana | `interacoes` | `data_publicacao` | **Não** | sai da mesma data; falta implementar |
-| Evolução por hora | `interacoes` | **não existe ainda** | **Não** | corrigir a leitura da planilha e guardar a hora; reimportar recupera |
+| ~~Evolução por hora~~ | — | — | **Eliminado** | card removido a pedido; era o único item que exigia mexer na importação |
 | Sentimento | `interacoes` → `categorias_sentimento` | `sentimento_id` | **Sim** | só ligar na tela da rede; já calculado no dashboard |
 | Termos | `interacoes` | `texto` | **Não** | implementar + lista de palavras a ignorar |
 | Posts mais engajados | `publicacoes` | `engaj_org` / `engaj_pago` | **Dados sim, tela não** | conferir a armadilha (a) antes de definir o ranking |
@@ -160,7 +168,7 @@ aviso nenhum.
 | Hierarquia | Sem camada de Projeto. Cliente é o projeto. Nada de cliente fixo no código. |
 | Engajamento | Usar o campo que já vem da planilha. **Não inventar fórmula.** Antes, conferir a armadilha (a). |
 | Taxa de engajamento | Tratada como coisa diferente do engajamento absoluto. Só usada com denominador conhecido. |
-| Hora | Preservar a maior precisão disponível na origem. Nunca inventar horário. |
+| Hora | **Eliminada.** Card removido; a importação fica como está. Se voltar, a hora é recuperável reimportando as planilhas. |
 
 ---
 

@@ -254,12 +254,14 @@ const MODULOS = [
 ];
 
 const ANALITICOS = [
-  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Publicações e interações dia a dia. Picos, quedas e tendências.' },
-  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Comparativo mês a mês do volume publicado.' },
-  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias concentram mais atividade.' },
-  { id:'evol_hora',   nome:'Evolução por Hora',      desc:'Faixas de horário com mais interação.' },
+  // O texto de cada card tem que dizer o que a conta REALMENTE faz. "Volume
+  // publicado" dava a entender quantidade de posts, quando o que se conta é
+  // comentário e DM — nome errado em relatório vira decisão errada.
+  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Comentários e DMs dia a dia. Picos, quedas e tendências.' },
+  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Evolução mensal do volume de comentários e DMs.' },
+  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias da semana concentram mais conversa.' },
   { id:'sentimento',  nome:'Sentimento',             desc:'Distribuição entre positivo, negativo, dúvida e mais.' },
-  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários.' },
+  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários e DMs.' },
   { id:'hashtags',    nome:'Hashtags',               desc:'Hashtags mais usadas nas publicações.' },
   { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
 ];
