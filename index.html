@@ -173,6 +173,27 @@
   .svgtempo .cruz{stroke:var(--line);stroke-width:1}
   .svgtempo .ponto{fill:#8A6516;stroke:#fff;stroke-width:2}
   .dicatempo{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:18px}
+  /* --- conteudos (etapa 6) --- */
+  /* align-items:start para cada cartão ter a SUA altura. Sem isso, o cartão
+     de um link que não pode ser incorporado estica até a altura do vizinho e
+     fica com um vazio enorme embaixo. */
+  .mural{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+    gap:16px;margin-top:4px;align-items:start}
+  .post{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;
+    display:flex;flex-direction:column;gap:9px}
+  .pcab{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .prede{font-size:11px;font-weight:700;color:#185FA5}
+  .pdata{font-size:11.5px;color:var(--muted);margin-left:auto}
+  .pembed{width:100%;height:500px;border:none;border-radius:8px;background:#fff}
+  .psemembed{font-size:12.5px;color:var(--muted);background:var(--bg);border-radius:8px;
+    padding:22px 14px;text-align:center}
+  .pnums{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+  .pnums span{display:inline-flex;flex-direction:column;line-height:1.25}
+  .pnums b{font-size:13px;color:var(--ink)}
+  .ppe{display:flex;justify-content:space-between;align-items:center;gap:8px;
+    font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:9px}
+  .ppe .temcom{color:#185FA5;font-weight:600}
+  .ppe a{color:#185FA5;font-weight:600;text-decoration:none}
   @media(max-width:760px){
     .row{flex-wrap:wrap}
     .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
@@ -248,6 +269,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const MODULOS = [
   { id:'projetos', nome:'Projetos' },
   { id:'community', nome:'Community' },
+  { id:'conteudos', nome:'Conteúdos' },
   { id:'upload', nome:'Importar dados' },
   { id:'relatorios', nome:'Relatórios' },
   { id:'config', nome:'Configurações' },
@@ -276,6 +298,7 @@ function Icon({name}){
     dashboard:<g {...p}><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>,
     listening:<g {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3"/></g>,
     community:<g {...p}><path d="M4 5h16v10H9l-4 4V5z"/></g>,
+    conteudos:<g {...p}><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></g>,
     relatorios:<g {...p}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></g>,
     calendario:<g {...p}><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></g>,
     upload:<g {...p}><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/><path d="M12 15V4M8 8l4-4 4 4"/></g>,
@@ -763,6 +786,67 @@ function baixarCSV(texto, nome){
   a.href = url; a.download = nome;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
+
+/* ---------- conteúdos (publicações) ----------
+   Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+/* Normaliza um link para comparar. O Zmetrics compara o texto cru do link;
+   aqui não, porque na prática o mesmo post chega escrito de várias formas:
+   com e sem "https://", com e sem "www.", com barra no fim, e com rabicho de
+   campanha (?utm_source=...). Comparando cru, o comentário se desgruda do
+   post em silêncio e a contagem simplesmente dá zero. */
+function chaveDoPost(url){
+  return String(url || '')
+    .trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split(/[?#]/)[0]
+    .replace(/\/+$/, '');
+}
+
+const mesmoPost = (a, b) => {
+  const ka = chaveDoPost(a), kb = chaveDoPost(b);
+  return !!ka && ka === kb;
+};
+
+function redeDoLink(url){
+  if(/instagram\.com/i.test(url)) return 'Instagram';
+  if(/facebook\.com|fb\.watch|fb\.me/i.test(url)) return 'Facebook';
+  if(/tiktok\.com/i.test(url)) return 'TikTok';
+  if(/youtube\.com|youtu\.be/i.test(url)) return 'YouTube';
+  return null;
+}
+
+// Endereço que o Instagram e o Facebook aceitam para mostrar o post dentro da
+// página. Devolve null quando não dá — e aí o cartão mostra só o link.
+function embedDoPost(url){
+  const s = String(url || '');
+  const ig = s.match(/instagram\.com\/(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
+  if(ig){
+    const tipo = ig[1].toLowerCase() === 'reels' ? 'reel' : ig[1].toLowerCase();
+    return 'https://www.instagram.com/' + tipo + '/' + ig[2] + '/embed';
+  }
+  if(/facebook\.com/i.test(s)){
+    return 'https://www.facebook.com/plugins/post.php?href=' + encodeURIComponent(s) + '&show_text=true&width=360';
+  }
+  return null;
+}
+
+/* Soma a versão orgânica com a paga.
+
+   Parece bobo, mas resolve uma armadilha real da importação: o sufixo "_org"
+   não quer dizer "orgânico", quer dizer "o título da coluna não dizia pago".
+   Se a planilha traz uma coluna única de curtidas, ela cai inteira em
+   curtidas_org e curtidas_pago fica vazio.
+
+   A soma acerta nos dois casos: com uma coluna, soma = a própria coluna; com
+   duas, soma = o total. O que seria errado é CHAMAR a _org de "orgânica". Por
+   isso a tela mostra o total e não promete separação que pode não existir. */
+function metrica(p, base){
+  const a = p[base + '_org'], b = p[base + '_pago'];
+  if((a === null || a === undefined) && (b === null || b === undefined)) return null;
+  return Number(a || 0) + Number(b || 0);
 }
 
 // Encurta um link comprido para caber na lista, mantendo o começo e o fim —
@@ -1734,6 +1818,128 @@ function Dashboard({cfg, interacoes, clienteNome}){
   );
 }
 
+/* ============================================================
+   CONTEÚDOS
+   O mural de publicações. No Zmetrics é um cadastro manual — você cola o link
+   de cada post — porque lá não existe importação. Aqui não se cadastra nada:
+   as publicações já chegam pela planilha, com link, formato, rede, data e as
+   métricas. Um segundo cadastro ao lado criaria post repetido, já que nada
+   impediria a mesma publicação de entrar pelos dois caminhos.
+   ============================================================ */
+const METRICAS = [
+  ['visu','Visualizações'], ['curtidas','Curtidas'], ['coment','Comentários'],
+  ['compart','Compart.'], ['salvos','Salvamentos'],
+];
+const POR_PAGINA = 12;
+
+function Conteudos({cfg, publicacoes, interacoes, clienteNome}){
+  const [fRede, setFRede] = useState('');
+  const [busca, setBusca] = useState('');
+  const [quantos, setQuantos] = useState(POR_PAGINA);
+
+  const vivos = interacoes.filter(i => !naLixeira(i));
+  const nomeRede = id => cfg.redes.find(r => r.id === id)?.nome || null;
+
+  const lista = publicacoes.filter(p => {
+    if(fRede && String(p.rede_id) !== fRede) return false;
+    if(busca){
+      const q = busca.toLowerCase();
+      const alvo = `${p.link || ''} ${p.formato || ''} ${nomeRede(p.rede_id) || ''}`.toLowerCase();
+      if(!alvo.includes(q)) return false;
+    }
+    return true;
+  });
+  const mostrando = lista.slice(0, quantos);
+
+  // Quantos comentários vieram de cada post. A lixeira não conta.
+  const comentariosDe = p => vivos.filter(i => mesmoPost(i.link_conteudo, p.link)).length;
+  // Comentários que apontam para um post que não está na lista de publicações.
+  const orfaos = vivos.filter(i => i.link_conteudo &&
+    !publicacoes.some(p => mesmoPost(i.link_conteudo, p.link))).length;
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Conteúdos</h1><p>{clienteNome} · {publicacoes.length} publicação(ões) importada(s)</p></div>
+      </div>
+
+      {publicacoes.length === 0 ? (
+        <div className="empty">
+          Nenhuma publicação importada ainda. As publicações entram pela planilha,
+          em <b>Importar dados</b> — nas abas cujo nome começa com "Resultados".
+        </div>
+      ) : (
+        <>
+          <div className="filters">
+            <input value={busca} onChange={e=>{setBusca(e.target.value); setQuantos(POR_PAGINA);}}
+              placeholder="Buscar por link, formato ou rede…" />
+            <select value={fRede} onChange={e=>{setFRede(e.target.value); setQuantos(POR_PAGINA);}}>
+              <option value="">Rede: todas</option>
+              {cfg.redes.map(r=><option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+            </select>
+          </div>
+
+          {orfaos > 0 && (
+            <div className="aviso">{orfaos} comentário(s) apontam para um post que não está entre as
+            publicações importadas. Eles continuam no Community normalmente — só não aparecem ligados
+            a nenhum cartão aqui.</div>
+          )}
+
+          {mostrando.length === 0 ? (
+            <div className="empty">Nenhuma publicação corresponde ao que você filtrou.</div>
+          ) : (
+            <div className="mural">
+              {mostrando.map(p => {
+                const incorporar = embedDoPost(p.link);
+                const n = comentariosDe(p);
+                const rede = nomeRede(p.rede_id) || redeDoLink(p.link);
+                return (
+                  <div key={p.id} className="post">
+                    <div className="pcab">
+                      {rede && <span className="prede">{rede}</span>}
+                      {p.formato && <span className="tag">{p.formato}</span>}
+                      {p.data_post && <span className="pdata">{fmtBR(dataLocal(p.data_post))}</span>}
+                    </div>
+
+                    {incorporar
+                      ? <iframe src={incorporar} title={p.link || 'publicação'} loading="lazy"
+                          scrolling="no" className="pembed" />
+                      : <div className="psemembed">
+                          Este link não pode ser mostrado aqui dentro. Use <b>abrir ↗</b>.
+                        </div>}
+
+                    <div className="pnums">
+                      {METRICAS.map(([campo, rotulo]) => {
+                        const v = metrica(p, campo);
+                        return v === null ? null : (
+                          <span key={campo}><b>{v.toLocaleString('pt-BR')}</b>{rotulo}</span>
+                        );
+                      })}
+                    </div>
+
+                    <div className="ppe">
+                      <span className={n ? 'temcom' : ''}>{n} comentário(s) deste post</span>
+                      {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer">abrir ↗</a>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {lista.length > mostrando.length && (
+            <div style={{textAlign:'center',marginTop:16}}>
+              <button className="btn" onClick={()=>setQuantos(q => q + POR_PAGINA)}>
+                Mostrar mais {Math.min(POR_PAGINA, lista.length - mostrando.length)} de {lista.length - mostrando.length}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta, onExcluir}){
   const [aba, setAba] = useState('comentarios');
   const [busca, setBusca] = useState('');
@@ -2382,6 +2588,8 @@ function Painel({user, perfil, onSair}){
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
               ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />
+            : modulo==='conteudos'
+              ? <Conteudos cfg={cfg} publicacoes={publicacoes} interacoes={interacoes} clienteNome={clienteNome} />
             : modulo==='relatorios'
               ? <Dashboard cfg={cfg} interacoes={interacoes} clienteNome={clienteNome} />
               : <div>
