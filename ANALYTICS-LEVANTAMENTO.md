@@ -1,14 +1,12 @@
 # Levantamento antes da camada analítica
 
-Feito antes de escrever qualquer gráfico, como pedido. Duas coisas primeiro:
+Feito antes de escrever qualquer gráfico. **Nenhum gráfico foi implementado e
+nenhuma alteração foi feita no banco.**
 
 **De onde vêm estas informações.** Esta sessão **não tem acesso à rede**, então
-não consultei o Supabase diretamente. Tudo abaixo foi lido do `index.html` —
-que é o que o aplicativo de fato lê e grava. Onde isso não basta (tipo exato
-da coluna, colunas que existem no banco mas ninguém usa), está marcado como
-**a confirmar**, e há um comando no fim para você conferir.
-
-**O que encontrei não é só o esperado.** Há dois defeitos, um deles meu.
+não consultei o Supabase. O que está marcado como **confirmado no código** foi
+lido do `index.html` — que é o que o aplicativo de fato lê e grava. O que está
+marcado como **a confirmar** depende de você rodar as consultas da seção 6.
 
 ---
 
@@ -18,9 +16,7 @@ da coluna, colunas que existem no banco mas ninguém usa), está marcado como
 
 Na etapa 1 eu criei a coluna `data_coment` para o campo "Data do comentário"
 do cartão. **Não vi que já existia `data_publicacao`**, gravada pela
-importação de DMs desde antes de eu chegar (linha 2008 do `index.html`).
-
-O estrago:
+importação de DMs desde antes de eu chegar (`index.html`, linha 2008).
 
 | Como o comentário entrou | Onde a data foi parar | Os filtros e o relatório veem? |
 |---|---|---|
@@ -29,32 +25,45 @@ O estrago:
 | Colar em lote | nenhuma | Não há data |
 | Adicionar à mão | nenhuma | Não há data |
 
-Ou seja: **toda DM que você importou por planilha está hoje invisível para o
-recorte por período do dashboard**, mesmo tendo data. É exatamente a
-divergência entre telas que o pedido quer evitar.
+**Toda DM importada por planilha está hoje invisível para o recorte por
+período do dashboard**, mesmo tendo data. É a divergência entre telas que o
+pedido quer evitar.
 
-É o tipo de erro que a regra "comparar antes de implementar" existe para
-pegar — e eu a apliquei nas etapas 2, 3 e 4, mas não na 1.
+**Decidido:** a coluna que fica é `data_publicacao`. A migração está desenhada
+na seção 5 e **ainda não foi executada**.
 
-### 1.2 Não existe hora em lugar nenhum
+### 1.2 A hora é destruída na leitura da planilha — e dá para recuperar
 
-A função que lê as datas da planilha (`toDate`, linha 1884) **corta a hora de
-propósito**:
+A importação lê a planilha com `raw:false` (`index.html`, linha 1957), o que
+converte cada célula para o **texto formatado**. Se a célula está formatada
+como `dd/mm/aaaa`, o texto sai sem hora **mesmo que o valor por baixo tenha
+hora**.
+
+Testado com a própria biblioteca que o MUVUCA usa, com uma célula contendo
+`10/09/2026 14:32`:
+
+| Formatação da célula | Lido com `raw:false` (hoje) | Lido com `raw:true` |
+|---|---|---|
+| só data | `"10/09/2026"` — **hora perdida** | `2026-09-10 14:32` |
+| com hora | `"10/09/2026 14:32"` | `2026-09-10 14:32` |
+
+Depois disso, a função `toDate` (linha 1884) ainda corta o que sobrou:
 
 ```js
-if (v instanceof Date) return v.toISOString().slice(0,10);   // fica só AAAA-MM-DD
+if (v instanceof Date) return v.toISOString().slice(0,10);
 ```
 
-Então, mesmo que a sua planilha traga `10/09/2026 14:32`, o que chega ao banco
-é `2026-09-10`. **A informação de hora é descartada na porta de entrada.**
+**Conclusão: a hora não se perde na origem, perde-se na leitura.** Reimportar
+as mesmas planilhas recupera os horários. Nada foi perdido definitivamente.
 
-Isso decide o gráfico "Evolução por Hora": hoje ele é impossível, e pela sua
-própria regra ("não inventar horário quando o dado original não existir") o
-certo é mostrar o estado honesto, não um gráfico.
+**Cuidado na correção:** não basta trocar para `raw:true`. Com `raw:true` as
+outras colunas deixam de vir formatadas (números viram número cru), e os
+outros trechos da importação contam com texto. A correção precisa tratar as
+colunas de data separadamente, e vem com teste.
 
 ---
 
-## 2. O que existe hoje no banco
+## 2. O que existe hoje — confirmado no código
 
 ### `interacoes` — comentários e DMs (a base de tudo)
 
@@ -75,112 +84,195 @@ certo é mostrar o estado honesto, não um gráfico.
 
 **Não existe:** hora, `post_id`, `projeto_id`.
 
-### `publicacoes` — o desempenho dos posts
+### `publicacoes` — as métricas de desempenho
 
-Esta é a boa notícia do levantamento. **As métricas de engajamento já existem
-e já são importadas**, e ninguém nunca as mostrou:
+**As 16 métricas já existem e já são importadas.** Hoje a tabela inteira é
+carregada e usada **só para contar quantos posts cada rede tem** (linha 1813).
 
-`cliente_id`, `rede_id`, `produto_id`, `editoria_id`, `data_post`, `link`,
-`formato`, `status`, e **16 colunas de métrica**: visualizações, alcance,
-curtidas, comentários, compartilhamentos, salvamentos, engajamento e taxa de
-engajamento — cada uma em versão **orgânica e paga**.
+Identificação: `cliente_id`, `rede_id`, `produto_id`, `editoria_id`,
+`data_post`, `link`, `formato`, `status`.
 
-Hoje o aplicativo carrega essa tabela inteira e usa **só para contar quantos
-posts cada rede tem** (linha 1813).
+As métricas, todas em par orgânico/pago:
 
-### As outras
+| Coluna no banco | Vem da coluna da planilha cujo título contém… |
+|---|---|
+| `visu_org` / `visu_pago` | `visualizac…` |
+| `alcance_org` / `alcance_pago` | `alcance` |
+| `curtidas_org` / `curtidas_pago` | `curtida` |
+| `coment_org` / `coment_pago` | `comentario` |
+| `compart_org` / `compart_pago` | `compartilha` |
+| `salvos_org` / `salvos_pago` | `salvamento` |
+| `engaj_org` / `engaj_pago` | **`engajamento total`** |
+| `tx_engaj_org` / `tx_engaj_pago` | `taxa` |
+
+### Três armadilhas na importação das métricas
+
+Confirmadas no código (`mapaColunas`, linha 1901):
+
+**a) `_org` não significa "orgânico". Significa "não dizia pago".** O sufixo é
+decidido assim:
+
+```js
+const pago = n.includes('pago') || n.includes('paga');
+const suf  = pago ? '_pago' : '_org';
+```
+
+Se a sua planilha tem uma coluna única "Engajamento total", sem separar
+orgânico de pago, **ela cai inteira em `engaj_org`**. Nesse caso `engaj_org`
+já é o total, e somar com `engaj_pago` não faz sentido.
+
+**Isto precisa ser conferido na sua planilha antes de eu definir o ranking.**
+
+**b) Não existe `engaj_total`.** Só o par `engaj_org` / `engaj_pago`.
+
+**c) Um título só de "Engajamento" é descartado em silêncio.** A regra exige
+que o título contenha literalmente `engajamento total`. Se a planilha disser
+apenas "Engajamento", a coluna não é lida e o valor não chega ao banco, sem
+aviso nenhum.
+
+### As outras tabelas
 
 `clientes`, `redes`, `produtos`, `editorias`, `categorias_sentimento`,
-`perfis`. Todas por `cliente_id`.
+`perfis`. Todas ligadas por `cliente_id`.
 
 ---
 
-## 3. A matriz pedida
+## 3. A matriz
 
 | Gráfico | Fonte atual | Campo usado | Já funciona? | O que falta |
 |---|---|---|---|---|
-| Evolução diária | `interacoes` | `data_publicacao` / `data_coment` | **Parcial** | unir as duas colunas; colar em lote não grava data nenhuma |
-| Volume mensal | `interacoes` | idem | **Parcial** | idem; e o texto do card fala de "volume publicado", que é outra coisa |
-| Dia da semana | `interacoes` | idem | **Não** | sai da mesma data; falta implementar |
-| Evolução por hora | — | **não existe** | **Não** | a importação descarta a hora; precisa parar de descartar |
-| Sentimento | `interacoes` → `categorias_sentimento` | `sentimento_id` | **Sim** | só falta ligar na tela da rede; já calculado no dashboard |
+| Evolução diária | `interacoes` | `data_publicacao` | **Parcial** | unir as duas colunas; colar em lote não grava data |
+| Volume mensal | `interacoes` | `data_publicacao` | **Parcial** | idem; e o texto do card fala de "volume publicado", que é outra coisa |
+| Dia da semana | `interacoes` | `data_publicacao` | **Não** | sai da mesma data; falta implementar |
+| Evolução por hora | `interacoes` | **não existe ainda** | **Não** | corrigir a leitura da planilha e guardar a hora; reimportar recupera |
+| Sentimento | `interacoes` → `categorias_sentimento` | `sentimento_id` | **Sim** | só ligar na tela da rede; já calculado no dashboard |
 | Termos | `interacoes` | `texto` | **Não** | implementar + lista de palavras a ignorar |
-| Posts mais engajados | `publicacoes` | as 16 métricas | **Dados sim, tela não** | exibir; e decidir qual métrica é "engajamento" |
-| Hashtags | `interacoes` / `publicacoes` | `texto` | **Não** | sai do texto; nunca implementado |
+| Posts mais engajados | `publicacoes` | `engaj_org` / `engaj_pago` | **Dados sim, tela não** | conferir a armadilha (a) antes de definir o ranking |
+| Hashtags | `interacoes` | `texto` | **Não** | nunca implementado |
 
 ---
 
-## 4. Decisões que eu não vou tomar sozinho
+## 4. Decisões já tomadas
 
-### 4.1 Qual coluna de data fica
-
-Precisa sobrar uma só. A migração é aditiva nos dois caminhos — nada é
-apagado, só copiado.
-
-- **`data_publicacao`** (recomendo): é a que já existia antes de mim. A regra
-  "não duplicar o que existe" diz que quem chegou depois cede. Serve para
-  comentário e para DM sem soar estranho.
-- **`data_coment`**: nome mais claro para comentário, mas foi eu que criei, e
-  manter a minha em detrimento da sua é a decisão errada por padrão.
-
-### 4.2 Existe "Projeto" entre Cliente e Rede?
-
-O seu pedido descreve **Cliente → Projeto → Rede**. O MUVUCA hoje tem
-**Cliente → Rede**: o módulo se chama "Projetos", mas cada *cliente* é um
-workspace, e não há tabela de projeto nem `projeto_id`.
-
-- **Tratar cliente como o projeto** (recomendo por ora): zero migração, e
-  nada hoje precisa de dois níveis.
-- **Criar a camada de projeto de verdade**: um cliente passa a ter vários
-  projetos, e toda consulta ganha mais um filtro. É uma mudança grande, e só
-  vale se você já tem cliente com mais de um projeto em vista.
-
-### 4.3 O que conta como "engajamento" no ranking de posts
-
-As 16 métricas estão lá, mas "engajamento" precisa de uma definição sua. As
-colunas `engaj_org` / `engaj_pago` já vêm prontas da planilha — se for isso,
-uso elas e mostro a fórmula na tela. Se for outra coisa (por exemplo curtidas
-+ comentários + compartilhamentos + salvamentos), me diga a conta.
-
-Enquanto não houver definição, o card mostra o estado honesto, não um número
-inventado.
-
-### 4.4 Ligar comentário ao post
-
-Hoje a ligação é por **texto**: `interacoes.link_conteudo` contra
-`publicacoes.link`. Um espaço a mais ou um `?utm_source=` no fim e a ligação
-se perde em silêncio.
-
-O certo é um `publicacao_id` de verdade em `interacoes`, preenchido por
-correspondência de link na importação e editável no cartão. É aditivo.
+| Assunto | Decisão |
+|---|---|
+| Coluna de data | Fica `data_publicacao`. `data_coment` só é descontinuada depois da validação. |
+| Hierarquia | Sem camada de Projeto. Cliente é o projeto. Nada de cliente fixo no código. |
+| Engajamento | Usar o campo que já vem da planilha. **Não inventar fórmula.** Antes, conferir a armadilha (a). |
+| Taxa de engajamento | Tratada como coisa diferente do engajamento absoluto. Só usada com denominador conhecido. |
+| Hora | Preservar a maior precisão disponível na origem. Nunca inventar horário. |
 
 ---
 
-## 5. Para conferir o banco de verdade
+## 5. A migração da data — desenhada, **não executada**
 
-Eu não consigo consultar o seu Supabase daqui. **Rode o comando abaixo** e me
-mande o resultado — ele só lê, não altera nada.
+Nada abaixo foi rodado. É o plano para você aprovar.
 
-1. Entre em **https://supabase.com**, abra o projeto do **MUVUCA**.
-2. No menu da esquerda, clique em **`SQL Editor`** e depois em **`New query`**.
-3. Cole isto e clique em **`Run`**:
+**Passo 1 — olhar antes de tocar.** A consulta 2 da seção 6 conta quantos
+registros têm data nas duas colunas com **valores diferentes**. Se houver
+algum, eu listo um por um e você decide; nenhum é sobrescrito antes disso.
+
+**Passo 2 — copiar só o que não conflita**, preenchendo apenas onde
+`data_publicacao` está vazia:
 
 ```sql
-select table_name  as tabela,
-       column_name as coluna,
-       data_type   as tipo,
-       is_nullable as aceita_vazio
+-- NÃO RODE AINDA. Só depois da consulta 2 não acusar conflito.
+update interacoes
+set data_publicacao = data_coment
+where data_publicacao is null
+  and data_coment is not null;
+```
+
+**Passo 3 — o aplicativo passa a usar só `data_publicacao`.** Mudança de
+código, sem tocar no banco.
+
+**Passo 4 — `data_coment` fica onde está, intacta**, até você confirmar que
+está tudo certo. Só então ela é descontinuada. Coluna com dado seu não se
+apaga por conveniência.
+
+---
+
+## 6. O que preciso que você rode no Supabase
+
+**São só consultas de leitura. Nenhuma altera nada.**
+
+1. Entre em **https://supabase.com** e faça login.
+2. Clique no projeto do **MUVUCA**.
+3. No **menu da esquerda**, clique em **`SQL Editor`**.
+4. Clique em **`New query`**, no alto.
+
+Para cada consulta abaixo: apague o que estiver na caixa, cole a consulta,
+clique em **`Run`** (canto de baixo à direita) e me mande o resultado.
+
+### Consulta 1 — que colunas existem e de que tipo
+
+```sql
+select table_name as tabela, column_name as coluna, data_type as tipo
 from information_schema.columns
 where table_schema = 'public'
-  and table_name in ('interacoes','publicacoes','clientes','redes',
-                     'produtos','editorias','categorias_sentimento')
+  and table_name in ('interacoes','publicacoes')
 order by table_name, ordinal_position;
 ```
 
-**O que você vai ver:** uma tabela com uma linha por coluna. Pode copiar tudo
-e colar na conversa.
+**O que você vai ver:** uma linha por coluna das duas tabelas.
 
-Com isso eu confirmo três coisas que hoje são suposição: se `data_publicacao`
-é `date` ou `timestamp` (se for timestamp, talvez haja hora guardada e o
-problema seja só na leitura), se há colunas que o aplicativo nunca usa, e se
-existe algum `created_at` que sirva de data de importação.
+Responde: o tipo de `data_publicacao` e de `data_coment` (se disser `date`,
+não cabe hora e vamos precisar convertê-la), quais campos de engajamento
+existem de verdade, e se há colunas que o aplicativo nunca usa.
+
+### Consulta 2 — as duas datas conflitam?
+
+```sql
+select
+  count(*) as total_de_comentarios,
+  count(*) filter (where data_publicacao is not null
+                     and data_coment is not null
+                     and data_publicacao::date <> data_coment::date) as conflitos,
+  count(*) filter (where data_publicacao is null and data_coment is not null) as so_na_minha_coluna,
+  count(*) filter (where data_publicacao is not null and data_coment is null) as so_na_coluna_antiga,
+  count(*) filter (where data_publicacao is null and data_coment is null) as sem_data_nenhuma
+from interacoes;
+```
+
+**O que você vai ver:** uma linha só, com cinco números.
+
+O que importa é **`conflitos`**. Se for **0**, a migração é segura. Se for
+maior que zero, eu listo os casos e você decide um por um — não vou
+sobrescrever nada.
+
+### Consulta 3 — sobrou alguma hora guardada?
+
+```sql
+select id, origem,
+       data_publicacao,
+       to_char(data_publicacao, 'HH24:MI:SS') as hora_guardada,
+       data_coment,
+       left(coalesce(texto,''), 40) as inicio_do_texto
+from interacoes
+where data_publicacao is not null or data_coment is not null
+order by id desc
+limit 15;
+```
+
+**O que você vai ver:** até 15 comentários com suas datas.
+
+Olhe a coluna **`hora_guardada`**. Se vier `00:00:00` em todas, confirma que
+nenhuma hora foi salva. Se aparecer alguma hora de verdade, muda o plano — há
+mais informação guardada do que eu esperava.
+
+---
+
+## 7. Falta também uma resposta sua, fora do banco
+
+Sobre a armadilha (a) da seção 2: **abra a sua planilha de publicações** e
+olhe os títulos das colunas de engajamento.
+
+- Existe **uma** coluna "Engajamento total"? Então ela está caindo em
+  `engaj_org`, e esse valor **já é o total** — somar com `engaj_pago` estaria
+  errado.
+- Existem **duas**, uma delas com "pago"/"paga" no título? Então a separação
+  está correta e a soma faz sentido.
+- O título diz só "Engajamento", sem a palavra "total"? Então **essa coluna
+  não está sendo importada**, e é preciso corrigir a leitura.
+
+Me diga qual é o caso, ou mande um print da linha de títulos da planilha.
