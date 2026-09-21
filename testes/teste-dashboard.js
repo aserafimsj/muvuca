@@ -6,12 +6,13 @@ const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const ini = html.indexOf('const PERIODOS = [');
-const fimIdx = html.indexOf('\n}', html.indexOf('function serieDiaria'));
+const fimIdx = html.indexOf('\n}', html.indexOf('function serieDiariaPor'));
 if(ini < 0 || fimIdx < 0){ console.error('FALHA: nao achei as funcoes do dashboard no index.html'); process.exit(2); }
 const fonte = html.slice(ini, fimIdx + 2);
 
 const M = eval('(function(){' + fonte + `
-return {resolvePeriodo, noPeriodo, dataDoComentario, contarPor, serieDiaria, inicioDoDia, fimDoDia, dataLocal, chaveDia};})()`);
+return {resolvePeriodo, noPeriodo, dataDoComentario, contarPor, cruzarPor, serieDiaria,
+        serieDiariaPor, inicioDoDia, fimDoDia, dataLocal, chaveDia, topoDoEixo};})()`);
 
 const r = [];
 const check = (nome, ok, extra='') => { r.push(!!ok); console.log((ok?'  OK  ':' FALHA')+` | ${nome}${extra?' -> '+extra:''}`); };
@@ -97,6 +98,53 @@ check('ultimo dia com 1', serie[3].dia === '2026-09-04' && serie[3].n === 1);
 check('a soma bate com a entrada', serie.reduce((a,p)=>a+p.n,0) === 3);
 check('sem datas, serie vazia', M.serieDiaria([{data_coment:null, ia_em:null}]).length === 0);
 check('um dia so nao quebra', M.serieDiaria([{data_coment:'2026-09-01'}]).length === 1);
+
+console.log('\n--- topo do eixo ---');
+// Com maximo 11 a linha do meio cai em 5,5 e o rotulo arredondado dizia "6".
+// Rotulo que nao corresponde a linha e mentirinha no eixo.
+[[11,12],[9,10],[16,16],[24,24],[1,2],[2,2],[137,138],[0,2]].forEach(([m,esp]) =>
+  check(`maximo ${m} vira topo ${esp} (metade ${esp/2})`, M.topoDoEixo(m) === esp, String(M.topoDoEixo(m))));
+check('a metade e sempre inteira',
+  [1,2,3,7,11,19,54,137,999].every(m => (M.topoDoEixo(m)/2) % 1 === 0));
+check('o topo nunca corta a maior barra',
+  [1,2,3,7,11,19,54,137,999].every(m => M.topoDoEixo(m) >= m));
+
+console.log('\n--- cruzamento (o grafico empilhado) ---');
+const cruzados = [
+  {s:'Negativo', rede:'Instagram'}, {s:'Negativo', rede:'Instagram'}, {s:'Negativo', rede:'Facebook'},
+  {s:'Dúvida',  rede:'Instagram'}, {s:'Dúvida',   rede:'YouTube'},
+  {s:null,      rede:'Instagram'},
+];
+const cz = M.cruzarPor(cruzados, i=>i.s, i=>i.rede, 'Sem sentimento');
+check('acha as categorias', cz.cats.join(',') === 'Negativo,Dúvida,Sem sentimento', cz.cats.join(','));
+check('acha as series', cz.series.length === 3, cz.series.join(','));
+check('Negativo soma 3', cz.linhas[0].soma === 3);
+check('e a fatia do Instagram e 2', cz.linhas[0].fatias['Instagram'] === 2);
+check('e a do Facebook e 1', cz.linhas[0].fatias['Facebook'] === 1);
+check('e a do YouTube e 0', cz.linhas[0].fatias['YouTube'] === 0);
+// A regra que pega erro de cruzamento: a soma das pilhas tem que ser o total.
+check('a soma de todas as pilhas fecha com o total',
+  cz.linhas.reduce((a,l)=>a+l.soma,0) === cruzados.length,
+  cz.linhas.reduce((a,l)=>a+l.soma,0)+' de '+cruzados.length);
+check('cada pilha soma suas proprias fatias',
+  cz.linhas.every(l => cz.series.reduce((a,s)=>a+l.fatias[s],0) === l.soma));
+check('lista vazia nao quebra', M.cruzarPor([], i=>i.s, i=>i.rede).linhas.length === 0);
+
+console.log('\n--- linha do tempo por sentimento ---');
+const porSent = M.serieDiariaPor([
+  {data_coment:'2026-09-01', s:'Negativo'}, {data_coment:'2026-09-01', s:'Dúvida'},
+  {data_coment:'2026-09-03', s:'Negativo'},
+], i=>i.s);
+check('os dias sao os mesmos da serie total', porSent.dias.join(',') === '2026-09-01,2026-09-02,2026-09-03',
+  porSent.dias.join(','));
+check('uma linha por sentimento', porSent.series.length === 2);
+check('todas as linhas tem o mesmo tamanho',
+  porSent.series.every(s => s.valores.length === porSent.dias.length));
+const neg = porSent.series.find(s=>s.nome==='Negativo');
+check('Negativo: 1, 0, 1', neg.valores.join(',') === '1,0,1', neg.valores.join(','));
+check('a soma das linhas bate com o total de entrada',
+  porSent.series.reduce((a,s)=>a+s.valores.reduce((x,v)=>x+v,0),0) === 3);
+check('sem datas nao quebra', M.serieDiariaPor([{data_coment:null, ia_em:null}], i=>i.s).dias.length === 0);
 
 console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
 process.exit(r.every(Boolean) ? 0 : 1);

@@ -134,6 +134,23 @@
   @media(min-width:780px){ .blocos{grid-template-columns:1fr 1fr} }
   .bloco{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .btit{font-weight:600;font-size:14px;margin-bottom:2px}
+  .bcab{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .segs{display:flex;gap:3px;flex-wrap:wrap}
+  .seg{background:transparent;border:1px solid var(--line);border-radius:6px;padding:3px 9px;
+    font-size:11.5px;color:var(--muted);cursor:pointer}
+  .seg:hover:not(:disabled){border-color:var(--brand)}
+  .seg.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .seg:disabled{opacity:.4;cursor:default}
+  .svgraf{width:100%;height:auto;display:block}
+  .svgraf .gradelinha{stroke:var(--line);stroke-width:1}
+  .svgraf .eixotxt{font-size:9.5px;fill:var(--muted)}
+  .svgraf .valtxt{font-size:10.5px;font-weight:700;fill:var(--ink)}
+  .svgraf .fatiatxt{font-size:11px;font-weight:700;fill:#fff}
+  .legenda{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--muted)}
+  .litem{display:inline-flex;align-items:center;gap:5px}
+  .litem b{color:var(--ink)}
+  .ldot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .legenda .lpct{font-size:11px}
   .bnota{font-size:11.5px;color:var(--muted);margin-bottom:10px}
   .bvazio{font-size:12.5px;color:var(--muted);padding:14px 0}
   .barras{display:flex;flex-direction:column;gap:7px;margin-top:8px}
@@ -585,6 +602,25 @@ function passaNoFiltro(i, f, busca){
   return true;
 }
 
+/* Paleta para as dimensões sem cor própria (rede, produto, editoria).
+   É a mesma do Zmetrics, e a ordem é a dele: testei duas reordenações
+   "melhores" e as duas pioraram a separação para daltonismo. O pior par
+   adjacente fica na faixa que só é aceitável com reforço além da cor — daí
+   o número aparecer em toda fatia e barra. */
+const PALETA = ['#2C57C9','#1E9E6A','#B5852A','#7C5CD6','#D64545','#0FA3A3','#E07A1F','#3AA0FF','#8A93A2','#12224C'];
+
+/* Topo do eixo arredondado para cima até um número par. Com o máximo em 11, a
+   linha do meio cai em 5,5 e o rótulo arredondado dizia "6" — rótulo que não
+   corresponde à linha é uma mentirinha no eixo. Com 12, a metade é 6 de fato. */
+const topoDoEixo = m => Math.max(2, Math.ceil(Math.max(1, m) / 2) * 2);
+const corDaLista = (nomes) => {
+  const mapa = {};
+  nomes.forEach((n,k) => { mapa[n] = PALETA[k % PALETA.length]; });
+  // Cor segue a entidade, nunca a posição do momento: se um filtro tirar uma
+  // categoria, as que sobram não podem trocar de cor.
+  return n => mapa[n] || '#8A93A2';
+};
+
 /* ---------- contas do dashboard ----------
    Puras e fora dos componentes, pelo mesmo motivo dos filtros: número errado
    em relatório é mentira silenciosa, e só teste pega. */
@@ -605,6 +641,26 @@ function contarPor(itens, valorDe, semNome){
     .sort((a,b) => b.n - a.n || a.nome.localeCompare(b.nome,'pt-BR'));
 }
 
+/* Cruza duas dimensões: para cada categoria de A, quanto tem de cada B.
+   É o que o gráfico empilhado desenha. */
+function cruzarPor(itens, valorA, valorB, semNomeA){
+  const cats = contarPor(itens, valorA, semNomeA).map(d => d.nome);
+  const bs = contarPor(itens, valorB).map(d => d.nome);
+  const linhas = cats.map(c => {
+    const fatias = {};
+    bs.forEach(b => {
+      fatias[b] = itens.filter(i => {
+        const va = valorA(i), vb = valorB(i);
+        const ca = (va === null || va === undefined || va === '') ? semNomeA : String(va);
+        return ca === c && String(vb) === b;
+      }).length;
+    });
+    const soma = bs.reduce((a,b) => a + fatias[b], 0);
+    return {nome: c, fatias, soma};
+  });
+  return {cats, series: bs, linhas};
+}
+
 /* Série dia a dia. Os dias sem nenhum comentário entram valendo zero: sem
    isso a linha do tempo "pula" o vazio e um fim de semana parado parece
    movimento contínuo. */
@@ -620,6 +676,24 @@ function serieDiaria(itens){
     serie.push({dia: k, n: porDia[k] || 0});
   }
   return serie;
+}
+
+/* A mesma linha do tempo, quebrada por alguma dimensão (o "Por sentimento").
+   Reaproveita serieDiaria para os dias, de modo que todas as linhas tenham
+   exatamente o mesmo eixo — séries com eixos diferentes não se comparam. */
+function serieDiariaPor(itens, valorDe){
+  const base = serieDiaria(itens);
+  if(!base.length) return {dias: [], series: []};
+  const dias = base.map(p => p.dia);
+  const nomes = contarPor(itens, valorDe).map(d => d.nome);
+  const series = nomes.map(nome => ({
+    nome,
+    valores: dias.map(dia => itens.filter(i => {
+      const d = dataDoComentario(i);
+      return d && chaveDia(inicioDoDia(d)) === dia && String(valorDe(i)) === nome;
+    }).length),
+  }));
+  return {dias, series};
 }
 
 // Encurta um link comprido para caber na lista, mantendo o começo e o fim —
@@ -1226,14 +1300,163 @@ function Tabela({dados, total}){
   );
 }
 
-function Bloco({titulo, dados, total, corDe, tabela, nota}){
+/* Barras em pé, com eixo e grade — o desenho padrão do Zmetrics.
+   O número vai em cima de cada barra: é o reforço que o teste de cor exige,
+   já que o pior par da paleta fica na faixa em que a cor sozinha não basta. */
+function BarrasV({dados, corDe}){
+  const [sob, setSob] = useState(null);
+  const L=34, R=8, T=20, B=40, W=340, H=225;
+  const maior = topoDoEixo(Math.max(1, ...dados.map(d=>d.n)));
+  const faixa = (W-L-R) / dados.length;
+  const larg = Math.max(6, Math.min(52, faixa - 8));   // 8px de respiro entre barras
+  const y = v => T + (H-T-B) * (1 - v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+      aria-label={dados.map(d=>`${d.nome}: ${d.n}`).join(', ')}>
+      {[0,.5,1].map(f=>(
+        <g key={f}>
+          <line x1={L} x2={W-R} y1={y(maior*f)} y2={y(maior*f)} className="gradelinha" />
+          <text x={L-5} y={y(maior*f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+        </g>
+      ))}
+      {dados.map((d,k)=>(
+        <g key={d.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+          <rect x={cx(k)-faixa/2} y={T} width={faixa} height={H-T-B} fill="transparent" />
+          <rect x={cx(k)-larg/2} y={y(d.n)} width={larg} height={Math.max(1,(H-B)-y(d.n))}
+            rx="4" fill={corDe(d.nome)} opacity={sob===null||sob===k?1:.45} />
+          <text x={cx(k)} y={y(d.n)-5} className="valtxt" textAnchor="middle">{d.n}</text>
+          <text x={cx(k)} y={H-B+13} className="eixotxt" textAnchor="middle">{cortar(d.nome, Math.floor(faixa/6))}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Corta nome comprido para caber embaixo da barra sem encavalar no vizinho.
+const cortar = (s, n) => { s = String(s); return s.length <= n ? s : s.slice(0, Math.max(1,n-1)) + '…'; };
+
+function Pizza({dados, total, corDe}){
+  const [sob, setSob] = useState(null);
+  const W=340, H=225, cx=W/2, cy=100, r=76;
+  const soma = dados.reduce((a,d)=>a+d.n, 0) || 1;
+  let ang = -Math.PI/2;
+  const fatias = dados.map(d => {
+    const a0 = ang, a1 = ang + (d.n/soma)*Math.PI*2;
+    ang = a1;
+    return {...d, a0, a1};
+  });
+  const ponto = (a, raio) => [cx + Math.cos(a)*raio, cy + Math.sin(a)*raio];
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+        aria-label={dados.map(d=>`${d.nome}: ${d.n}`).join(', ')}>
+        {fatias.map((f,k) => {
+          // Uma categoria só vira círculo inteiro: o arco de 360° degenera
+          // (começo e fim no mesmo ponto) e não desenharia nada.
+          if(dados.length === 1) return <circle key={f.nome} cx={cx} cy={cy} r={r} fill={corDe(f.nome)} />;
+          const [x0,y0] = ponto(f.a0, r), [x1,y1] = ponto(f.a1, r);
+          const grande = (f.a1 - f.a0) > Math.PI ? 1 : 0;
+          const meio = (f.a0+f.a1)/2;
+          const [tx,ty] = ponto(meio, r*0.62);
+          const pct = Math.round(f.n/soma*100);
+          return (
+            <g key={f.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+              <path d={`M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 ${grande} 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z`}
+                fill={corDe(f.nome)} stroke="#fff" strokeWidth="2" opacity={sob===null||sob===k?1:.45} />
+              {pct >= 8 && <text x={tx} y={ty+4} className="fatiatxt" textAnchor="middle">{pct}%</text>}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="legenda">
+        {dados.map((d,k)=>(
+          <span key={d.nome} className="litem" style={{opacity: sob===null||sob===k?1:.5}}>
+            <span className="ldot" style={{background:corDe(d.nome)}} />{d.nome}
+            <b>{d.n}</b><span className="lpct">{Math.round(d.n/soma*100)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Empilhado({cruz, corSerie}){
+  const [sob, setSob] = useState(null);
+  const L=34, R=8, T=20, B=40, W=340, H=225;
+  const maior = topoDoEixo(Math.max(1, ...cruz.linhas.map(l=>l.soma)));
+  const faixa = (W-L-R) / Math.max(1, cruz.linhas.length);
+  const larg = Math.max(6, Math.min(52, faixa - 8));
+  const esc = v => (H-T-B) * (v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+        aria-label={cruz.linhas.map(l=>`${l.nome}: ${l.soma}`).join(', ')}>
+        {[0,.5,1].map(f=>(
+          <g key={f}>
+            <line x1={L} x2={W-R} y1={T+(H-T-B)*(1-f)} y2={T+(H-T-B)*(1-f)} className="gradelinha" />
+            <text x={L-5} y={T+(H-T-B)*(1-f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+          </g>
+        ))}
+        {cruz.linhas.map((l,k)=>{
+          let base = H-B;
+          return (
+            <g key={l.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+              {cruz.series.map(s => {
+                const h = esc(l.fatias[s]);
+                if(h <= 0) return null;
+                base -= h;
+                // 2px de folga entre as fatias: sem isso duas cores vizinhas
+                // parecem uma só mancha.
+                return <rect key={s} x={cx(k)-larg/2} y={base} width={larg} height={Math.max(1,h-2)}
+                  rx="2" fill={corSerie(s)} opacity={sob===null||sob===k?1:.45}>
+                  <title>{`${l.nome} · ${s}: ${l.fatias[s]}`}</title>
+                </rect>;
+              })}
+              <text x={cx(k)} y={base-5} className="valtxt" textAnchor="middle">{l.soma}</text>
+              <text x={cx(k)} y={H-B+13} className="eixotxt" textAnchor="middle">{cortar(l.nome, Math.floor(faixa/6))}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="legenda">
+        {cruz.series.map(s=>(
+          <span key={s} className="litem"><span className="ldot" style={{background:corSerie(s)}} />{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TIPOS = [['pizza','Pizza'],['barras','Barras'],['barrasH','Barras H'],['empilhado','Empilhado']];
+
+function Bloco({titulo, dados, total, corDe, tabela, nota, cruz, corSerie, padrao='barras'}){
+  const [tipo, setTipo] = useState(padrao);
   return (
     <div className="bloco">
-      <div className="btit">{titulo}</div>
+      <div className="bcab">
+        <div className="btit">{titulo}</div>
+        {!tabela && dados.length > 0 && (
+          <div className="segs">
+            {TIPOS.map(([k,l])=>(
+              <button key={k} className={"seg"+(tipo===k?' on':'')} onClick={()=>setTipo(k)}
+                disabled={k==='empilhado' && !cruz}>{l}</button>
+            ))}
+          </div>
+        )}
+      </div>
       {nota && <div className="bnota">{nota}</div>}
       {dados.length === 0
         ? <div className="bvazio">Nada preenchido neste período.</div>
-        : tabela ? <Tabela dados={dados} total={total} /> : <Barras dados={dados} total={total} corDe={corDe} />}
+        : tabela ? <Tabela dados={dados} total={total} />
+        : tipo === 'pizza' ? <Pizza dados={dados} total={total} corDe={corDe} />
+        : tipo === 'barrasH' ? <Barras dados={dados} total={total} corDe={corDe} />
+        : tipo === 'empilhado' && cruz ? <Empilhado cruz={cruz} corSerie={corSerie} />
+        : <BarrasV dados={dados} corDe={corDe} />}
     </div>
   );
 }
@@ -1241,30 +1464,32 @@ function Bloco({titulo, dados, total, corDe, tabela, nota}){
 /* Linha do tempo em SVG. Sem biblioteca de gráfico: o MUVUCA é uma página só,
    sem compilação, e puxar uma biblioteca de fora para desenhar uma linha
    custaria mais do que desenhá-la. */
-function LinhaTempo({serie}){
+function LinhaTempo({dias, series, corDe}){
   const [sob, setSob] = useState(null);
-  if(serie.length < 2) return <div className="bvazio">Poucos dias com data para desenhar uma linha. Preencha a data dos comentários.</div>;
+  if(dias.length < 2) return <div className="bvazio">Poucos dias com data para desenhar uma linha. Preencha a data dos comentários.</div>;
 
   const L=40, R=12, T=12, B=26, W=760, H=190;
-  const maior = Math.max(1, ...serie.map(p=>p.n));
-  const x = k => L + (W-L-R) * (serie.length===1 ? 0 : k/(serie.length-1));
+  // Um eixo só para todas as linhas: dois eixos no mesmo gráfico fazem séries
+  // de tamanhos diferentes parecerem equivalentes.
+  const maior = topoDoEixo(Math.max(1, ...series.flatMap(s => s.valores)));
+  const x = k => L + (W-L-R) * (dias.length===1 ? 0 : k/(dias.length-1));
   const y = v => T + (H-T-B) * (1 - v/maior);
-  const d = serie.map((p,k)=>`${k?'L':'M'}${x(k).toFixed(1)},${y(p.n).toFixed(1)}`).join(' ');
+  const caminho = vals => vals.map((v,k)=>`${k?'L':'M'}${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
 
   // Três marcas no eixo de baixo: começo, meio e fim. Mais do que isso vira
   // amontoado ilegível em período longo.
-  const marcas = [0, Math.floor((serie.length-1)/2), serie.length-1].filter((v,i,a)=>a.indexOf(v)===i);
+  const marcas = [0, Math.floor((dias.length-1)/2), dias.length-1].filter((v,i,a)=>a.indexOf(v)===i);
 
   return (
     <div className="linhatempo">
       <svg viewBox={`0 0 ${W} ${H}`} className="svgtempo" role="img"
-        aria-label={`Comentários por dia, de ${serie[0].dia} a ${serie[serie.length-1].dia}`}
+        aria-label={`Comentários por dia, de ${dias[0]} a ${dias[dias.length-1]}`}
         onMouseLeave={()=>setSob(null)}
         onMouseMove={e=>{
           const c = e.currentTarget.getBoundingClientRect();
           const px = (e.clientX - c.left) / c.width * W;
-          const k = Math.round((px - L) / Math.max(1,(W-L-R)) * (serie.length-1));
-          setSob(k>=0 && k<serie.length ? k : null);
+          const k = Math.round((px - L) / Math.max(1,(W-L-R)) * (dias.length-1));
+          setSob(k>=0 && k<dias.length ? k : null);
         }}>
         {[0, .5, 1].map(f=>(
           <g key={f}>
@@ -1272,23 +1497,38 @@ function LinhaTempo({serie}){
             <text x={L-6} y={y(maior*f)+4} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
           </g>
         ))}
-        <path d={d} className="serie" />
+        {series.map(s=>(
+          <path key={s.nome} d={caminho(s.valores)} className="serie"
+            style={corDe ? {stroke: corDe(s.nome)} : null} />
+        ))}
         {sob !== null && (
           <g>
             <line x1={x(sob)} x2={x(sob)} y1={T} y2={H-B} className="cruz" />
-            <circle cx={x(sob)} cy={y(serie[sob].n)} r="5" className="ponto" />
+            {series.map(s=>(
+              <circle key={s.nome} cx={x(sob)} cy={y(s.valores[sob])} r="5" className="ponto"
+                style={corDe ? {fill: corDe(s.nome)} : null} />
+            ))}
           </g>
         )}
         {marcas.map(k=>(
           <text key={k} x={x(k)} y={H-8} className="eixotxt"
-            textAnchor={k===0?'start':k===serie.length-1?'end':'middle'}>
-            {fmtBR(dataLocal(serie[k].dia))}
+            textAnchor={k===0?'start':k===dias.length-1?'end':'middle'}>
+            {fmtBR(dataLocal(dias[k]))}
           </text>
         ))}
       </svg>
+      {series.length > 1 && (
+        <div className="legenda">
+          {series.map(s=>(
+            <span key={s.nome} className="litem">
+              <span className="ldot" style={{background: corDe ? corDe(s.nome) : '#8A6516'}} />{s.nome}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="dicatempo">
         {sob !== null
-          ? <span><b>{serie[sob].n}</b> comentário(s) em {fmtBR(dataLocal(serie[sob].dia))}</span>
+          ? <span>{fmtBR(dataLocal(dias[sob]))}: {series.map(s=>`${s.nome==='total'?'':s.nome+' '}${s.valores[sob]}`).join(' · ')}</span>
           : <span>Passe o mouse sobre a linha para ver o número de cada dia.</span>}
       </div>
     </div>
@@ -1308,12 +1548,35 @@ function Dashboard({cfg, interacoes, clienteNome}){
   const nomePor = (lista, id) => lista.find(x => x.id === id)?.nome || null;
   const sentDe  = i => nomePor(cfg.sentimentos, i.sentimento_id);
 
+  const [linhaPor, setLinhaPor] = useState('total');
+
+  const redeDe = i => nomePor(cfg.redes, i.rede_id);
   const porSent = contarPor(itens, sentDe, 'Sem sentimento');
-  const porRede = contarPor(itens, i => nomePor(cfg.redes, i.rede_id), 'Sem rede');
+  const porRede = contarPor(itens, redeDe, 'Sem rede');
   const porProd = contarPor(itens, i => nomePor(cfg.produtos, i.produto_id));
   const porEdit = contarPor(itens, i => nomePor(cfg.editorias, i.editoria_id));
   const porAutor = contarPor(itens, i => i.autor).slice(0, 10);
-  const serie = serieDiaria(itens);
+
+  // "Empilhado" cruza por rede, como no Zmetrics.
+  const cruzSent = cruzarPor(itens, sentDe, redeDe, 'Sem sentimento');
+  const cruzProd = cruzarPor(itens, i => nomePor(cfg.produtos, i.produto_id), redeDe);
+  const cruzEdit = cruzarPor(itens, i => nomePor(cfg.editorias, i.editoria_id), redeDe);
+  const cruzRede = cruzarPor(itens, redeDe, sentDe, 'Sem rede');
+
+  // Sentimento tem cor própria, definida por você nas configurações. Rede,
+  // produto e editoria não têm, então recebem cores de uma paleta fixa.
+  const corSentimento = nome => corSent(nome);
+  const corRede = corDaLista(cfg.redes.map(r=>r.nome).concat('Sem rede'));
+  const corProd = corDaLista(cfg.produtos.map(p=>p.nome));
+  const corEdit = corDaLista(cfg.editorias.map(e=>e.nome));
+  const corAutor = corDaLista(porAutor.map(a=>a.nome));
+
+  const serieTotal = serieDiaria(itens);
+  const serieSent = serieDiariaPor(itens, sentDe);
+  const linhaDias = linhaPor === 'total' ? serieTotal.map(p=>p.dia) : serieSent.dias;
+  const linhaSeries = linhaPor === 'total'
+    ? [{nome:'total', valores: serieTotal.map(p=>p.n)}]
+    : serieSent.series;
 
   const respondidos = itens.filter(i => i.triagem === 'Respondido').length;
   const pendentes   = itens.filter(i => (i.triagem||'Pendente') === 'Pendente').length;
@@ -1368,23 +1631,33 @@ function Dashboard({cfg, interacoes, clienteNome}){
           )}
 
           <div className="bloco" style={{marginTop:14}}>
-            <div className="btit">Comentários por dia</div>
-            <LinhaTempo serie={serie} />
+            <div className="bcab">
+              <div className="btit">Comentários por dia</div>
+              <div className="segs">
+                <button className={"seg"+(linhaPor==='total'?' on':'')} onClick={()=>setLinhaPor('total')}>Total</button>
+                <button className={"seg"+(linhaPor==='sent'?' on':'')} onClick={()=>setLinhaPor('sent')}>Por sentimento</button>
+              </div>
+            </div>
+            <LinhaTempo dias={linhaDias} series={linhaSeries}
+              corDe={linhaPor==='sent' ? corSentimento : null} />
           </div>
 
           <div className="blocos">
             <Bloco titulo="Sentimento" dados={porSent} total={itens.length} tabela={tabela}
-              corDe={nome => corSent(nome)} />
-            <Bloco titulo="Rede" dados={porRede} total={itens.length} tabela={tabela} />
+              corDe={corSentimento} cruz={cruzSent} corSerie={corRede} />
+            <Bloco titulo="Rede" dados={porRede} total={itens.length} tabela={tabela}
+              corDe={corRede} cruz={cruzRede} corSerie={corSentimento} padrao="pizza" />
             <Bloco titulo="Produto" dados={porProd} total={itens.length} tabela={tabela}
+              corDe={corProd} cruz={cruzProd} corSerie={corRede}
               nota="Só conta quem tem produto definido." />
             <Bloco titulo="Editoria" dados={porEdit} total={itens.length} tabela={tabela}
+              corDe={corEdit} cruz={cruzEdit} corSerie={corRede}
               nota="Só conta quem tem editoria definida." />
           </div>
 
           <div style={{marginTop:14}}>
             <Bloco titulo="Quem mais comentou" dados={porAutor} total={itens.length} tabela={tabela}
-              nota="Os dez primeiros." />
+              corDe={corAutor} padrao="barrasH" nota="Os dez primeiros." />
           </div>
         </>
       )}
