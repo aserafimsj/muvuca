@@ -63,6 +63,8 @@
   .card .val{font-size:26px;font-weight:600;margin-top:2px}
   .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .filters input,.filters select{width:auto;min-width:150px}
+  /* A busca é o filtro mais usado: merece caber inteira, e crescer com a tela. */
+  .filters input[type=text],.filters input:not([type]){flex:1 1 240px;min-width:220px;max-width:420px}
   .row{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
   .row:last-child{border-bottom:1px solid var(--line)}
   .row .av{width:34px;height:34px;flex-shrink:0;border-radius:50%;background:var(--bg);
@@ -77,8 +79,215 @@
   .ctrl select{width:auto;min-width:120px}
   .sentbox{display:flex;align-items:center;gap:6px}
   .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-  .reply{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .reply{margin-top:10px;display:flex;flex-direction:column;gap:6px}
   .reply textarea{min-height:64px;resize:vertical}
+  /* --- cartão do comentário (etapa 1: estrutura do Zmetrics, cores do MUVUCA) --- */
+  .txtedit{font-size:13px;color:#4a4a46;line-height:1.5;resize:vertical;min-height:40px;
+    padding:7px 9px;background:#FCFCFA;margin-top:2px}
+  .iatags{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .pill{font-size:11px;font-weight:600;border:1px solid;border-radius:999px;padding:2px 9px}
+  .iatags .motivo{font-size:12px;color:var(--muted)}
+  .campos{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .campo{flex:1 1 130px;min-width:0}
+  .campo>span,.lblcampo{display:block;font-size:10.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+  .campo input,.campo select{width:100%;padding:6px 8px;font-size:13px}
+  .reply .acoes{display:flex;gap:8px;flex-wrap:wrap}
+  .avisoerro{font-size:12.5px;color:var(--neg);background:#FDEDEC;border-radius:6px;padding:7px 9px}
+  /* --- fluxo de trabalho (etapa 2) --- */
+  .abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .aba{background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 13px;
+    font-size:13px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .aba:hover{border-color:var(--brand)}
+  .aba.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .aba .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px}
+  .aba.on .n{background:#fff}
+  /* margin-left:auto em vez de um espaçador: quando a linha do cabeçalho
+     quebra no celular, o espaçador deixava o × solto no meio do cartão. */
+  .btnx{background:transparent;border:none;color:#C2C8D0;font-size:19px;line-height:1;
+    padding:0 4px;cursor:pointer;flex-shrink:0;margin-left:auto}
+  .btnx:hover{color:var(--neg)}
+  .fluxo{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
+    border-top:1px solid var(--line);padding-top:11px}
+  .btn.ok{background:#1E9E6A;border-color:#1E9E6A;color:#fff;font-weight:700}
+  .btn.perigo{background:var(--neg);border-color:var(--neg);color:#fff;font-weight:600}
+  .confirma{font-size:12.5px;color:var(--neg);font-weight:600}
+  /* --- filtros (etapa 3) --- */
+  .filtros{margin-bottom:14px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+    font-size:12.5px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .chip:hover{border-color:var(--brand)}
+  .chip.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .chip .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px}
+  .chip.on .n{background:#fff}
+  .chip.juri.on{background:#FBF1DC;border-color:#B5852A;color:#7a5a12}
+  .dedata{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .dedata input{width:auto}
+  /* --- dashboard (etapa 4) --- */
+  .periodo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+  .resumoper{margin-left:auto;text-align:right}
+  .resumoper .quando{font-size:12px;color:var(--muted)}
+  .resumoper .quantos{font-size:13px;font-weight:600}
+  /* Duas colunas fixas no desktop: são quatro blocos, e uma grade "automática"
+     dava três colunas e deixava o quarto órfão numa linha sozinha. */
+  .blocos{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+  @media(min-width:780px){ .blocos{grid-template-columns:1fr 1fr} }
+  .bloco{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .btit{font-weight:600;font-size:14px;margin-bottom:2px}
+  .bcab{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .segs{display:flex;gap:3px;flex-wrap:wrap}
+  .seg{background:transparent;border:1px solid var(--line);border-radius:6px;padding:3px 9px;
+    font-size:11.5px;color:var(--muted);cursor:pointer}
+  .seg:hover:not(:disabled){border-color:var(--brand)}
+  .seg.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .seg:disabled{opacity:.4;cursor:default}
+  .svgraf{width:100%;height:auto;display:block}
+  .svgraf .gradelinha{stroke:var(--line);stroke-width:1}
+  .svgraf .eixotxt{font-size:9.5px;fill:var(--muted)}
+  .svgraf .valtxt{font-size:10.5px;font-weight:700;fill:var(--ink)}
+  .svgraf .fatiatxt{font-size:11px;font-weight:700;fill:#fff}
+  .legenda{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--muted)}
+  .litem{display:inline-flex;align-items:center;gap:5px}
+  .litem b{color:var(--ink)}
+  .ldot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .legenda .lpct{font-size:11px}
+  /* --- evolução diária --- */
+  .filtrosativos{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+  .filtrosativos b{color:var(--ink);letter-spacing:.5px;font-size:11px}
+  .filtrosativos .alerta{color:#8A6516;font-weight:600}
+  .colunadia{cursor:pointer}
+  .colunadia:hover rect:first-child{fill:rgba(245,179,1,.09)}
+  .detlinha{display:grid;grid-template-columns:minmax(90px,14%) 1fr minmax(120px,auto);
+    gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+  .detautor{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dettexto{color:#4a4a46;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .detsent{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);justify-content:flex-end}
+  @media(max-width:560px){
+    .detlinha{grid-template-columns:1fr;gap:3px}
+    .detsent{justify-content:flex-start}
+    .dettexto{white-space:normal}
+  }
+  .bnota{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  .bvazio{font-size:12.5px;color:var(--muted);padding:14px 0}
+  .barras{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+  .barra{display:grid;grid-template-columns:minmax(64px,26%) 1fr auto;align-items:center;gap:10px}
+  .barra .rot{font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* trilho recessivo; o dado é a barra, não o fundo */
+  .barra .trilho{background:var(--bg);border-radius:4px;height:14px;overflow:hidden}
+  .barra .preenche{height:100%;border-radius:0 4px 4px 0;min-width:3px}
+  .barra .num{font-size:12.5px;font-weight:700;white-space:nowrap}
+  .barra .num .pct{font-weight:400;color:var(--muted);margin-left:6px;font-size:11.5px}
+  .tabnum{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  .tabnum th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);border-bottom:1px solid var(--line);padding:5px 4px}
+  .tabnum td{padding:5px 4px;border-bottom:1px solid var(--line)}
+  .tabnum td:nth-child(2),.tabnum th:nth-child(2),.tabnum td:last-child,.tabnum th:last-child{text-align:right}
+  .svgtempo{width:100%;height:auto;display:block}
+  .svgtempo .gradelinha{stroke:var(--line);stroke-width:1}
+  .svgtempo .eixotxt{font-size:10px;fill:var(--muted)}
+  .svgtempo .serie{fill:none;stroke:#8A6516;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .svgtempo .cruz{stroke:var(--line);stroke-width:1}
+  .svgtempo .ponto{fill:#8A6516;stroke:#fff;stroke-width:2}
+  .dicatempo{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:18px}
+  /* --- conteudos (etapa 6) --- */
+  /* align-items:start para cada cartão ter a SUA altura. Sem isso, o cartão
+     de um link que não pode ser incorporado estica até a altura do vizinho e
+     fica com um vazio enorme embaixo. */
+  .mural{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+    gap:16px;margin-top:4px;align-items:start}
+  .post{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;
+    display:flex;flex-direction:column;gap:9px}
+  .pcab{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .prede{font-size:11px;font-weight:700;color:#185FA5}
+  .pdata{font-size:11.5px;color:var(--muted);margin-left:auto}
+  .pembed{width:100%;height:500px;border:none;border-radius:8px;background:#fff}
+  .psemembed{font-size:12.5px;color:var(--muted);background:var(--bg);border-radius:8px;
+    padding:22px 14px;text-align:center}
+  .pnums{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+  .pnums span{display:inline-flex;flex-direction:column;line-height:1.25}
+  .pnums b{font-size:13px;color:var(--ink)}
+  .ppe{display:flex;justify-content:space-between;align-items:center;gap:8px;
+    font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:9px}
+  .ppe .temcom{color:#185FA5;font-weight:600}
+  .ppe a{color:#185FA5;font-weight:600;text-decoration:none}
+  @media(max-width:760px){
+    .row{flex-wrap:wrap}
+    .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
+    .campo{flex:1 1 100%}
+  }
+  /* --- celular (etapa 7) ---
+     Medido com o auditor: a tela do Community ficava com 622px de largura num
+     aparelho de 375px e rolava para o lado. A causa era a fileira de botões do
+     cabeçalho, que não quebrava linha. */
+  @media(max-width:560px){
+    .head{flex-wrap:wrap}
+    .head>div:last-child{width:100%;flex-wrap:wrap}
+    .head>div:last-child .btn{flex:1 1 auto}
+    /* Tamanho de dedo. O auditor achou botão de 19px e campo de 29px; abaixo
+       de ~38px erra o toque com frequência. */
+    .btn,.filters input,.filters select,.campo input,.campo select,
+    .aba,.chip,.periodo select,.periodo input,.mesbar .btn{min-height:38px}
+    /* Link de texto no meio de um aviso ("ver esses", "limpar") ficava com a
+       altura da letra — 14px. O auditor mediu; no dedo, não se acerta. */
+    .aviso .linkbtn,.empty .linkbtn,.soon .linkbtn{
+      display:inline-flex;align-items:center;min-height:38px}
+    .btnx{min-width:38px;min-height:38px;font-size:22px}
+    .seg{min-height:34px;padding:6px 12px}
+    .ppe a,.meta a{display:inline-flex;align-items:center;min-height:34px}
+    /* A lista de comentários ocupa a largura toda: no celular não há espaço
+       para a coluna lateral de sentimento ficar à direita. */
+    .row{padding-left:9px}
+    .pembed{height:420px}
+  }
+  /* --- Aprovação de Conteúdo --- */
+  .mesbar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .mesbar .mesnome{font-size:16px;font-weight:600;min-width:190px;text-align:center}
+  .mesbar .btn{padding:7px 13px}
+  .progresso{margin-bottom:14px}
+  .progresso .trilho{background:var(--line);border-radius:999px;height:10px;overflow:hidden}
+  .progresso .cheio{height:100%;background:#1E9E6A;border-radius:999px;transition:width .3s}
+  .progresso .pctxt{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .historico{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;
+    display:flex;flex-direction:column;gap:5px}
+  .historico .hev{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:12.5px}
+  .historico .quando{color:var(--muted);font-variant-numeric:tabular-nums;min-width:132px}
+  .historico .quem{color:var(--muted)}
+  /* --- arquivos da peça (etapa 2) --- */
+  .arquivos{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+  .tiras{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .tira{display:flex;align-items:center;gap:10px}
+  .tira .mini{position:relative;width:62px;height:62px;flex-shrink:0;border-radius:8px;
+    overflow:hidden;background:var(--bg);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center}
+  .tira .mini img,.tira .mini video{width:100%;height:100%;object-fit:cover;display:block}
+  .tira .mini .semlink{font-size:10.5px;color:var(--muted)}
+  /* O número é a posição no carrossel. Quem monta carrossel pensa em
+     "esse é o segundo card", não em "índice 1". */
+  .tira .mini .numero{position:absolute;left:4px;top:4px;min-width:17px;height:17px;
+    border-radius:5px;background:rgba(0,0,0,.66);color:#fff;font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .tira .dados{flex:1;min-width:0}
+  .tira .nome{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tira .peso{font-size:11.5px;color:var(--muted)}
+  .tira .mexer{display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap}
+  .tira .mexer .btn{padding:5px 9px;font-size:12.5px}
+  .subir{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .subir .btn{cursor:pointer}
+  .subir .btn.desligado{opacity:.6;cursor:default}
+  .subir .dica{font-size:11.5px;color:var(--muted)}
+  .btn .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px;margin-left:5px}
+  /* --- tela Manhã ---
+     O bloco vermelho toma o lugar da resposta, não fica ao lado dela: quando
+     o caso é para escalar, NÃO existe texto sugerido para mostrar. Um aviso
+     discreto ao lado de um rascunho pronto seria lido como "pode mandar
+     assim mesmo". */
+  .escalar{background:#FDEDEC;border:1px solid #F3C7C3;border-left:4px solid var(--neg);
+    border-radius:8px;padding:12px 14px;margin-top:10px}
+  .escalar .titulo{font-size:12px;font-weight:700;color:var(--neg);letter-spacing:.04em}
+  .escalar .motivo{font-size:14px;font-weight:600;margin-top:3px}
+  .escalar .oque{font-size:12.5px;color:var(--muted);margin-top:6px}
   .addwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
   .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
   .field{display:flex;flex-direction:column;gap:4px}
@@ -148,19 +357,29 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MODULOS = [
   { id:'projetos', nome:'Projetos' },
+  // Primeiro da lista depois de Projetos de propósito: é a tela que se abre
+  // ao chegar, antes de qualquer outra coisa.
+  { id:'manha', nome:'Manhã' },
   { id:'community', nome:'Community' },
+  // Aprovações = a peça ANTES de publicar. Conteúdos = o post JÁ no ar, com
+  // os números. Vizinhas no menu porque a pergunta "cadê aquele post?" pode
+  // ser sobre qualquer uma das duas.
+  { id:'aprovacoes', nome:'Aprovações' },
+  { id:'conteudos', nome:'Conteúdos' },
   { id:'upload', nome:'Importar dados' },
   { id:'relatorios', nome:'Relatórios' },
   { id:'config', nome:'Configurações' },
 ];
 
 const ANALITICOS = [
-  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Publicações e interações dia a dia. Picos, quedas e tendências.' },
-  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Comparativo mês a mês do volume publicado.' },
-  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias concentram mais atividade.' },
-  { id:'evol_hora',   nome:'Evolução por Hora',      desc:'Faixas de horário com mais interação.' },
+  // O texto de cada card tem que dizer o que a conta REALMENTE faz. "Volume
+  // publicado" dava a entender quantidade de posts, quando o que se conta é
+  // comentário e DM — nome errado em relatório vira decisão errada.
+  { id:'evol_diaria', nome:'Evolução Diária',        desc:'Comentários e DMs dia a dia. Picos, quedas e tendências.' },
+  { id:'vol_mensal',  nome:'Volume Mensal',          desc:'Evolução mensal do volume de comentários e DMs.' },
+  { id:'vol_semana',  nome:'Volume por Dia da Semana', desc:'Que dias da semana concentram mais conversa.' },
   { id:'sentimento',  nome:'Sentimento',             desc:'Distribuição entre positivo, negativo, dúvida e mais.' },
-  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários.' },
+  { id:'termos',      nome:'Termos',                 desc:'Palavras mais recorrentes nos comentários e DMs.' },
   { id:'hashtags',    nome:'Hashtags',               desc:'Hashtags mais usadas nas publicações.' },
   { id:'top_posts',   nome:'Posts mais engajados',   desc:'Ranking das publicações por engajamento.' },
 ];
@@ -175,8 +394,11 @@ function Icon({name}){
     dashboard:<g {...p}><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>,
     listening:<g {...p}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3"/></g>,
     community:<g {...p}><path d="M4 5h16v10H9l-4 4V5z"/></g>,
+    conteudos:<g {...p}><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></g>,
     relatorios:<g {...p}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></g>,
     calendario:<g {...p}><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></g>,
+    aprovacoes:<g {...p}><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v4h4"/><path d="m9 14 2 2 4-4"/></g>,
+    manha:<g {...p}><circle cx="12" cy="14" r="4"/><path d="M12 6v2M5 14H3M21 14h-2M6.5 8.5 5 7M17.5 8.5 19 7M2 20h20"/></g>,
     upload:<g {...p}><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/><path d="M12 15V4M8 8l4-4 4 4"/></g>,
     config:<g {...p}><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h6M14 18h6"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></g>,
   };
@@ -375,44 +597,615 @@ function Onboarding({user, onDone}){
 /* ============================================================
    COMMUNITY MANAGEMENT (linha, formulário e listagem)
    ============================================================ */
-function Linha({it, cfg, onCampo}){
-  const [aberto, setAberto] = useState(false);
-  const [resp, setResp] = useState(it.resposta || "");
-  useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
-  const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
-  const rede = cfg.redes.find(r=>r.id===it.rede_id);
-  const prod = cfg.produtos.find(pp=>pp.id===it.produto_id);
-  const edit = cfg.editorias.find(e=>e.id===it.editoria_id);
+/* Os quatro estados de trabalho de um comentário.
+   A coluna "triagem" do MUVUCA já era exatamente isto, com três dos quatro
+   estados do Zmetrics escritos com outros nomes:
+     Pendente   = a fila         (Zmetrics: pendente)
+     Respondido = já respondido  (Zmetrics: respondido)
+     Ignorar    = decidiu não responder (Zmetrics: nao_respondido)
+   Só a Lixeira faltava. Os valores GRAVADOS continuam os mesmos de sempre —
+   trocar 'Ignorar' por 'Não respondido' no banco obrigaria a reescrever
+   comentário antigo, e reescrever dado do usuário é o que não se faz. O nome
+   novo é só de tela. */
+const SITUACOES = {
+  'Pendente':   {rotulo:null,              cor:'var(--brand)'},
+  'Respondido': {rotulo:'✓ Respondido',    cor:'#1E9E6A'},
+  'Ignorar':    {rotulo:'Não respondido',  cor:'#8A8F98'},
+  'Lixeira':    {rotulo:'Na lixeira',      cor:'var(--neg)'},
+};
+
+const ABAS = [
+  {id:'comentarios',     nome:'Comentários a responder', sit:'Pendente',
+   vazio:'Comentário novo chega aqui. Use Responder ou Não responder para tirá-lo da fila.'},
+  {id:'respondidos',     nome:'Respondidos',             sit:'Respondido',
+   vazio:'Quando você marcar Responder na fila, o comentário vem para cá.'},
+  {id:'nao_respondidos', nome:'Não Respondidos',         sit:'Ignorar',
+   vazio:'Comentários que você decidir não responder (bots, spam, provocação) vêm para cá.'},
+  {id:'historico',       nome:'Histórico',               sit:null,
+   vazio:'Todos os comentários aparecem aqui, menos os da Lixeira.'},
+  {id:'lixeira',         nome:'Lixeira',                 sit:'Lixeira',
+   vazio:'O × manda o comentário para cá. Dá para restaurar ou excluir de vez.'},
+];
+
+// Na lixeira o comentário está fora de tudo: não conta nas estatísticas, não
+// entra em filtro e, principalmente, não vai para a IA — pagar para
+// classificar o que você jogou fora seria dinheiro no lixo, literalmente.
+const naLixeira = i => i.triagem === 'Lixeira';
+
+/* ---------- período do dashboard ----------
+   Contas em horário local de propósito: "hoje" para quem usa o sistema é o dia
+   do relógio dele. */
+const PERIODOS = [
+  ['total','Todo o período'], ['ontem','Ontem'], ['7d','Últimos 7 dias'],
+  ['28d','Últimos 28 dias'], ['90d','Últimos 90 dias'], ['semana','Esta semana'],
+  ['mes','Este mês'], ['ano','Este ano'], ['semana_passada','Semana passada'],
+  ['mes_passado','Mês passado'], ['custom','Escolher as datas'],
+];
+const DIA_MS = 86400000;
+const inicioDoDia = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+const fimDoDia    = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
+function dataLocal(s){
+  if(!s) return null;
+  const [a,m,d] = String(s).slice(0,10).split('-').map(Number);
+  return (a && m && d) ? new Date(a, m-1, d) : null;
+}
+function segundaDe(d){ const x = inicioDoDia(d); return new Date(x.getTime() - ((x.getDay()+6)%7)*DIA_MS); }
+
+/* A data analítica de um comentário é UMA SÓ: quando ele foi publicado
+   (`data_publicacao`). Nada de reserva.
+
+   Antes eu caía na data em que a IA o analisou quando faltava a de
+   publicação. É o mesmo erro de usar a data de importação: um comentário
+   publicado em 10/09 e analisado em 12/09 apareceria como 12/09, e o
+   relatório diria que houve movimento num dia em que não houve.
+
+   Sem data de publicação, o comentário não tem data: entra em "Todo o
+   período" e fica de fora de qualquer recorte. A tela avisa quantos são. */
+function dataDoComentario(i){
+  return dataLocal(i.data_publicacao);
+}
+
+function resolvePeriodo(chave, de, ate){
+  const agora = new Date(), h0 = inicioDoDia(agora), h1 = fimDoDia(agora);
+  switch(chave){
+    case 'ontem': { const o = new Date(h0.getTime()-DIA_MS); return {de:inicioDoDia(o), ate:fimDoDia(o)}; }
+    case '7d':    return {de: inicioDoDia(new Date(h0.getTime()-6*DIA_MS)),  ate:h1};
+    case '28d':   return {de: inicioDoDia(new Date(h0.getTime()-27*DIA_MS)), ate:h1};
+    case '90d':   return {de: inicioDoDia(new Date(h0.getTime()-89*DIA_MS)), ate:h1};
+    case 'semana':return {de: segundaDe(agora), ate:h1};
+    case 'mes':   return {de: new Date(agora.getFullYear(), agora.getMonth(), 1), ate:h1};
+    case 'ano':   return {de: new Date(agora.getFullYear(), 0, 1), ate:h1};
+    case 'semana_passada': { const s = segundaDe(agora);
+      return {de: new Date(s.getTime()-7*DIA_MS), ate: fimDoDia(new Date(s.getTime()-DIA_MS))}; }
+    case 'mes_passado': return {de: new Date(agora.getFullYear(), agora.getMonth()-1, 1),
+      ate: fimDoDia(new Date(agora.getFullYear(), agora.getMonth(), 0))};
+    case 'custom': { const a = dataLocal(de), b = dataLocal(ate);
+      return {de: a?inicioDoDia(a):null, ate: b?fimDoDia(b):null}; }
+    default: return {de:null, ate:null};
+  }
+}
+
+function noPeriodo(i, chave, de, ate){
+  if(chave === 'total') return true;
+  const d = dataDoComentario(i);
+  if(!d) return false;
+  if(de && d < de) return false;
+  if(ate && d > ate) return false;
+  return true;
+}
+
+const fmtBR = d => d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '…';
+const chaveDia = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+/* ---------- filtros da lista de comentários ----------
+   Fora do componente de propósito: assim a regra de "este comentário passa?"
+   é uma função pura, que dá para testar sem abrir tela nenhuma. */
+const FILTRO_VAZIO = {
+  sent:'', iaTriagem:'', juridico:false, rede:'', produto:'',
+  editoria:'', origem:'', post:'', de:'', ate:'',
+};
+
+function passaNoFiltro(i, f, busca){
+  if(f.sent      && String(i.sentimento_id||'') !== f.sent)     return false;
+  if(f.iaTriagem && (i.ia_triagem||'')          !== f.iaTriagem) return false;
+  if(f.juridico  && !i.ia_juridico)                             return false;
+  if(f.rede      && String(i.rede_id||'')       !== f.rede)     return false;
+  if(f.produto   && String(i.produto_id||'')    !== f.produto)  return false;
+  if(f.editoria  && String(i.editoria_id||'')   !== f.editoria) return false;
+  if(f.origem    && (i.origem||'')              !== f.origem)   return false;
+  if(f.post      && (i.link_conteudo||'')       !== f.post)     return false;
+  // Comentário sem data não entra em recorte de data. Deixá-lo passar faria
+  // "de 1 a 5 de setembro" devolver coisa de data desconhecida junto.
+  if(f.de   && !(i.data_publicacao && i.data_publicacao >= f.de))   return false;
+  if(f.ate  && !(i.data_publicacao && i.data_publicacao <= f.ate))  return false;
+  if(busca){
+    const q = busca.toLowerCase();
+    const achou = (i.texto||'').toLowerCase().includes(q)
+               || (i.autor||'').toLowerCase().includes(q)
+               || (i.resposta||'').toLowerCase().includes(q);
+    if(!achou) return false;
+  }
+  return true;
+}
+
+/* Paleta para as dimensões sem cor própria (rede, produto, editoria).
+   É a mesma do Zmetrics, e a ordem é a dele: testei duas reordenações
+   "melhores" e as duas pioraram a separação para daltonismo. O pior par
+   adjacente fica na faixa que só é aceitável com reforço além da cor — daí
+   o número aparecer em toda fatia e barra. */
+const PALETA = ['#2C57C9','#1E9E6A','#B5852A','#7C5CD6','#D64545','#0FA3A3','#E07A1F','#3AA0FF','#8A93A2','#12224C'];
+
+/* Topo do eixo arredondado para cima até um número par. Com o máximo em 11, a
+   linha do meio cai em 5,5 e o rótulo arredondado dizia "6" — rótulo que não
+   corresponde à linha é uma mentirinha no eixo. Com 12, a metade é 6 de fato. */
+const topoDoEixo = m => Math.max(2, Math.ceil(Math.max(1, m) / 2) * 2);
+const corDaLista = (nomes) => {
+  const mapa = {};
+  nomes.forEach((n,k) => { mapa[n] = PALETA[k % PALETA.length]; });
+  // Cor segue a entidade, nunca a posição do momento: se um filtro tirar uma
+  // categoria, as que sobram não podem trocar de cor.
+  return n => mapa[n] || '#8A93A2';
+};
+
+/* ---------- contas do dashboard ----------
+   Puras e fora dos componentes, pelo mesmo motivo dos filtros: número errado
+   em relatório é mentira silenciosa, e só teste pega. */
+
+// Conta quantos comentários caem em cada valor, do maior para o menor.
+// "semNome" agrupa o que está em branco num balde explícito, em vez de
+// simplesmente sumir da conta — o total tem que fechar com a lista.
+function contarPor(itens, valorDe, semNome){
+  const baldes = {};
+  itens.forEach(i => {
+    const v = valorDe(i);
+    const k = (v === null || v === undefined || v === '') ? (semNome || null) : String(v);
+    if(k === null) return;
+    baldes[k] = (baldes[k] || 0) + 1;
+  });
+  return Object.keys(baldes)
+    .map(nome => ({nome, n: baldes[nome]}))
+    .sort((a,b) => b.n - a.n || a.nome.localeCompare(b.nome,'pt-BR'));
+}
+
+/* Cruza duas dimensões: para cada categoria de A, quanto tem de cada B.
+   É o que o gráfico empilhado desenha. */
+function cruzarPor(itens, valorA, valorB, semNomeA){
+  const cats = contarPor(itens, valorA, semNomeA).map(d => d.nome);
+  const bs = contarPor(itens, valorB).map(d => d.nome);
+  const linhas = cats.map(c => {
+    const fatias = {};
+    bs.forEach(b => {
+      fatias[b] = itens.filter(i => {
+        const va = valorA(i), vb = valorB(i);
+        const ca = (va === null || va === undefined || va === '') ? semNomeA : String(va);
+        return ca === c && String(vb) === b;
+      }).length;
+    });
+    const soma = bs.reduce((a,b) => a + fatias[b], 0);
+    return {nome: c, fatias, soma};
+  });
+  return {cats, series: bs, linhas};
+}
+
+/* Série dia a dia. Os dias sem nenhum comentário entram valendo zero: sem
+   isso a linha do tempo "pula" o vazio e um fim de semana parado parece
+   movimento contínuo. */
+function serieDiaria(itens){
+  const porDia = {};
+  itens.forEach(i => { const d = dataDoComentario(i); if(d) porDia[chaveDia(inicioDoDia(d))] = (porDia[chaveDia(inicioDoDia(d))]||0) + 1; });
+  const dias = Object.keys(porDia).sort();
+  if(!dias.length) return [];
+  const ini = dataLocal(dias[0]), fim = dataLocal(dias[dias.length-1]);
+  const serie = [];
+  for(let t = ini.getTime(); t <= fim.getTime(); t += DIA_MS){
+    const k = chaveDia(new Date(t));
+    serie.push({dia: k, n: porDia[k] || 0});
+  }
+  return serie;
+}
+
+/* A mesma linha do tempo, quebrada por alguma dimensão (o "Por sentimento").
+   Reaproveita serieDiaria para os dias, de modo que todas as linhas tenham
+   exatamente o mesmo eixo — séries com eixos diferentes não se comparam. */
+function serieDiariaPor(itens, valorDe, semNome){
+  const base = serieDiaria(itens);
+  if(!base.length) return {dias: [], series: [], totais: []};
+  const dias = base.map(p => p.dia);
+
+  /* O mesmo balde de "sem valor" do contarPor, e pelo mesmo motivo. Sem ele,
+     o comentário sem sentimento sumia da pilha em silêncio, e a soma das
+     fatias não fechava com o total do dia — a barra ficaria menor do que o
+     número escrito em cima dela. */
+  const daCategoria = i => {
+    const v = valorDe(i);
+    return (v === null || v === undefined || v === '') ? semNome : String(v);
+  };
+  const nomes = contarPor(itens, valorDe, semNome).map(d => d.nome);
+
+  const series = nomes.map(nome => ({
+    nome,
+    valores: dias.map(dia => itens.filter(i => {
+      const d = dataDoComentario(i);
+      return d && chaveDia(inicioDoDia(d)) === dia && daCategoria(i) === nome;
+    }).length),
+  }));
+  return {dias, series, totais: base.map(p => p.n)};
+}
+
+// Os comentários de um dia, na ordem em que aparecem na lista.
+function doDia(itens, dia){
+  return itens.filter(i => {
+    const d = dataDoComentario(i);
+    return d && chaveDia(inicioDoDia(d)) === dia;
+  });
+}
+
+/* ---------- exportação CSV ----------
+   Função pura: recebe os comentários e devolve o texto do arquivo. Fora do
+   componente para poder ser testada sem navegador. */
+
+// Como o estado de trabalho sai no arquivo. Sem rótulo, "Pendente" viraria
+// vazio, e "Ignorar" não diz nada para quem abre a planilha depois.
+const SITUACAO_CSV = {
+  'Pendente':'Na fila', 'Respondido':'Respondido',
+  'Ignorar':'Não responder', 'Lixeira':'Na lixeira',
+};
+
+function paraCSV(itens, cfg){
+  const nomeDe = (lista, id) => lista.find(x => x.id === id)?.nome || '';
+  const colunas = [
+    'situacao','data_publicacao','rede','origem','post','autor','texto',
+    'sentimento','produto','editoria','resposta',
+    'ia_recomendacao','ia_motivo','ia_juridico','ia_analisado_em',
+  ];
+
+  /* Toda célula sai entre aspas, e aspas de dentro viram aspas duplas. É o
+     que protege o texto do comentário: ponto e vírgula, quebra de linha e
+     aspas dentro dele deixam de partir o arquivo em colunas erradas. */
+  const esc = v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g,'""') + '"';
+
+  const linhas = itens.map(i => [
+    SITUACAO_CSV[i.triagem || 'Pendente'] || i.triagem,
+    i.data_publicacao || '',
+    nomeDe(cfg.redes, i.rede_id),
+    i.origem || '',
+    i.link_conteudo || '',
+    i.autor || '',
+    i.texto || '',
+    nomeDe(cfg.sentimentos, i.sentimento_id),
+    nomeDe(cfg.produtos, i.produto_id),
+    nomeDe(cfg.editorias, i.editoria_id),
+    i.resposta || '',
+    IA_TRIAGEM[i.ia_triagem]?.label || '',
+    i.ia_motivo || '',
+    // Vazio quando a IA nunca olhou: "não" daria a entender que ela avaliou
+    // e concluiu que não era sensível, o que é diferente de não ter olhado.
+    i.ia_em ? (i.ia_juridico ? 'sim' : 'não') : '',
+    i.ia_em || '',
+  ].map(esc).join(';'));
+
+  /* Duas escolhas para o arquivo abrir certo ao ser clicado duas vezes:
+
+     ";" em vez de "," — no Excel em português o separador de lista é ponto e
+     vírgula, e um arquivo com vírgula abre com tudo amontoado numa coluna só.
+     (O Zmetrics usa vírgula; aqui não, de propósito.)
+
+     "﻿" na frente é a marca que diz ao Excel que o texto está em UTF-8.
+     Sem ela, "Dúvida" vira "DÃºvida". */
+  return '﻿' + [colunas.join(';'), ...linhas].join('\r\n');
+}
+
+function baixarCSV(texto, nome){
+  const blob = new Blob([texto], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- estado de cada análise ----------
+   O pedido é explícito: "Aguardando dados" não pode ser resposta genérica.
+   São três situações diferentes, e confundi-las esconde o que está faltando:
+
+     sem_dados     — não há nada deste canal
+     insuficiente  — há comentários, mas falta JUSTAMENTE o campo que este
+                     gráfico usa (e a tela diz qual)
+     nao_construido— o dado existe; a tela é que ainda não foi feita
+     pronto        — dá para ver agora, em Relatórios
+
+   Fora do componente para ser testada sem navegador. */
+const PRECISA = {
+  evol_diaria: {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  vol_mensal:  {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  vol_semana:  {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  sentimento:  {campo:'sentimento_id',   falta:'sentimento definido'},
+  termos:      {campo:'texto',           falta:'texto'},
+  hashtags:    {campo:'texto',           falta:'texto'},
+  top_posts:   {fonte:'publicacoes',     falta:'publicações importadas'},
+};
+// O que já dá para ver hoje, no módulo Relatórios.
+const JA_PRONTO = {evol_diaria:true, sentimento:true};
+
+function estadoAnalitico(id, interacoes, publicacoes, rede){
+  const regra = PRECISA[id] || {};
+  const daRede = x => !rede || x.rede_id === rede.id;
+
+  if(regra.fonte === 'publicacoes'){
+    const pubs = (publicacoes || []).filter(daRede);
+    if(!pubs.length) return {estado:'sem_dados', selo:'Sem dados', quantos:0, unidade:'publicações',
+      explica:'Nenhuma publicação deste canal foi importada ainda. Elas entram pela planilha, em Importar dados.'};
+    return {estado:'nao_construido', selo:'Ainda não construído', quantos:pubs.length, unidade:'publicações',
+      explica:`${pubs.length} publicação(ões) deste canal já estão no sistema. Esta tela ainda não foi construída.`};
+  }
+
+  const vivos = (interacoes || []).filter(i => !naLixeira(i) && daRede(i));
+  if(!vivos.length) return {estado:'sem_dados', selo:'Sem dados', quantos:0, unidade:'comentários',
+    explica:'Nenhum comentário deste canal ainda. Traga comentários em Community › Colar em lote, ou importe a planilha.'};
+
+  const com = vivos.filter(i => {
+    const v = i[regra.campo];
+    return v !== null && v !== undefined && String(v).trim() !== '';
+  }).length;
+
+  if(com === 0) return {estado:'insuficiente', selo:'Falta preencher', quantos:0, unidade:'comentários prontos',
+    explica:`Há ${vivos.length} comentário(s) deste canal, mas nenhum tem ${regra.falta}. Esta análise depende desse campo — preencha no cartão do comentário.`};
+
+  if(JA_PRONTO[id]) return {estado:'pronto', selo:'Pode ver agora', quantos:com, unidade:'comentários',
+    explica:`${com} comentário(s) prontos. Clique para abrir em Relatórios.`};
+
+  return {estado:'nao_construido', selo:'Ainda não construído', quantos:com, unidade:'comentários prontos',
+    explica:`${com} de ${vivos.length} comentário(s) deste canal têm ${regra.falta}. O dado está aqui; esta tela ainda não foi construída.`};
+}
+
+/* ---------- conteúdos (publicações) ----------
+   Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+/* Normaliza um link para comparar. O Zmetrics compara o texto cru do link;
+   aqui não, porque na prática o mesmo post chega escrito de várias formas:
+   com e sem "https://", com e sem "www.", com barra no fim, e com rabicho de
+   campanha (?utm_source=...). Comparando cru, o comentário se desgruda do
+   post em silêncio e a contagem simplesmente dá zero. */
+function chaveDoPost(url){
+  return String(url || '')
+    .trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split(/[?#]/)[0]
+    .replace(/\/+$/, '');
+}
+
+const mesmoPost = (a, b) => {
+  const ka = chaveDoPost(a), kb = chaveDoPost(b);
+  return !!ka && ka === kb;
+};
+
+function redeDoLink(url){
+  if(/instagram\.com/i.test(url)) return 'Instagram';
+  if(/facebook\.com|fb\.watch|fb\.me/i.test(url)) return 'Facebook';
+  if(/tiktok\.com/i.test(url)) return 'TikTok';
+  if(/youtube\.com|youtu\.be/i.test(url)) return 'YouTube';
+  return null;
+}
+
+// Endereço que o Instagram e o Facebook aceitam para mostrar o post dentro da
+// página. Devolve null quando não dá — e aí o cartão mostra só o link.
+function embedDoPost(url){
+  const s = String(url || '');
+  const ig = s.match(/instagram\.com\/(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
+  if(ig){
+    const tipo = ig[1].toLowerCase() === 'reels' ? 'reel' : ig[1].toLowerCase();
+    return 'https://www.instagram.com/' + tipo + '/' + ig[2] + '/embed';
+  }
+  if(/facebook\.com/i.test(s)){
+    return 'https://www.facebook.com/plugins/post.php?href=' + encodeURIComponent(s) + '&show_text=true&width=360';
+  }
+  return null;
+}
+
+/* Soma a versão orgânica com a paga.
+
+   Parece bobo, mas resolve uma armadilha real da importação: o sufixo "_org"
+   não quer dizer "orgânico", quer dizer "o título da coluna não dizia pago".
+   Se a planilha traz uma coluna única de curtidas, ela cai inteira em
+   curtidas_org e curtidas_pago fica vazio.
+
+   A soma acerta nos dois casos: com uma coluna, soma = a própria coluna; com
+   duas, soma = o total. O que seria errado é CHAMAR a _org de "orgânica". Por
+   isso a tela mostra o total e não promete separação que pode não existir. */
+function metrica(p, base){
+  const a = p[base + '_org'], b = p[base + '_pago'];
+  if((a === null || a === undefined) && (b === null || b === undefined)) return null;
+  return Number(a || 0) + Number(b || 0);
+}
+
+// Encurta um link comprido para caber na lista, mantendo o começo e o fim —
+// cortar só o fim deixaria vários posts do mesmo perfil com o mesmo rótulo.
+function rotuloPost(p){
+  const s = String(p||'').replace(/^https?:\/\/(www\.)?/,'');
+  return s.length <= 42 ? s : s.slice(0,24) + '…' + s.slice(-14);
+}
+
+// Como a recomendação da IA aparece na tela. É informativa: diz o que a IA
+// acha que fazer com o comentário. Não confundir com a coluna "triagem", que
+// é o SEU estado de trabalho (Pendente / Respondido / Ignorar).
+const IA_TRIAGEM = {
+  responder:     {label:'IA: responder',    cor:'#185FA5'},
+  curtir:        {label:'IA: só curtir',    cor:'#1E9E6A'},
+  nao_responder: {label:'IA: não responder',cor:'#8A8F98'},
+};
+
+// Campo de texto que só grava quando você sai dele. Gravar a cada tecla
+// digitada dispararia uma escrita no banco por letra.
+function CampoTexto({rotulo, valor, onGravar, tipo='text', dica}){
+  const [v, setV] = useState(valor || '');
+  useEffect(()=>{ setV(valor || ''); },[valor]);
   return (
-    <div className="row">
+    <label className="campo">
+      <span>{rotulo}</span>
+      <input type={tipo} value={v} placeholder={dica||''}
+        onChange={e=>setV(e.target.value)}
+        onBlur={()=>{ const novo = v.trim(); if(novo !== String(valor||'')) onGravar(novo || null); }} />
+    </label>
+  );
+}
+
+function Linha({it, cfg, onCampo, onGerarResposta, onExcluir}){
+  const [resp, setResp] = useState(it.resposta || "");
+  const [texto, setTexto] = useState(it.texto || "");
+  const [gerando, setGerando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState('');
+  useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
+  useEffect(()=>{ setTexto(it.texto || ""); },[it.texto]);
+
+  const [confirmando, setConfirmando] = useState(false);
+  const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
+  const iaRec = IA_TRIAGEM[it.ia_triagem];
+  const naoSalvo = resp !== (it.resposta || '');
+  const sit = it.triagem || 'Pendente';
+  const sitInfo = SITUACOES[sit] || SITUACOES['Pendente'];
+  const noLixo = sit === 'Lixeira';
+
+  async function gerar(){
+    setGerando(true); setAviso('');
+    const r = await onGerarResposta(it);
+    setGerando(false);
+    if(r.erro) setAviso(r.erro);
+  }
+
+  async function copiar(){
+    try {
+      await navigator.clipboard.writeText(resp);
+      setCopiado(true); setTimeout(()=>setCopiado(false), 1600);
+    } catch(e){
+      setAviso('O navegador bloqueou a cópia. Selecione o texto e use Ctrl+C.');
+    }
+  }
+
+  return (
+    <div className="row" style={{borderLeft:`3px solid ${sitInfo.cor}`, paddingLeft:11, opacity: noLixo ? .8 : 1}}>
       <div className="av">{iniciais(it.autor)}</div>
       <div className="body">
         <div className="meta">
           <span className="who">{it.autor || 'Sem autor'}</span>
-          {rede && <span className="net">· {rede.nome}</span>}
           {it.origem && <span className="tag">{it.origem}</span>}
-          {prod && <span className="prod">· {prod.nome}</span>}
-          {edit && <span className="tag">{edit.nome}</span>}
+          {sitInfo.rotulo && <span style={{fontSize:11,fontWeight:700,color:sitInfo.cor}}>{sitInfo.rotulo}</span>}
+          {it.link_conteudo && /^https?:\/\//i.test(it.link_conteudo) &&
+            <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
+          {!noLixo && <button className="btnx" title="Mover para a Lixeira" onClick={()=>onCampo(it.id,'triagem','Lixeira')}>×</button>}
         </div>
-        <div className="txt">{it.texto}</div>
-        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
-        <div>
-          <button className="btn" style={{marginTop:10,padding:'5px 10px'}} onClick={()=>setAberto(!aberto)}>
-            {it.resposta ? 'Editar resposta' : 'Responder'}
-          </button>
-        </div>
-        {aberto && (
-          <div className="reply">
-            <textarea value={resp} onChange={e=>setResp(e.target.value)} placeholder="Escreva a resposta sugerida…" />
-            <div>
-              <button className="btn brand" style={{padding:'6px 12px'}}
-                onClick={async()=>{ await onCampo(it.id,'resposta',resp); await onCampo(it.id,'triagem','Respondido'); setAberto(false); }}>
-                Salvar resposta
-              </button>
-            </div>
+
+        {/* Editável: texto colado do Instagram costuma vir torto e antes não
+            havia como corrigir sem apagar e recriar o comentário.
+            Grava ao sair do campo — a cada tecla seria uma escrita no banco
+            por letra digitada. */}
+        <textarea className="txtedit" value={texto} rows={2}
+          onChange={e=>setTexto(e.target.value)}
+          onBlur={()=>{ if(texto !== (it.texto||'')) onCampo(it.id,'texto', texto); }}
+          placeholder="texto do comentário" />
+
+        {(iaRec || it.ia_juridico || it.ia_motivo) && (
+          <div className="iatags">
+            {iaRec && <span className="pill" style={{color:iaRec.cor, borderColor:iaRec.cor+'55', background:iaRec.cor+'14'}}>{iaRec.label}</span>}
+            {it.ia_juridico && <span className="pill" style={{color:'#B5852A', borderColor:'#B5852A55', background:'#B5852A14'}}>Jurídico/STN</span>}
+            {it.ia_motivo && <span className="motivo">· {it.ia_motivo}</span>}
           </div>
         )}
+
+        <div className="campos">
+          <CampoTexto rotulo="Usuário (@)" valor={it.autor} dica="sem @"
+            onGravar={v=>onCampo(it.id,'autor', v && v.replace(/^@+/,''))} />
+          <CampoTexto rotulo="Post" valor={it.link_conteudo} dica="link ou nome do post"
+            onGravar={v=>onCampo(it.id,'link_conteudo', v)} />
+          <CampoTexto rotulo="Data do comentário" valor={it.data_publicacao} tipo="date"
+            onGravar={v=>onCampo(it.id,'data_publicacao', v)} />
+        </div>
+
+        <div className="campos">
+          <label className="campo"><span>Rede</span>
+            <select value={it.rede_id || ''} onChange={e=>onCampo(it.id,'rede_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
+            </select>
+          </label>
+          <label className="campo"><span>Origem</span>
+            <select value={it.origem || 'Feed'} onChange={e=>onCampo(it.id,'origem', e.target.value)}>
+              <option>Feed</option><option>DM</option>
+            </select>
+          </label>
+          <label className="campo"><span>Produto</span>
+            <select value={it.produto_id || ''} onChange={e=>onCampo(it.id,'produto_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.produtos.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </label>
+          <label className="campo"><span>Editoria</span>
+            <select value={it.editoria_id || ''} onChange={e=>onCampo(it.id,'editoria_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.editorias.map(ed=><option key={ed.id} value={ed.id}>{ed.nome}</option>)}
+            </select>
+          </label>
+        </div>
+
+        {/* Sempre visível, como no Zmetrics: o rascunho é o que se olha
+            primeiro, e escondê-lo atrás de um clique só somava trabalho. */}
+        <div className="reply">
+          <div className="lblcampo">Resposta sugerida</div>
+          <textarea value={resp} onChange={e=>setResp(e.target.value)}
+            placeholder={gerando ? 'gerando sugestão…' : 'Escreva a resposta sugerida, ou peça uma à IA.'} />
+          <div className="acoes">
+            {/* Salvar o rascunho NÃO marca mais o comentário como respondido.
+                Antes marcava, porque não havia outro jeito de sair da fila.
+                Agora existe o botão Responder, embaixo, e juntar as duas
+                coisas fazia o comentário sumir da fila no meio da escrita. */}
+            <button className="btn brand" style={{padding:'6px 12px'}} disabled={!naoSalvo}
+              onClick={()=>onCampo(it.id,'resposta',resp)}>
+              {naoSalvo || !it.resposta ? 'Salvar rascunho' : 'Salvo ✓'}
+            </button>
+            {/* Quando a IA já disse que o comentário não pede resposta (spam,
+                bot, provocação), pedir um rascunho gastaria dinheiro para
+                receber de volta exatamente esse "não há o que responder".
+                A caixa de texto continua aí para quem discordar e escrever. */}
+            {it.ia_triagem !== 'nao_responder' && (
+              <button className="btn" style={{padding:'6px 12px'}} disabled={gerando} onClick={gerar}>
+                {gerando ? 'Gerando…' : (it.resposta ? 'Gerar de novo' : '✨ Gerar sugestão')}
+              </button>
+            )}
+            <button className="btn" style={{padding:'6px 12px'}} disabled={!resp.trim()} onClick={copiar}>
+              {copiado ? 'Copiado ✓' : 'Copiar resposta'}
+            </button>
+          </div>
+          {aviso && <div className="avisoerro">{aviso}</div>}
+        </div>
+
+        {/* O que tira o comentário da fila. Separado do rascunho de propósito:
+            escrever a resposta e decidir que ela está pronta são dois momentos. */}
+        <div className="fluxo">
+          {noLixo ? (
+            <>
+              <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Pendente')}>↩ Restaurar</button>
+              {confirmando ? (
+                <>
+                  <span className="confirma">Excluir para sempre? Não dá para desfazer.</span>
+                  <button className="btn perigo" style={{padding:'8px 14px'}} onClick={()=>onExcluir(it.id)}>Sim, excluir</button>
+                  <button className="btn" style={{padding:'8px 14px'}} onClick={()=>setConfirmando(false)}>Cancelar</button>
+                </>
+              ) : (
+                <button className="btn" style={{padding:'8px 14px',color:'var(--neg)'}} onClick={()=>setConfirmando(true)}>Excluir definitivo</button>
+              )}
+            </>
+          ) : sit === 'Pendente' ? (
+            <>
+              <button className="btn ok" style={{padding:'8px 18px'}} onClick={()=>onCampo(it.id,'triagem','Respondido')}>✓ Respondi</button>
+              <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Ignorar')}>Não responder</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Pendente')}>↩ Voltar para a fila</button>
+          )}
+        </div>
       </div>
+
       <div className="ctrl">
         <div className="sentbox">
           <span className="dot" style={{background: corSent(sent?.nome)}}></span>
@@ -421,12 +1214,253 @@ function Linha({it, cfg, onCampo}){
             {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
           </select>
         </div>
-        <select value={it.triagem || 'Pendente'} onChange={e=>onCampo(it.id,'triagem', e.target.value)}>
-          <option>Pendente</option>
-          <option>Respondido</option>
-          <option>Ignorar</option>
-        </select>
       </div>
+    </div>
+  );
+}
+
+/* ---------- parser de texto colado (portado do Zmetrics) ----------
+   O texto copiado da tela do Instagram / Meta Business Suite vem com links
+   markdown [texto](url), nomes de usuário, barras de tempo/curtidas e botões.
+   A limpeza é estrutural: resolve os links (mantém o texto, descarta a URL);
+   tempo = número+unidade; curtidas = número+palavra; e uma linha só é
+   descartada se for INTEIRA ruído.
+
+   MARCA é um caractere de controle usado internamente para sinalizar
+   "esta linha é um nome de usuário vindo de um link markdown". Escrito como
+   String.fromCharCode de proposito: como literal ele fica invisivel no editor. */
+const MARCA = String.fromCharCode(1);
+
+const UI_UNIT = /(?:\d+\s*(?:segundos?|minutos?|horas?|dias?|semanas?|mes(?:es)?|m[eê]s|anos?|seg|min|hrs?|sem|s|h|d|m|a|w|y)\b|agora(?:\s+há\s+pouco)?|just\s+now|now|edit(?:ed|ado)?|\d[\d.,]*\s*(?:curtidas?|gostos?|likes?|coment[áa]rios?|respostas?|replies|partilhas?|compartilhamentos?|visualiza[çc][õo]es|views|rea[çc][õo]es|seguidor(?:es)?|followers?)|ver\s+(?:as\s+)?\d*\s*respostas?(?:\s*\(\s*\d+\s*\))?|ocultar\s+respostas?|hide\s+replies|ver\s+tradu[çc][ãa]o|see\s+translation|ver\s+mais|see\s+more|responder|reply|curtir|like|gostar|gosto|message|mensagem|gerenciar|editar|excluir|delete|seguir|follow|partilhar|share|traduzir|verificad\w*|verified)/giu;
+
+function isUiLine(line){
+  return line.replace(UI_UNIT, ' ').replace(/[\s·•|—–…]+/gu, '').trim() === '';
+}
+
+/* Linha que é SÓ um nome de usuário. É assim que o Instagram Web entrega:
+   uma linha com o @, a linha seguinte com o comentário. */
+const SO_USUARIO = /^@?([A-Za-z0-9._]{2,30})$/;
+/* "handle + texto na mesma linha" só conta como autor quando há @ explícito.
+   Sem essa exigência, "Quando o Tesouro Reserva…" virava autor="Quando", e um
+   comentário que MENCIONA alguém era atribuído a quem foi mencionado. */
+const HANDLE = /^@([A-Za-z0-9._]{2,30})\s+([\s\S]+)$/;
+
+function parsePaste(raw){
+  let txt = raw.replace(/\[([^\]]*)\]\([^)]*\)/g, (_, t) => {
+    t = (t || '').trim();
+    return isUiLine(t) ? ' ' + t + ' ' : '\n' + MARCA + t + '\n';
+  });
+  txt = txt.replace(/https?:\/\/\S+/g, ' ');
+  const lines = txt.split(/\r?\n/)
+    .map(l => l.replace(/^[\s>]*[*\-–—•·]+\s*/, '').trim())
+    .filter(l => l.length > 0);
+  const out = [];
+  let pending = null;
+  const flush = () => { if(pending){ out.push(pending); pending = null; } };
+  for(const line of lines){
+    if(line[0] === MARCA){ flush(); pending = {author: line.slice(1).trim(), text: ''}; continue; }
+    if(isUiLine(line)) continue;
+    if(pending){ pending.text = line; out.push(pending); pending = null; continue; }
+    const so = line.match(SO_USUARIO);
+    if(so){ pending = {author: so[1], text: ''}; continue; }
+    const m = line.match(HANDLE);
+    if(m && m[2] && m[2].trim()) out.push({author: m[1], text: m[2].trim()});
+    else out.push({author: '', text: line});
+  }
+  flush();
+  return out
+    .map(c => ({author: c.author || '', text: (c.text || '').trim()}))
+    .filter(c => c.text)
+    .map((c, i) => ({id: i + 1, author: c.author, text: c.text}));
+}
+
+/* ---------- classificação por IA ----------
+   Coletar e classificar são coisas separadas de propósito. Importar não gasta
+   nada; classificar gasta — por isso só acontece quando a pessoa manda, vendo
+   antes quantos comentários e quanto deve custar. */
+
+// Preços por milhão de tokens. Ajuste se a tabela da Anthropic mudar.
+const PRECO_ENTRADA = 3, PRECO_SAIDA = 15;
+// Estimativa por comentário, antes de rodar. O prompt de sistema vai uma vez
+// por lote de 4, então o custo por comentário já inclui essa fatia.
+const CUSTO_ESTIMADO_POR_COMENTARIO = 0.002;
+
+const semAcento = s => (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function idPorNome(lista, nome){
+  if(!nome) return null;
+  const n = semAcento(nome);
+  const hit = (lista||[]).find(x => semAcento(x.nome) === n);
+  return hit ? hit.id : null;
+}
+// A IA devolve o produto em minúsculo; o banco guarda o nome de exibição.
+const PRODUTO_DA_IA = {selic:'Selic', prefixado:'Prefixado', ipca:'IPCA+', reserva:'Reserva', educa:'Educa+', nenhum:null};
+
+function ClassificarIA({interacoes, clienteNome, onClassificar, onFechar}){
+  const [rodando, setRodando] = useState(false);
+  const [progresso, setProgresso] = useState({feitos:0, total:0});
+  const [resumo, setResumo] = useState(null);
+
+  const [incluirVistos, setIncluirVistos] = useState(false);
+
+  // Quem vai para a IA: por padrão, só quem ela NUNCA viu (ia_em vazio).
+  //
+  // O critério anterior era "tem algum campo vazio", e isso cobrava de novo
+  // pelo mesmo comentário para sempre: a IA deixa campo vazio DE PROPÓSITO
+  // quando não há o que preencher — "Boa noite" não fala de produto, spam não
+  // ganha rascunho. Esses nunca ficavam "completos", então voltavam em toda
+  // rodada. O carimbo ia_em separa "a IA nunca olhou" de "olhou e concluiu que
+  // não havia nada a pôr" — exatamente a diferença que o código não sabia ver.
+  const nuncaVisto = i => !i.ia_em;
+  const faltaAlgo = i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim();
+  const alvos = interacoes.filter(i => incluirVistos ? faltaAlgo(i) : nuncaVisto(i));
+  const semSent = alvos.filter(i => !i.sentimento_id).length;
+  const semResp = alvos.filter(i => !String(i.resposta||'').trim()).length;
+  // Quantos a IA já viu mas seguem com buraco — é o que se ganharia pagando de
+  // novo. Zero significa que não há nada a recuperar, e a opção nem aparece.
+  const vistosComBuraco = interacoes.filter(i => i.ia_em && faltaAlgo(i)).length;
+  const custo = (alvos.length * CUSTO_ESTIMADO_POR_COMENTARIO).toFixed(2);
+
+  async function rodar(){
+    setRodando(true); setResumo(null); setProgresso({feitos:0, total:alvos.length});
+    const r = await onClassificar(alvos, feitos => setProgresso({feitos, total:alvos.length}));
+    setRodando(false); setResumo(r);
+  }
+
+  return (
+    <div className="addwrap" style={{marginBottom:14}}>
+      <div style={{fontWeight:600,marginBottom:8}}>Classificar com IA</div>
+
+      {resumo ? (
+        <div>
+          <div style={{fontSize:13,marginBottom:10,lineHeight:1.6}}>
+            <div>{resumo.ok} comentário(s) classificado(s).</div>
+            {resumo.juridico > 0 && <div style={{color:'var(--neu)',fontWeight:600}}>⚠️ {resumo.juridico} marcado(s) pela IA como tema sensível — revise antes de responder.</div>}
+            {resumo.falhas > 0 && <div style={{color:'var(--neg)'}}>{resumo.falhas} não puderam ser classificados. Pode rodar de novo.</div>}
+            {resumo.tokens && <div style={{color:'var(--muted)',fontSize:12,marginTop:6}}>Custo real: US$ {resumo.custoReal} · {resumo.tokens.entrada.toLocaleString('pt-BR')} tokens de entrada, {resumo.tokens.saida.toLocaleString('pt-BR')} de saída</div>}
+            {resumo.erro && <div style={{color:'var(--neg)',marginTop:6}}>{resumo.erro}</div>}
+          </div>
+          <button className="btn" onClick={()=>{setResumo(null); onFechar();}}>Fechar</button>
+        </div>
+      ) : rodando ? (
+        <div style={{fontSize:13}}>
+          <div style={{marginBottom:8}}>Classificando {progresso.feitos} de {progresso.total}…</div>
+          <div style={{height:6,background:'var(--line)',borderRadius:99,overflow:'hidden'}}>
+            <div style={{height:'100%',width:(progresso.total?(progresso.feitos/progresso.total)*100:0)+'%',background:'var(--brand)',transition:'width .2s'}} />
+          </div>
+          <div style={{color:'var(--muted)',marginTop:8,fontSize:12}}>Não feche a aba até terminar.</div>
+        </div>
+      ) : (
+        <div>
+          <div style={{fontSize:13,marginBottom:12,lineHeight:1.6}}>
+            <div><b>{alvos.length}</b> comentário(s) podem receber ajuda da IA, do cliente <b>{clienteNome}</b>.</div>
+            <div style={{color:'var(--muted)'}}>
+              {semSent > 0 && <span>{semSent} sem sentimento</span>}
+              {semSent > 0 && semResp > 0 && <span> · </span>}
+              {semResp > 0 && <span>{semResp} sem rascunho de resposta</span>}
+            </div>
+            <div style={{color:'var(--muted)',marginTop:4}}>Custo estimado: <b>US$ {custo}</b>. É estimativa — o valor real aparece ao terminar.</div>
+            <div style={{color:'var(--muted)',marginTop:6}}>A IA preenche sentimento, produto e um rascunho de resposta. <b>Só preenche o que está vazio</b> — o sentimento que você definiu à mão fica como está. A triagem (Pendente/Respondido) não é alterada.</div>
+            <div style={{color:'var(--muted)',marginTop:6}}>Cada comentário é enviado <b>uma vez só</b>. Quem a IA já analisou não volta na próxima rodada, mesmo que tenha ficado com campo vazio — muitos ficam vazios porque não há o que preencher.</div>
+          </div>
+          {vistosComBuraco > 0 && (
+            <label style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,marginBottom:12,cursor:'pointer'}}>
+              <input type="checkbox" checked={incluirVistos} onChange={e=>setIncluirVistos(e.target.checked)} style={{marginTop:3}} />
+              <span>
+                Pagar de novo por {vistosComBuraco} que a IA já analisou e seguem com campo vazio.
+                <span style={{color:'var(--muted)'}}> Normalmente não vale: costuma ser comentário sem produto ou spam sem resposta. Use só se achar que a IA errou.</span>
+              </span>
+            </label>
+          )}
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn brand" disabled={!alvos.length} onClick={rodar}>Classificar {alvos.length}</button>
+            <button className="btn" onClick={onFechar}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- colar em lote ----------
+   Duas etapas: colar e revisar. O parser erra às vezes, porque o texto
+   copiado da tela varia muito — então nada vai para o banco antes de a
+   pessoa conferir como cada comentário foi separado. */
+function ColarLote({cfg, clienteId, onAddLote}){
+  const [raw, setRaw] = useState('');
+  const [linhas, setLinhas] = useState(null);
+  const [rede, setRede] = useState('');
+  const [origem, setOrigem] = useState('Feed');
+  const [link, setLink] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  function separar(){
+    const r = parsePaste(raw);
+    if(!r.length){ alert('Não encontrei nenhum comentário nesse texto.'); return; }
+    setLinhas(r.map(x => ({...x, link: ''})));
+  }
+  const upd = (id, campo, valor) => setLinhas(p => p.map(x => x.id===id ? {...x, [campo]:valor} : x));
+  const remover = id => setLinhas(p => p.filter(x => x.id !== id));
+  // O campo do lote preenche todas as linhas de uma vez; depois cada uma pode
+  // ser ajustada. Comentários de posts diferentes — ou DMs, que não têm post —
+  // não podem ser forçados a compartilhar o mesmo link.
+  const aplicarLinkATodos = valor => { setLink(valor); setLinhas(p => p.map(x => ({...x, link: valor}))); };
+  const validas = linhas ? linhas.filter(l => l.text.trim()) : [];
+
+  async function salvar(){
+    if(!validas.length){ alert('Nenhum comentário para adicionar.'); return; }
+    setSalvando(true);
+    const ok = await onAddLote(validas.map(l => ({
+      cliente_id: clienteId,
+      autor: l.author || null,
+      texto: l.text,
+      link_conteudo: (l.link || '').trim() || null,
+      origem,
+      rede_id: rede ? Number(rede) : null,
+      produto_id: null, editoria_id: null, sentimento_id: null,
+      triagem: 'Pendente'
+    })));
+    setSalvando(false);
+    if(ok){ setRaw(''); setLinhas(null); setLink(''); }
+  }
+
+  if(linhas) return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:4}}>Revisar — {linhas.length} comentário(s)</div>
+      <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Confira como cada um foi separado. Corrija o que estiver errado e remova o que não for comentário. Nada foi salvo ainda.</div>
+      <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:320,overflowY:'auto',marginBottom:12}}>
+        {linhas.map(l => (
+          <div key={l.id} style={{display:'flex',flexDirection:'column',gap:4,paddingBottom:8,borderBottom:'1px solid var(--line)'}}>
+            <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+              <input value={l.author} onChange={e=>upd(l.id,'author',e.target.value)} placeholder="autor" style={{flex:'0 0 150px'}} />
+              <textarea value={l.text} onChange={e=>upd(l.id,'text',e.target.value)} style={{flex:1,minHeight:38}} />
+              <button className="btn" title="Remover" onClick={()=>remover(l.id)} style={{flex:'none'}}>×</button>
+            </div>
+            <input value={l.link||''} onChange={e=>upd(l.id,'link',e.target.value)} placeholder="link do post deste comentário (opcional — deixe vazio para DM)" style={{fontSize:12}} />
+          </div>
+        ))}
+      </div>
+      <div className="addgrid" style={{marginBottom:12}}>
+        <label className="field"><span>Rede (vale para o lote)</span>
+          <select value={rede} onChange={e=>setRede(e.target.value)}><option value="">—</option>{cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}</select></label>
+        <label className="field"><span>Origem</span>
+          <select value={origem} onChange={e=>setOrigem(e.target.value)}><option>Feed</option><option>DM</option></select></label>
+        <label className="field"><span>Link do post — preenche todos de uma vez</span>
+          <input value={link} onChange={e=>aplicarLinkATodos(e.target.value)} placeholder="https://… (ajustável linha a linha acima)" /></label>
+      </div>
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn brand" disabled={salvando||!validas.length} onClick={salvar}>{salvando?'Salvando…':'Adicionar '+validas.length+' comentário(s)'}</button>
+        <button className="btn" disabled={salvando} onClick={()=>setLinhas(null)}>Voltar</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:4}}>Colar comentários em lote</div>
+      <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Copie o bloco de comentários da tela e cole abaixo. O sistema separa autor e texto e descarta o ruído da interface — tempo, "Responder", curtidas.</div>
+      <label className="field" style={{marginBottom:12}}>
+        <textarea value={raw} onChange={e=>setRaw(e.target.value)} style={{minHeight:150}} placeholder={'mariana.invest\nQuando o Tesouro Reserva chega no meu banco?\n2 d\nResponder'} /></label>
+      <button className="btn brand" disabled={!raw.trim()} onClick={separar}>Separar comentários →</button>
     </div>
   );
 }
@@ -472,27 +1506,1991 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
-function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
+/* Barra de filtros. O sentimento vira pastilha com contagem, como no Zmetrics:
+   ver "Negativo 7" sem precisar abrir a lista é metade do trabalho de quem
+   cuida de comunidade. O resto fica em listas, que ocupam menos espaço. */
+function Filtros({cfg, f, setF, busca, setBusca, naAba, filtrando, aoLimpar}){
+  const [abrir, setAbrir] = useState(false);
+  const p = (k,v) => setF(prev => ({...prev, [k]: v}));
+  const conta = id => naAba.filter(i => String(i.sentimento_id||'') === String(id)).length;
+  const juridicos = naAba.filter(i => i.ia_juridico).length;
+
+  // Só os posts que realmente aparecem nesta aba — uma lista com todo post
+  // que já existiu seria inútil e enorme.
+  const posts = [...new Set(naAba.map(i => i.link_conteudo).filter(Boolean))];
+
+  return (
+    <div className="filtros">
+      <div className="chips">
+        <button className={"chip"+(f.sent===''?' on':'')} onClick={()=>p('sent','')}>
+          Todos<span className="n">{naAba.length}</span>
+        </button>
+        {cfg.sentimentos.map(s=>(
+          <button key={s.id} className={"chip"+(f.sent===String(s.id)?' on':'')} onClick={()=>p('sent',String(s.id))}>
+            <span className="dot" style={{background:corSent(s.nome)}} />{s.nome}<span className="n">{conta(s.id)}</span>
+          </button>
+        ))}
+        {juridicos > 0 && (
+          <button className={"chip juri"+(f.juridico?' on':'')} onClick={()=>p('juridico',!f.juridico)}>
+            Jurídico/STN<span className="n">{juridicos}</span>
+          </button>
+        )}
+      </div>
+
+      <div className="filters">
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor, texto ou resposta…" />
+        <button className="btn" onClick={()=>setAbrir(!abrir)}>{abrir?'Menos filtros':'Mais filtros'}</button>
+        {filtrando && <button className="btn" onClick={aoLimpar}>Limpar filtros</button>}
+      </div>
+
+      {abrir && (
+        <div className="filters">
+          <select value={f.iaTriagem} onChange={e=>p('iaTriagem',e.target.value)}>
+            <option value="">IA sugeriu: tudo</option>
+            <option value="responder">IA: responder</option>
+            <option value="curtir">IA: só curtir</option>
+            <option value="nao_responder">IA: não responder</option>
+          </select>
+          <select value={f.origem} onChange={e=>p('origem',e.target.value)}>
+            <option value="">Origem: todas</option><option>Feed</option><option>DM</option>
+          </select>
+          <select value={f.rede} onChange={e=>p('rede',e.target.value)}>
+            <option value="">Rede: todas</option>
+            {cfg.redes.map(r=><option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+          </select>
+          <select value={f.produto} onChange={e=>p('produto',e.target.value)}>
+            <option value="">Produto: todos</option>
+            {cfg.produtos.map(pp=><option key={pp.id} value={String(pp.id)}>{pp.nome}</option>)}
+          </select>
+          <select value={f.editoria} onChange={e=>p('editoria',e.target.value)}>
+            <option value="">Editoria: todas</option>
+            {cfg.editorias.map(ed=><option key={ed.id} value={String(ed.id)}>{ed.nome}</option>)}
+          </select>
+          {posts.length > 0 && (
+            <select value={f.post} onChange={e=>p('post',e.target.value)}>
+              <option value="">Post: todos</option>
+              {posts.map(u=><option key={u} value={u}>{rotuloPost(u)}</option>)}
+            </select>
+          )}
+          <label className="dedata">de<input type="date" value={f.de} onChange={e=>p('de',e.target.value)} /></label>
+          <label className="dedata">até<input type="date" value={f.ate} onChange={e=>p('ate',e.target.value)} /></label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   DASHBOARD
+   Barras horizontais em vez de pizza: o trabalho aqui é comparar tamanhos, e
+   comparar ângulo é mais difícil que comparar comprimento. O número fica
+   sempre visível ao lado — as cores de sentimento do MUVUCA são claras demais
+   contra o branco para carregarem sozinhas a informação.
+   ============================================================ */
+const COR_BARRA = '#8A6516';   // âmbar escuro: família do MUVUCA e legível no branco
+
+function Barras({dados, total, corDe}){
+  const maior = Math.max(1, ...dados.map(d => d.n));
+  return (
+    <div className="barras">
+      {dados.map(d => {
+        const pct = total ? Math.round(d.n/total*100) : 0;
+        return (
+          <div key={d.nome} className="barra" title={`${d.nome}: ${d.n} de ${total} (${pct}%)`}>
+            <div className="rot">{d.nome}</div>
+            <div className="trilho">
+              <div className="preenche" style={{width: Math.max(2, d.n/maior*100)+'%', background: corDe ? corDe(d.nome) : COR_BARRA}} />
+            </div>
+            <div className="num">{d.n}<span className="pct">{pct}%</span></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Tabela({dados, total}){
+  return (
+    <table className="tabnum">
+      <thead><tr><th>Item</th><th>Comentários</th><th>%</th></tr></thead>
+      <tbody>
+        {dados.map(d => (
+          <tr key={d.nome}><td>{d.nome}</td><td>{d.n}</td><td>{total?Math.round(d.n/total*100):0}%</td></tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/* Barras em pé, com eixo e grade — o desenho padrão do Zmetrics.
+   O número vai em cima de cada barra: é o reforço que o teste de cor exige,
+   já que o pior par da paleta fica na faixa em que a cor sozinha não basta. */
+function BarrasV({dados, corDe}){
+  const [sob, setSob] = useState(null);
+  const L=34, R=8, T=20, B=40, W=340, H=225;
+  const maior = topoDoEixo(Math.max(1, ...dados.map(d=>d.n)));
+  const faixa = (W-L-R) / dados.length;
+  const larg = Math.max(6, Math.min(52, faixa - 8));   // 8px de respiro entre barras
+  const y = v => T + (H-T-B) * (1 - v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+      aria-label={dados.map(d=>`${d.nome}: ${d.n}`).join(', ')}>
+      {[0,.5,1].map(f=>(
+        <g key={f}>
+          <line x1={L} x2={W-R} y1={y(maior*f)} y2={y(maior*f)} className="gradelinha" />
+          <text x={L-5} y={y(maior*f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+        </g>
+      ))}
+      {dados.map((d,k)=>(
+        <g key={d.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+          <rect x={cx(k)-faixa/2} y={T} width={faixa} height={H-T-B} fill="transparent" />
+          <rect x={cx(k)-larg/2} y={y(d.n)} width={larg} height={Math.max(1,(H-B)-y(d.n))}
+            rx="4" fill={corDe(d.nome)} opacity={sob===null||sob===k?1:.45} />
+          <text x={cx(k)} y={y(d.n)-5} className="valtxt" textAnchor="middle">{d.n}</text>
+          <text x={cx(k)} y={H-B+13} className="eixotxt" textAnchor="middle">{cortar(d.nome, Math.floor(faixa/6))}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Corta nome comprido para caber embaixo da barra sem encavalar no vizinho.
+const cortar = (s, n) => { s = String(s); return s.length <= n ? s : s.slice(0, Math.max(1,n-1)) + '…'; };
+
+function Pizza({dados, total, corDe}){
+  const [sob, setSob] = useState(null);
+  const W=340, H=225, cx=W/2, cy=100, r=76;
+  const soma = dados.reduce((a,d)=>a+d.n, 0) || 1;
+  let ang = -Math.PI/2;
+  const fatias = dados.map(d => {
+    const a0 = ang, a1 = ang + (d.n/soma)*Math.PI*2;
+    ang = a1;
+    return {...d, a0, a1};
+  });
+  const ponto = (a, raio) => [cx + Math.cos(a)*raio, cy + Math.sin(a)*raio];
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+        aria-label={dados.map(d=>`${d.nome}: ${d.n}`).join(', ')}>
+        {fatias.map((f,k) => {
+          // Uma categoria só vira círculo inteiro: o arco de 360° degenera
+          // (começo e fim no mesmo ponto) e não desenharia nada.
+          if(dados.length === 1) return <circle key={f.nome} cx={cx} cy={cy} r={r} fill={corDe(f.nome)} />;
+          const [x0,y0] = ponto(f.a0, r), [x1,y1] = ponto(f.a1, r);
+          const grande = (f.a1 - f.a0) > Math.PI ? 1 : 0;
+          const meio = (f.a0+f.a1)/2;
+          const [tx,ty] = ponto(meio, r*0.62);
+          const pct = Math.round(f.n/soma*100);
+          return (
+            <g key={f.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+              <path d={`M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 ${grande} 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z`}
+                fill={corDe(f.nome)} stroke="#fff" strokeWidth="2" opacity={sob===null||sob===k?1:.45} />
+              {pct >= 8 && <text x={tx} y={ty+4} className="fatiatxt" textAnchor="middle">{pct}%</text>}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="legenda">
+        {dados.map((d,k)=>(
+          <span key={d.nome} className="litem" style={{opacity: sob===null||sob===k?1:.5}}>
+            <span className="ldot" style={{background:corDe(d.nome)}} />{d.nome}
+            <b>{d.n}</b><span className="lpct">{Math.round(d.n/soma*100)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Empilhado({cruz, corSerie}){
+  const [sob, setSob] = useState(null);
+  const L=34, R=8, T=20, B=40, W=340, H=225;
+  const maior = topoDoEixo(Math.max(1, ...cruz.linhas.map(l=>l.soma)));
+  const faixa = (W-L-R) / Math.max(1, cruz.linhas.length);
+  const larg = Math.max(6, Math.min(52, faixa - 8));
+  const esc = v => (H-T-B) * (v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+        aria-label={cruz.linhas.map(l=>`${l.nome}: ${l.soma}`).join(', ')}>
+        {[0,.5,1].map(f=>(
+          <g key={f}>
+            <line x1={L} x2={W-R} y1={T+(H-T-B)*(1-f)} y2={T+(H-T-B)*(1-f)} className="gradelinha" />
+            <text x={L-5} y={T+(H-T-B)*(1-f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+          </g>
+        ))}
+        {cruz.linhas.map((l,k)=>{
+          let base = H-B;
+          return (
+            <g key={l.nome} onMouseEnter={()=>setSob(k)} onMouseLeave={()=>setSob(null)}>
+              {cruz.series.map(s => {
+                const h = esc(l.fatias[s]);
+                if(h <= 0) return null;
+                base -= h;
+                // 2px de folga entre as fatias: sem isso duas cores vizinhas
+                // parecem uma só mancha.
+                return <rect key={s} x={cx(k)-larg/2} y={base} width={larg} height={Math.max(1,h-2)}
+                  rx="2" fill={corSerie(s)} opacity={sob===null||sob===k?1:.45}>
+                  <title>{`${l.nome} · ${s}: ${l.fatias[s]}`}</title>
+                </rect>;
+              })}
+              <text x={cx(k)} y={base-5} className="valtxt" textAnchor="middle">{l.soma}</text>
+              <text x={cx(k)} y={H-B+13} className="eixotxt" textAnchor="middle">{cortar(l.nome, Math.floor(faixa/6))}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="legenda">
+        {cruz.series.map(s=>(
+          <span key={s} className="litem"><span className="ldot" style={{background:corSerie(s)}} />{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TIPOS = [['pizza','Pizza'],['barras','Barras'],['barrasH','Barras H'],['empilhado','Empilhado']];
+
+function Bloco({titulo, dados, total, corDe, tabela, nota, cruz, corSerie, padrao='barras'}){
+  const [tipo, setTipo] = useState(padrao);
+  return (
+    <div className="bloco">
+      <div className="bcab">
+        <div className="btit">{titulo}</div>
+        {!tabela && dados.length > 0 && (
+          <div className="segs">
+            {TIPOS.map(([k,l])=>(
+              <button key={k} className={"seg"+(tipo===k?' on':'')} onClick={()=>setTipo(k)}
+                disabled={k==='empilhado' && !cruz}>{l}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      {nota && <div className="bnota">{nota}</div>}
+      {dados.length === 0
+        ? <div className="bvazio">Nada preenchido neste período.</div>
+        : tabela ? <Tabela dados={dados} total={total} />
+        : tipo === 'pizza' ? <Pizza dados={dados} total={total} corDe={corDe} />
+        : tipo === 'barrasH' ? <Barras dados={dados} total={total} corDe={corDe} />
+        : tipo === 'empilhado' && cruz ? <Empilhado cruz={cruz} corSerie={corSerie} />
+        : <BarrasV dados={dados} corDe={corDe} />}
+    </div>
+  );
+}
+
+/* Linha do tempo em SVG. Sem biblioteca de gráfico: o MUVUCA é uma página só,
+   sem compilação, e puxar uma biblioteca de fora para desenhar uma linha
+   custaria mais do que desenhá-la. */
+function LinhaTempo({dias, series, corDe}){
+  const [sob, setSob] = useState(null);
+  if(dias.length < 2) return <div className="bvazio">Poucos dias com data para desenhar uma linha. Preencha a data dos comentários.</div>;
+
+  const L=40, R=12, T=12, B=26, W=760, H=190;
+  // Um eixo só para todas as linhas: dois eixos no mesmo gráfico fazem séries
+  // de tamanhos diferentes parecerem equivalentes.
+  const maior = topoDoEixo(Math.max(1, ...series.flatMap(s => s.valores)));
+  const x = k => L + (W-L-R) * (dias.length===1 ? 0 : k/(dias.length-1));
+  const y = v => T + (H-T-B) * (1 - v/maior);
+  const caminho = vals => vals.map((v,k)=>`${k?'L':'M'}${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+
+  // Três marcas no eixo de baixo: começo, meio e fim. Mais do que isso vira
+  // amontoado ilegível em período longo.
+  const marcas = [0, Math.floor((dias.length-1)/2), dias.length-1].filter((v,i,a)=>a.indexOf(v)===i);
+
+  return (
+    <div className="linhatempo">
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgtempo" role="img"
+        aria-label={`Comentários por dia, de ${dias[0]} a ${dias[dias.length-1]}`}
+        onMouseLeave={()=>setSob(null)}
+        onMouseMove={e=>{
+          const c = e.currentTarget.getBoundingClientRect();
+          const px = (e.clientX - c.left) / c.width * W;
+          const k = Math.round((px - L) / Math.max(1,(W-L-R)) * (dias.length-1));
+          setSob(k>=0 && k<dias.length ? k : null);
+        }}>
+        {[0, .5, 1].map(f=>(
+          <g key={f}>
+            <line x1={L} x2={W-R} y1={y(maior*f)} y2={y(maior*f)} className="gradelinha" />
+            <text x={L-6} y={y(maior*f)+4} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+          </g>
+        ))}
+        {series.map(s=>(
+          <path key={s.nome} d={caminho(s.valores)} className="serie"
+            style={corDe ? {stroke: corDe(s.nome)} : null} />
+        ))}
+        {sob !== null && (
+          <g>
+            <line x1={x(sob)} x2={x(sob)} y1={T} y2={H-B} className="cruz" />
+            {series.map(s=>(
+              <circle key={s.nome} cx={x(sob)} cy={y(s.valores[sob])} r="5" className="ponto"
+                style={corDe ? {fill: corDe(s.nome)} : null} />
+            ))}
+          </g>
+        )}
+        {marcas.map(k=>(
+          <text key={k} x={x(k)} y={H-8} className="eixotxt"
+            textAnchor={k===0?'start':k===dias.length-1?'end':'middle'}>
+            {fmtBR(dataLocal(dias[k]))}
+          </text>
+        ))}
+      </svg>
+      {series.length > 1 && (
+        <div className="legenda">
+          {series.map(s=>(
+            <span key={s.nome} className="litem">
+              <span className="ldot" style={{background: corDe ? corDe(s.nome) : '#8A6516'}} />{s.nome}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="dicatempo">
+        {sob !== null
+          ? <span>{fmtBR(dataLocal(dias[sob]))}: {series.map(s=>`${s.nome==='total'?'':s.nome+' '}${s.valores[sob]}`).join(' · ')}</span>
+          : <span>Passe o mouse sobre a linha para ver o número de cada dia.</span>}
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({cfg, interacoes, clienteNome}){
+  const [periodo, setPeriodo] = useState('total');
+  const [de, setDe] = useState('');
+  const [ate, setAte] = useState('');
+  const [tabela, setTabela] = useState(false);
+
+  const {de:d0, ate:d1} = resolvePeriodo(periodo, de, ate);
+  const vivos = interacoes.filter(i => !naLixeira(i));
+  const itens = vivos.filter(i => noPeriodo(i, periodo, d0, d1));
+
+  const nomePor = (lista, id) => lista.find(x => x.id === id)?.nome || null;
+  const sentDe  = i => nomePor(cfg.sentimentos, i.sentimento_id);
+
+  const [linhaPor, setLinhaPor] = useState('total');
+
+  const redeDe = i => nomePor(cfg.redes, i.rede_id);
+  const porSent = contarPor(itens, sentDe, 'Sem sentimento');
+  const porRede = contarPor(itens, redeDe, 'Sem rede');
+  const porProd = contarPor(itens, i => nomePor(cfg.produtos, i.produto_id));
+  const porEdit = contarPor(itens, i => nomePor(cfg.editorias, i.editoria_id));
+  const porAutor = contarPor(itens, i => i.autor).slice(0, 10);
+
+  // "Empilhado" cruza por rede, como no Zmetrics.
+  const cruzSent = cruzarPor(itens, sentDe, redeDe, 'Sem sentimento');
+  const cruzProd = cruzarPor(itens, i => nomePor(cfg.produtos, i.produto_id), redeDe);
+  const cruzEdit = cruzarPor(itens, i => nomePor(cfg.editorias, i.editoria_id), redeDe);
+  const cruzRede = cruzarPor(itens, redeDe, sentDe, 'Sem rede');
+
+  // Sentimento tem cor própria, definida por você nas configurações. Rede,
+  // produto e editoria não têm, então recebem cores de uma paleta fixa.
+  const corSentimento = nome => corSent(nome);
+  const corRede = corDaLista(cfg.redes.map(r=>r.nome).concat('Sem rede'));
+  const corProd = corDaLista(cfg.produtos.map(p=>p.nome));
+  const corEdit = corDaLista(cfg.editorias.map(e=>e.nome));
+  const corAutor = corDaLista(porAutor.map(a=>a.nome));
+
+  const serieTotal = serieDiaria(itens);
+  const serieSent = serieDiariaPor(itens, sentDe);
+  const linhaDias = linhaPor === 'total' ? serieTotal.map(p=>p.dia) : serieSent.dias;
+  const linhaSeries = linhaPor === 'total'
+    ? [{nome:'total', valores: serieTotal.map(p=>p.n)}]
+    : serieSent.series;
+
+  const respondidos = itens.filter(i => i.triagem === 'Respondido').length;
+  const pendentes   = itens.filter(i => (i.triagem||'Pendente') === 'Pendente').length;
+  const juridicos   = itens.filter(i => i.ia_juridico).length;
+  const semData     = itens.filter(i => !dataDoComentario(i)).length;
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Relatórios</h1><p>{clienteNome}</p></div>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn" onClick={()=>setTabela(!tabela)}>{tabela?'Ver gráficos':'Ver como tabela'}</button>
+        </div>
+      </div>
+
+      <div className="periodo">
+        <label className="campo" style={{flex:'0 1 200px'}}><span>Período</span>
+          <select value={periodo} onChange={e=>setPeriodo(e.target.value)}>
+            {PERIODOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        {periodo === 'custom' && (
+          <>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>De</span>
+              <input type="date" value={de} onChange={e=>setDe(e.target.value)} /></label>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>Até</span>
+              <input type="date" value={ate} onChange={e=>setAte(e.target.value)} /></label>
+          </>
+        )}
+        <div className="resumoper">
+          <div className="quando">{periodo==='total' ? 'Todos os comentários' : `${fmtBR(d0)} — ${fmtBR(d1)}`}</div>
+          <div className="quantos"><b>{itens.length}</b> de {vivos.length} comentário(s)</div>
+        </div>
+      </div>
+
+      {itens.length === 0 ? (
+        <div className="empty">
+          Nenhum comentário neste período.
+          {periodo !== 'total' && <> Comentário sem data preenchida só aparece em <b>Todo o período</b>.</>}
+        </div>
+      ) : (
+        <>
+          <div className="cards">
+            <div className="card"><div className="lbl">No período</div><div className="val">{itens.length}</div></div>
+            <div className="card"><div className="lbl">Respondidos</div><div className="val">{respondidos}</div></div>
+            <div className="card"><div className="lbl">Na fila</div><div className="val">{pendentes}</div></div>
+            <div className="card"><div className="lbl">Jurídico/STN</div><div className="val">{juridicos}</div></div>
+          </div>
+
+          {semData > 0 && periodo === 'total' && (
+            <div className="aviso">{semData} comentário(s) sem data preenchida. Eles entram aqui, mas <b>ficam de fora de qualquer recorte por período</b> — preencha a data no cartão para que apareçam nos relatórios.</div>
+          )}
+
+          <div className="bloco" style={{marginTop:14}}>
+            <div className="bcab">
+              <div className="btit">Comentários por dia</div>
+              <div className="segs">
+                <button className={"seg"+(linhaPor==='total'?' on':'')} onClick={()=>setLinhaPor('total')}>Total</button>
+                <button className={"seg"+(linhaPor==='sent'?' on':'')} onClick={()=>setLinhaPor('sent')}>Por sentimento</button>
+              </div>
+            </div>
+            <LinhaTempo dias={linhaDias} series={linhaSeries}
+              corDe={linhaPor==='sent' ? corSentimento : null} />
+          </div>
+
+          <div className="blocos">
+            <Bloco titulo="Sentimento" dados={porSent} total={itens.length} tabela={tabela}
+              corDe={corSentimento} cruz={cruzSent} corSerie={corRede} />
+            <Bloco titulo="Rede" dados={porRede} total={itens.length} tabela={tabela}
+              corDe={corRede} cruz={cruzRede} corSerie={corSentimento} padrao="pizza" />
+            <Bloco titulo="Produto" dados={porProd} total={itens.length} tabela={tabela}
+              corDe={corProd} cruz={cruzProd} corSerie={corRede}
+              nota="Só conta quem tem produto definido." />
+            <Bloco titulo="Editoria" dados={porEdit} total={itens.length} tabela={tabela}
+              corDe={corEdit} cruz={cruzEdit} corSerie={corRede}
+              nota="Só conta quem tem editoria definida." />
+          </div>
+
+          <div style={{marginTop:14}}>
+            <Bloco titulo="Quem mais comentou" dados={porAutor} total={itens.length} tabela={tabela}
+              corDe={corAutor} padrao="barrasH" nota="Os dez primeiros." />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   EVOLUÇÃO DIÁRIA
+   Primeiro módulo analítico de verdade. Barras empilhadas por sentimento, uma
+   por dia, com o total escrito em cima — e, ao clicar num dia, a lista dos
+   comentários daquele dia. O gráfico responde "quando", a lista responde
+   "o quê": número sem poder ver o que há por trás dele não resolve nada.
+   ============================================================ */
+const MOSTRA_DE_INICIO = 8;
+
+function BarrasDia({dias, series, totais, corDe, escolhido, aoEscolher}){
+  const L=44, R=10, T=26, B=46, W=1000, H=330;
+  const maior = topoDoEixo(Math.max(1, ...totais));
+  const faixa = (W-L-R) / Math.max(1, dias.length);
+  const larg = Math.max(3, Math.min(34, faixa - 6));
+  const esc = v => (H-T-B) * (v/maior);
+  const cx = k => L + faixa*k + faixa/2;
+
+  /* Com 30 dias cabe uma data em cada barra; com 90, não cabe. Mostra uma a
+     cada N para os rótulos não virarem uma mancha preta ilegível. */
+  const passo = Math.ceil(dias.length / 22);
+  const curto = d => { const x = dataLocal(d); return x ? `${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}` : d; };
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="svgraf" role="img"
+      aria-label={`Comentários por dia, de ${dias[0]} a ${dias[dias.length-1]}`}>
+      {[0,.5,1].map(f=>(
+        <g key={f}>
+          <line x1={L} x2={W-R} y1={T+(H-T-B)*(1-f)} y2={T+(H-T-B)*(1-f)} className="gradelinha" />
+          <text x={L-6} y={T+(H-T-B)*(1-f)+3.5} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+        </g>
+      ))}
+      {dias.map((dia,k)=>{
+        let base = H-B;
+        const total = totais[k];
+        const on = escolhido === dia;
+        return (
+          <g key={dia} className="colunadia" onClick={()=>aoEscolher(on ? null : dia)}>
+            {/* Área de clique da coluna inteira: acertar uma barra de 3px de
+                largura com o mouse é tarefa para ninguém. */}
+            <rect x={cx(k)-faixa/2} y={T-14} width={faixa} height={H-T-B+14}
+              fill={on ? 'rgba(245,179,1,.14)' : 'transparent'} />
+            {series.map(s=>{
+              const h = esc(s.valores[k]);
+              if(h <= 0) return null;
+              base -= h;
+              return <rect key={s.nome} x={cx(k)-larg/2} y={base} width={larg}
+                height={Math.max(1, h - (h > 3 ? 1.5 : 0))} fill={corDe(s.nome)}
+                // Apagar as outras colunas a 40% tirava a leitura do conjunto;
+                // o fundo amarelo já marca qual foi escolhida.
+                opacity={escolhido && !on ? .62 : 1}>
+                <title>{`${curto(dia)} · ${s.nome}: ${s.valores[k]}`}</title>
+              </rect>;
+            })}
+            {total > 0 && <text x={cx(k)} y={base-6} className="valtxt" textAnchor="middle">{total}</text>}
+            {(k % passo === 0 || k === dias.length-1) && (
+              <text x={cx(k)} y={H-B+16} className="eixotxt" textAnchor="middle"
+                transform={passo === 1 && faixa < 26 ? `rotate(-45 ${cx(k)} ${H-B+16})` : ''}>{curto(dia)}</text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function EvolucaoDiaria({cfg, interacoes, cliente, rede}){
+  const [periodo, setPeriodo] = useState('28d');
+  const [de, setDe] = useState('');
+  const [ate, setAte] = useState('');
+  const [dia, setDia] = useState(null);
+  const [mostrar, setMostrar] = useState(MOSTRA_DE_INICIO);
+
+  const {de:d0, ate:d1} = resolvePeriodo(periodo, de, ate);
+  const nomeSent = i => cfg.sentimentos.find(s => s.id === i.sentimento_id)?.nome || null;
+
+  // Recorte: este cliente, esta rede, fora da lixeira, dentro do período.
+  const daRede = interacoes.filter(i => !naLixeira(i) && i.rede_id === rede.id);
+  const itens  = daRede.filter(i => noPeriodo(i, periodo, d0, d1));
+  const semData = daRede.filter(i => !dataDoComentario(i)).length;
+
+  const {dias, series, totais} = serieDiariaPor(itens, nomeSent, 'Sem sentimento');
+  const corDe = nome => corSent(nome);
+  const total = totais.reduce((a,n)=>a+n, 0);
+
+  const doDiaEscolhido = dia ? doDia(itens, dia) : [];
+  useEffect(()=>{ setMostrar(MOSTRA_DE_INICIO); }, [dia]);
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          <h1>Evolução Diária</h1>
+          <p>{cliente?.nome} · {rede?.nome}</p>
+        </div>
+      </div>
+
+      <div className="periodo">
+        <label className="campo" style={{flex:'0 1 200px'}}><span>Período</span>
+          <select value={periodo} onChange={e=>{setPeriodo(e.target.value); setDia(null);}}>
+            {PERIODOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        {periodo === 'custom' && (
+          <>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>De</span>
+              <input type="date" value={de} onChange={e=>{setDe(e.target.value); setDia(null);}} /></label>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>Até</span>
+              <input type="date" value={ate} onChange={e=>{setAte(e.target.value); setDia(null);}} /></label>
+          </>
+        )}
+        <div className="resumoper">
+          <div className="quando">{periodo==='total' ? 'Todo o período' : `${fmtBR(d0)} — ${fmtBR(d1)}`}</div>
+          <div className="quantos"><b>{total.toLocaleString('pt-BR')}</b> comentário(s) em {dias.length} dia(s)</div>
+        </div>
+      </div>
+
+      {/* A linha de filtros ativos, como na referência: quem olha o gráfico
+          precisa saber de que recorte ele veio, sem ter de deduzir. */}
+      <div className="filtrosativos">
+        <b>FILTROS ATIVOS</b>{' '}
+        {cliente?.nome} · {rede?.nome} · {periodo==='total' ? 'todo o período' : `${fmtBR(d0)} até ${fmtBR(d1)}`} ·{' '}
+        {total.toLocaleString('pt-BR')} comentário(s) ·{' '}
+        {series.map(s => `${s.nome}: ${s.valores.reduce((a,n)=>a+n,0)}`).join(' · ') || 'sem classificação'}
+        {semData > 0 && <> · <span className="alerta">{semData} sem data, fora deste gráfico</span></>}
+      </div>
+
+      {dias.length === 0 ? (
+        <div className="empty">
+          Nenhum comentário deste canal neste período.
+          {semData > 0 && <> Há {semData} comentário(s) sem data de publicação — eles não entram em recorte por período. Preencha a data no cartão, em Community.</>}
+        </div>
+      ) : (
+        <>
+          <div className="bloco">
+            <BarrasDia dias={dias} series={series} totais={totais} corDe={corDe}
+              escolhido={dia} aoEscolher={setDia} />
+            <div className="legenda">
+              {series.map(s=>(
+                <span key={s.nome} className="litem">
+                  <span className="ldot" style={{background:corDe(s.nome)}} />{s.nome}
+                  <b>{s.valores.reduce((a,n)=>a+n,0)}</b>
+                </span>
+              ))}
+              <span className="litem" style={{marginLeft:'auto',color:'var(--muted)'}}>
+                {dia ? 'Clique de novo na barra para fechar o detalhamento.' : 'Clique numa barra para ver os comentários do dia.'}
+              </span>
+            </div>
+          </div>
+
+          {dia && (
+            <div className="bloco" style={{marginTop:14}}>
+              <div className="bcab">
+                <div className="btit">{fmtBR(dataLocal(dia))}</div>
+                <div className="bnota" style={{margin:0}}>{doDiaEscolhido.length} comentário(s)</div>
+              </div>
+              {doDiaEscolhido.slice(0, mostrar).map(i=>(
+                <div key={i.id} className="detlinha">
+                  <span className="detautor">{i.autor ? '@'+String(i.autor).replace(/^@/,'') : 'sem @'}</span>
+                  <span className="dettexto">{i.texto}</span>
+                  <span className="detsent">
+                    <span className="ldot" style={{background:corSent(nomeSent(i))}} />
+                    {nomeSent(i) || 'Sem sentimento'}
+                  </span>
+                </div>
+              ))}
+              {doDiaEscolhido.length > mostrar && (
+                <div style={{textAlign:'center',marginTop:10}}>
+                  <button className="btn" onClick={()=>setMostrar(doDiaEscolhido.length)}>
+                    Ver todos os {doDiaEscolhido.length}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   CONTEÚDOS
+   O mural de publicações. No Zmetrics é um cadastro manual — você cola o link
+   de cada post — porque lá não existe importação. Aqui não se cadastra nada:
+   as publicações já chegam pela planilha, com link, formato, rede, data e as
+   métricas. Um segundo cadastro ao lado criaria post repetido, já que nada
+   impediria a mesma publicação de entrar pelos dois caminhos.
+   ============================================================ */
+const METRICAS = [
+  ['visu','Visualizações'], ['curtidas','Curtidas'], ['coment','Comentários'],
+  ['compart','Compart.'], ['salvos','Salvamentos'],
+];
+const POR_PAGINA = 12;
+
+function Conteudos({cfg, publicacoes, interacoes, clienteNome}){
+  const [fRede, setFRede] = useState('');
   const [busca, setBusca] = useState('');
-  const [fOrigem, setFOrigem] = useState('');
-  const [fSent, setFSent] = useState('');
-  const [mostrarAdd, setMostrarAdd] = useState(false);
-  const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
-  const total = interacoes.length;
-  const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
-  const duv = interacoes.filter(i=>nomeSent(i)==='Dúvida').length;
-  const neg = interacoes.filter(i=>nomeSent(i)==='Negativo').length;
-  const vis = interacoes.filter(i=>{
-    if(fOrigem && i.origem!==fOrigem) return false;
-    if(fSent && String(i.sentimento_id)!==fSent) return false;
-    if(busca){ const q=busca.toLowerCase(); if(!((i.texto||'').toLowerCase().includes(q) || (i.autor||'').toLowerCase().includes(q))) return false; }
+  const [quantos, setQuantos] = useState(POR_PAGINA);
+
+  const vivos = interacoes.filter(i => !naLixeira(i));
+  const nomeRede = id => cfg.redes.find(r => r.id === id)?.nome || null;
+
+  const lista = publicacoes.filter(p => {
+    if(fRede && String(p.rede_id) !== fRede) return false;
+    if(busca){
+      const q = busca.toLowerCase();
+      const alvo = `${p.link || ''} ${p.formato || ''} ${nomeRede(p.rede_id) || ''}`.toLowerCase();
+      if(!alvo.includes(q)) return false;
+    }
     return true;
   });
+  const mostrando = lista.slice(0, quantos);
+
+  // Quantos comentários vieram de cada post. A lixeira não conta.
+  const comentariosDe = p => vivos.filter(i => mesmoPost(i.link_conteudo, p.link)).length;
+  // Comentários que apontam para um post que não está na lista de publicações.
+  const orfaos = vivos.filter(i => i.link_conteudo &&
+    !publicacoes.some(p => mesmoPost(i.link_conteudo, p.link))).length;
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Conteúdos</h1><p>{clienteNome} · {publicacoes.length} publicação(ões) importada(s)</p></div>
+      </div>
+
+      {publicacoes.length === 0 ? (
+        <div className="empty">
+          Nenhuma publicação importada ainda. As publicações entram pela planilha,
+          em <b>Importar dados</b> — nas abas cujo nome começa com "Resultados".
+        </div>
+      ) : (
+        <>
+          <div className="filters">
+            <input value={busca} onChange={e=>{setBusca(e.target.value); setQuantos(POR_PAGINA);}}
+              placeholder="Buscar por link, formato ou rede…" />
+            <select value={fRede} onChange={e=>{setFRede(e.target.value); setQuantos(POR_PAGINA);}}>
+              <option value="">Rede: todas</option>
+              {cfg.redes.map(r=><option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+            </select>
+          </div>
+
+          {orfaos > 0 && (
+            <div className="aviso">{orfaos} comentário(s) apontam para um post que não está entre as
+            publicações importadas. Eles continuam no Community normalmente — só não aparecem ligados
+            a nenhum cartão aqui.</div>
+          )}
+
+          {mostrando.length === 0 ? (
+            <div className="empty">Nenhuma publicação corresponde ao que você filtrou.</div>
+          ) : (
+            <div className="mural">
+              {mostrando.map(p => {
+                const incorporar = embedDoPost(p.link);
+                const n = comentariosDe(p);
+                const rede = nomeRede(p.rede_id) || redeDoLink(p.link);
+                return (
+                  <div key={p.id} className="post">
+                    <div className="pcab">
+                      {rede && <span className="prede">{rede}</span>}
+                      {p.formato && <span className="tag">{p.formato}</span>}
+                      {p.data_post && <span className="pdata">{fmtBR(dataLocal(p.data_post))}</span>}
+                    </div>
+
+                    {incorporar
+                      ? <iframe src={incorporar} title={p.link || 'publicação'} loading="lazy"
+                          scrolling="no" className="pembed" />
+                      : <div className="psemembed">
+                          Este link não pode ser mostrado aqui dentro. Use <b>abrir ↗</b>.
+                        </div>}
+
+                    <div className="pnums">
+                      {METRICAS.map(([campo, rotulo]) => {
+                        const v = metrica(p, campo);
+                        return v === null ? null : (
+                          <span key={campo}><b>{v.toLocaleString('pt-BR')}</b>{rotulo}</span>
+                        );
+                      })}
+                    </div>
+
+                    <div className="ppe">
+                      <span className={n ? 'temcom' : ''}>{n} comentário(s) deste post</span>
+                      {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer">abrir ↗</a>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {lista.length > mostrando.length && (
+            <div style={{textAlign:'center',marginTop:16}}>
+              <button className="btn" onClick={()=>setQuantos(q => q + POR_PAGINA)}>
+                Mostrar mais {Math.min(POR_PAGINA, lista.length - mostrando.length)} de {lista.length - mostrando.length}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   APROVAÇÃO DE CONTEÚDO — etapa 1: a fundação
+
+   A peça de conteúdo ANTES de ir ao ar. Não confundir com a tela
+   "Conteúdos", que mostra o post JÁ PUBLICADO com os números dele — são
+   duas coisas diferentes e moram em tabelas diferentes de propósito. A
+   ligação entre elas (`conteudos.publicacao_id`) só é preenchida depois
+   que a peça é publicada, e é isso que evita dois registros do mesmo post.
+
+   Nesta etapa: cadastrar, organizar por mês, mover o status e guardar o
+   histórico. Arquivos, prévia e portal do cliente vêm nas etapas seguintes.
+   ============================================================ */
+
+/* Os estados da peça, na ordem em que a vida acontece. "ordem" serve para
+   ordenar a lista por andamento, não para impedir caminho — a realidade
+   volta atrás com frequência. */
+const APROV_STATUS = {
+  rascunho:          {rotulo:'Rascunho',               cor:'#8A8F98', ordem:1},
+  em_revisao:        {rotulo:'Em revisão interna',     cor:'#B5852A', ordem:2},
+  enviado:           {rotulo:'Enviado para aprovação', cor:'#185FA5', ordem:3},
+  visualizado:       {rotulo:'Visualizado',            cor:'#5B8DEF', ordem:4},
+  aprovado:          {rotulo:'Aprovado',               cor:'#1E9E6A', ordem:5},
+  ajuste_solicitado: {rotulo:'Ajuste solicitado',      cor:'#E63329', ordem:6},
+  em_alteracao:      {rotulo:'Em alteração',           cor:'#F5A623', ordem:7},
+  reenviado:         {rotulo:'Reenviado',              cor:'#185FA5', ordem:8},
+};
+
+/* Para onde cada estado pode ir, com que palavra no botão, e qual é o
+   caminho PRINCIPAL — o que leva a peça adiante rumo à aprovação. Só o
+   principal ganha o botão verde.
+
+   O destaque é marcado à mão, e não deduzido da ordem dos estados, porque
+   "ajuste solicitado" e "em alteração" vêm DEPOIS de "aprovado" na lista
+   (é a ordem em que a vida acontece) sem serem um avanço. Deduzindo pela
+   ordem, "Reabrir para alteração" numa peça já aprovada virava o botão
+   verde em destaque — convidando a desfazer uma aprovação pronta.
+
+   O caminho de volta existe sempre: engano de clique não pode virar
+   trabalho perdido. Ele só nunca é o botão em destaque. */
+const APROV_CAMINHOS = {
+  rascunho:          [['em_revisao','Mandar para revisão interna', true]],
+  em_revisao:        [['enviado','Enviar para aprovação', true], ['rascunho','Voltar para rascunho']],
+  enviado:           [['aprovado','O cliente aprovou', true], ['visualizado','O cliente viu'],
+                      ['ajuste_solicitado','O cliente pediu ajuste'], ['em_revisao','Cancelar o envio']],
+  visualizado:       [['aprovado','O cliente aprovou', true], ['ajuste_solicitado','O cliente pediu ajuste'],
+                      ['em_revisao','Cancelar o envio']],
+  // Peça aprovada não tem "próximo passo". Reabrir é exceção, não rotina.
+  aprovado:          [['em_alteracao','Reabrir para alteração']],
+  ajuste_solicitado: [['em_alteracao','Começar a alteração', true]],
+  em_alteracao:      [['reenviado','Reenviar para aprovação', true], ['em_revisao','Voltar para revisão interna']],
+  reenviado:         [['aprovado','O cliente aprovou', true], ['ajuste_solicitado','O cliente pediu ajuste'],
+                      ['visualizado','O cliente viu'], ['em_alteracao','Voltar para alteração']],
+};
+
+/* Formato é diferente de rede: o mesmo Carrossel existe no Instagram e no
+   Facebook. A rede vem da tabela `redes` do cliente; o formato é esta lista
+   fixa, porque ela define qual prévia será montada nas etapas 3 e 4. */
+const APROV_FORMATOS = ['Feed', 'Carrossel', 'Reels', 'Stories', 'Vídeo', 'Texto', 'Link'];
+
+// Estados que contam como "o cliente ainda tem que responder".
+const APROV_AGUARDANDO = ['enviado', 'visualizado', 'reenviado'];
+// Estados que contam como "voltou com pedido".
+const APROV_EM_AJUSTE  = ['ajuste_solicitado', 'em_alteracao'];
+
+const APROV_FILTRO_VAZIO = {rede:'', formato:'', status:'', editoria:'', produto:'', busca:''};
+
+/* ---------- ARQUIVOS (etapa 2) ----------
+   A área de arquivos do Supabase nasce FECHADA (ver MIGRACAO-ARQUIVOS.md):
+   arte não publicada é material sob embargo, e área aberta significaria que
+   qualquer um com o endereço veria a campanha antes da hora. Por isso cada
+   imagem precisa de uma "chave de visita" temporária, pedida na hora. */
+const ARQ_BALDE = 'conteudos';
+const ARQ_LIMITE = 50 * 1024 * 1024;          // 50 MB, o mesmo limite do balde
+const ARQ_ESPACO_TOTAL = 1024 * 1024 * 1024;  // 1 GB do plano gratuito
+const ARQ_AVISAR_EM = 0.8;                    // avisa a partir de 80% cheio
+const ARQ_VALIDADE = 3600;                    // a chave de visita vale 1 hora
+
+const ARQ_TIPOS = {
+  'image/jpeg':'imagem', 'image/png':'imagem', 'image/webp':'imagem', 'image/gif':'imagem',
+  'video/mp4':'video', 'video/quicktime':'video', 'video/webm':'video',
+};
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+// "1,4 MB". Numero cru em byte nao diz nada para quem olha.
+function tamanhoLegivel(bytes){
+  const n = Number(bytes);
+  if(!n || n < 0) return '—';
+  if(n < 1024) return n + ' B';
+  if(n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+  if(n < 1024*1024*1024) return (n/(1024*1024)).toFixed(1).replace('.', ',') + ' MB';
+  return (n/(1024*1024*1024)).toFixed(2).replace('.', ',') + ' GB';
+}
+
+/* Diz se o arquivo pode entrar, e POR QUE não, quando não pode. Recusar sem
+   explicar é o mesmo que falhar em silêncio. */
+function arquivoAceito(arquivo){
+  if(!arquivo) return {ok:false, motivo:'Nenhum arquivo escolhido.'};
+  const tipo = ARQ_TIPOS[arquivo.type];
+  if(!tipo){
+    return {ok:false, motivo:
+      `"${arquivo.name}" é do tipo ${arquivo.type || 'desconhecido'}, que não dá para mostrar na prévia. ` +
+      `Use JPG, PNG, WEBP, GIF, MP4, MOV ou WEBM.`};
+  }
+  if(arquivo.size > ARQ_LIMITE){
+    return {ok:false, motivo:
+      `"${arquivo.name}" tem ${tamanhoLegivel(arquivo.size)} e o limite é ${tamanhoLegivel(ARQ_LIMITE)}. ` +
+      `Exporte num tamanho menor e tente de novo.`};
+  }
+  return {ok:true, tipo};
+}
+
+/* O caminho dentro da área de arquivos. Começa pelo cliente para nunca
+   misturar o material de dois clientes na mesma pasta, e leva um sufixo
+   aleatório para duas artes com o mesmo nome não se sobrescreverem. */
+function caminhoDoArquivo(clienteId, conteudoId, nome){
+  const limpo = String(nome || 'arquivo')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(-60) || 'arquivo';
+  const marca = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  return `${clienteId}/${conteudoId}/${marca}-${limpo}`;
+}
+
+/* Quanto espaço já foi usado, e se está na hora de avisar. */
+function espacoUsado(arquivos){
+  const usado = (arquivos || []).reduce((s, a) => s + (Number(a.tamanho) || 0), 0);
+  const fracao = usado / ARQ_ESPACO_TOTAL;
+  return {
+    usado, fracao,
+    texto: `${tamanhoLegivel(usado)} de ${tamanhoLegivel(ARQ_ESPACO_TOTAL)}`,
+    pct: Math.min(100, Math.round(fracao * 100)),
+    apertado: fracao >= ARQ_AVISAR_EM,
+  };
+}
+
+/* Troca duas peças de lugar na ordem do carrossel. Devolve a lista NOVA com
+   o campo "ordem" já renumerado de 0 em diante — renumerar tudo evita que
+   trocas repetidas deixem buracos e empates na numeração. */
+function trocarOrdem(lista, id, direcao){
+  const ord = (lista || []).slice().sort((a,b) => (a.ordem||0) - (b.ordem||0));
+  const i = ord.findIndex(a => a.id === id);
+  const j = i + direcao;
+  if(i === -1 || j < 0 || j >= ord.length) return null;   // já está na ponta
+  [ord[i], ord[j]] = [ord[j], ord[i]];
+  return ord.map((a, n) => ({...a, ordem: n}));
+}
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+// 'AAAA-MM' do mês de uma data, ou null. É a chave de agrupamento do mês.
+function mesDe(data){
+  const s = String(data || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(s) ? s : null;
+}
+function mesDeHoje(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+// Anda N meses para frente ou para trás sem cair na armadilha do dia 31.
+function mesVizinho(mes, passo){
+  const [a, m] = mes.split('-').map(Number);
+  const d = new Date(a, m - 1 + passo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function nomeDoMes(mes){
+  const [a, m] = mes.split('-').map(Number);
+  const nome = new Date(a, m-1, 1).toLocaleDateString('pt-BR', {month:'long'});
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} de ${a}`;
+}
+
+function passaAprov(c, f, cfg){
+  if(f.rede     && String(c.rede_id)     !== f.rede)     return false;
+  if(f.editoria && String(c.editoria_id) !== f.editoria) return false;
+  if(f.produto  && String(c.produto_id)  !== f.produto)  return false;
+  if(f.formato  && (c.formato || '')     !== f.formato)  return false;
+  if(f.status   && (c.status || 'rascunho') !== f.status) return false;
+  if(f.busca){
+    const q = semAcento(f.busca);
+    const alvo = semAcento([c.titulo, c.legenda, c.hashtags, c.campanha, c.observacoes]
+      .filter(Boolean).join(' '));
+    if(!alvo.includes(q)) return false;
+  }
+  return true;
+}
+
+/* O resumo do mês. Conta por grupo de estado, não por estado solto: o que
+   importa para quem olha é "quantos ainda dependem do cliente", e isso são
+   três estados diferentes. */
+function resumoAprovacao(lista){
+  const vivos = (lista || []).filter(c => !c.arquivado);
+  const tem = (...sts) => vivos.filter(c => sts.includes(c.status || 'rascunho')).length;
+  const total = vivos.length;
+  const aprovados = tem('aprovado');
+  return {
+    total,
+    aprovados,
+    aguardando: vivos.filter(c => APROV_AGUARDANDO.includes(c.status || '')).length,
+    ajuste:     vivos.filter(c => APROV_EM_AJUSTE.includes(c.status || '')).length,
+    interno:    tem('rascunho', 'em_revisao'),
+    // Porcentagem só faz sentido com denominador. Sem peça no mês, é null —
+    // e null vira "—" na tela, não "0%", que daria a impressão de atraso.
+    pct: total ? Math.round((aprovados / total) * 100) : null,
+  };
+}
+
+/* O painel de arquivos de uma peça: as artes na ordem em que vão aparecer,
+   subir, reordenar e remover.
+
+   A ordem é o carrossel. Por isso as setas mostram sempre o número do card
+   ("1", "2", "3") — quem monta carrossel pensa em "esse é o segundo", não
+   em "esse está na posição de índice 1". */
+function ArquivosDoConteudo({arquivos, ocupado, aviso, aoSubir, aoMover, aoRemover, espaco}){
+  const [confirmando, setConfirmando] = useState(null);
+  const lista = (arquivos || []).slice().sort((a,b) => (a.ordem||0) - (b.ordem||0));
+
+  return (
+    <div className="arquivos">
+      {arquivos === undefined ? (
+        <div style={{color:'var(--muted)',fontSize:12.5}}>Carregando os arquivos…</div>
+      ) : (
+        <>
+          {lista.length === 0 ? (
+            <div style={{color:'var(--muted)',fontSize:12.5}}>
+              Nenhum arquivo ainda. Suba a arte, os cards do carrossel ou o vídeo.
+            </div>
+          ) : (
+            <div className="tiras">
+              {lista.map((a, i) => (
+                <div key={a.id} className="tira">
+                  <div className="mini">
+                    {a.tipo === 'video'
+                      ? (a.link
+                          ? <video src={a.link} muted playsInline preload="metadata" />
+                          : <span className="semlink">vídeo</span>)
+                      : (a.link
+                          ? <img src={a.link} alt={a.nome || 'arte'} loading="lazy" />
+                          : <span className="semlink">imagem</span>)}
+                    <span className="numero">{i + 1}</span>
+                  </div>
+                  <div className="dados">
+                    <div className="nome" title={a.nome || ''}>{a.nome || 'sem nome'}</div>
+                    <div className="peso">{tamanhoLegivel(a.tamanho)}</div>
+                  </div>
+                  <div className="mexer">
+                    <button className="btn" disabled={i === 0 || ocupado}
+                      title="Mover para antes" onClick={()=>aoMover(a.id, -1)}>↑</button>
+                    <button className="btn" disabled={i === lista.length - 1 || ocupado}
+                      title="Mover para depois" onClick={()=>aoMover(a.id, 1)}>↓</button>
+                    {confirmando === a.id ? (
+                      <>
+                        <button className="btn perigo" disabled={ocupado}
+                          onClick={()=>{ setConfirmando(null); aoRemover(a); }}>Apagar</button>
+                        <button className="btn" onClick={()=>setConfirmando(null)}>Não</button>
+                      </>
+                    ) : (
+                      <button className="btn" disabled={ocupado} title="Remover este arquivo"
+                        onClick={()=>setConfirmando(a.id)}>×</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="subir">
+            <label className={"btn brand" + (ocupado ? ' desligado' : '')}>
+              {ocupado ? 'Subindo…' : '+ Adicionar arquivo'}
+              <input type="file" multiple disabled={ocupado}
+                accept={Object.keys(ARQ_TIPOS).join(',')}
+                style={{display:'none'}}
+                onChange={e=>{ aoSubir([...e.target.files]); e.target.value = ''; }} />
+            </label>
+            <span className="dica">
+              JPG, PNG, WEBP, GIF, MP4, MOV ou WEBM · até {tamanhoLegivel(ARQ_LIMITE)} por arquivo
+            </span>
+          </div>
+
+          {/* O aviso de espaço só aparece quando há motivo. Uma barra de
+              "2% usado" permanente na tela é ruído. */}
+          {espaco && espaco.apertado && (
+            <div className="aviso" style={{marginTop:8}}>
+              O espaço de arquivos está em <b>{espaco.pct}%</b> ({espaco.texto}).
+              Vídeo antigo é o que mais pesa — vale apagar o que já foi publicado.
+            </div>
+          )}
+          {aviso && <div className="avisoerro" style={{marginTop:8}}>{aviso}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, eventos, aoVerHistorico,
+                         arquivos, aoVerArquivos, aoSubir, aoMover, aoRemover, espaco, ocupado, avisoArq,
+                         quantosArquivos}){
+  const [abrindo, setAbrindo] = useState(false);
+  const [abrindoArq, setAbrindoArq] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const st = APROV_STATUS[c.status] || APROV_STATUS.rascunho;
+  const nome = (lista, id) => (cfg[lista] || []).find(x => x.id === id)?.nome || null;
+  const caminhos = APROV_CAMINHOS[c.status] || APROV_CAMINHOS.rascunho;
+  const ficha = [nome('redes', c.rede_id), c.formato, nome('produtos', c.produto_id),
+                 nome('editorias', c.editoria_id), c.campanha].filter(Boolean);
+
+  return (
+    <div className="row" style={{borderLeft:`3px solid ${st.cor}`, paddingLeft:11,
+      opacity: c.arquivado ? .6 : 1}}>
+      <div className="body">
+        <div className="meta">
+          <span className="who">{c.data_prevista ? fmtBR(dataLocal(c.data_prevista)) : 'sem data'}</span>
+          {c.hora_prevista && <span className="tag">{String(c.hora_prevista).slice(0,5)}</span>}
+          <span className="pill" style={{color:st.cor, borderColor:st.cor+'55', background:st.cor+'14'}}>{st.rotulo}</span>
+          {c.versao > 1 && <span className="tag">versão {c.versao}</span>}
+          {c.arquivado && <span className="tag">arquivado</span>}
+        </div>
+
+        <div style={{fontSize:14,fontWeight:600,marginTop:2}}>
+          {c.titulo || <span style={{color:'var(--muted)',fontWeight:400}}>sem título</span>}
+        </div>
+        {ficha.length > 0 && <div style={{fontSize:12.5,color:'var(--muted)',marginTop:2}}>{ficha.join(' · ')}</div>}
+        {c.legenda && <div className="txt" style={{marginTop:6}}>{c.legenda}</div>}
+        {c.hashtags && <div style={{fontSize:12.5,color:'#185FA5',marginTop:4}}>{c.hashtags}</div>}
+        {c.observacoes && (
+          <div style={{fontSize:12.5,color:'var(--muted)',marginTop:6,fontStyle:'italic'}}>
+            Observação: {c.observacoes}
+          </div>
+        )}
+
+        <div className="fluxo">
+          {!c.arquivado && caminhos.map(([para, rotulo, principal]) => (
+            <button key={para} className={"btn" + (principal ? ' ok' : '')}
+              style={{padding:'7px 14px'}} onClick={()=>aoMudar(c, para)}>
+              {rotulo}
+            </button>
+          ))}
+        </div>
+
+        <div className="fluxo" style={{borderTop:'none',paddingTop:0,marginTop:6}}>
+          {!c.arquivado && <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoEditar(c)}>Editar</button>}
+          <button className="btn" style={{padding:'6px 12px'}}
+            onClick={()=>{ setAbrindoArq(!abrindoArq); if(!abrindoArq) aoVerArquivos(c.id); }}>
+            {abrindoArq ? 'Fechar arquivos' : 'Arquivos'}
+            {/* O número só faz sentido com o painel fechado: aberto, os
+                arquivos estão à vista, e "Fechar arquivos 4" é ruído. */}
+            {!abrindoArq && quantosArquivos > 0 && <span className="n">{quantosArquivos}</span>}
+          </button>
+          <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoDuplicar(c)}>Duplicar</button>
+          <button className="btn" style={{padding:'6px 12px'}}
+            onClick={()=>{ setAbrindo(!abrindo); if(!abrindo) aoVerHistorico(c.id); }}>
+            {abrindo ? 'Fechar histórico' : 'Histórico'}
+          </button>
+          {/* Arquivar não apaga: a peça sai da lista do mês e continua
+              inteira, com histórico, atrás do filtro "Arquivados". */}
+          {c.arquivado ? (
+            <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoArquivar(c, false)}>↩ Desarquivar</button>
+          ) : confirmando ? (
+            <>
+              <span className="confirma">Arquivar tira da lista do mês. Nada é apagado.</span>
+              <button className="btn" style={{padding:'6px 12px'}} onClick={()=>{setConfirmando(false); aoArquivar(c, true);}}>Arquivar</button>
+              <button className="btn" style={{padding:'6px 12px'}} onClick={()=>setConfirmando(false)}>Cancelar</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'6px 12px'}} onClick={()=>setConfirmando(true)}>Arquivar</button>
+          )}
+        </div>
+
+        {abrindoArq && (
+          <ArquivosDoConteudo arquivos={arquivos} ocupado={ocupado} aviso={avisoArq} espaco={espaco}
+            aoSubir={fs => aoSubir(c, fs)}
+            aoMover={(id, d) => aoMover(c, id, d)}
+            aoRemover={a => aoRemover(c, a)} />
+        )}
+
+        {abrindo && (
+          <div className="historico">
+            {eventos === undefined
+              ? <div style={{color:'var(--muted)'}}>Carregando…</div>
+              : eventos.length === 0
+                ? <div style={{color:'var(--muted)'}}>Nenhuma mudança de status ainda.</div>
+                : eventos.map(e => (
+                    <div key={e.id} className="hev">
+                      <span className="quando">{new Date(e.criado_em).toLocaleString('pt-BR')}</span>
+                      <span>
+                        {e.de ? `${(APROV_STATUS[e.de]||{}).rotulo || e.de} → ` : ''}
+                        <b>{(APROV_STATUS[e.para]||{}).rotulo || e.para}</b>
+                      </span>
+                      {e.quem && <span className="quem">{e.quem}</span>}
+                    </div>
+                  ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FormConteudo({inicial, cfg, aoSalvar, aoCancelar}){
+  const vazio = {titulo:'', formato:'', rede_id:'', produto_id:'', editoria_id:'',
+    data_prevista:'', hora_prevista:'', legenda:'', hashtags:'', cta:'',
+    campanha:'', observacoes:'', responsavel:''};
+  const [f, setF] = useState({...vazio, ...(inicial || {})});
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const p = (k, v) => setF(prev => ({...prev, [k]: v}));
+
+  async function salvar(){
+    // A data é o único campo obrigatório: sem ela a peça não aparece em mês
+    // nenhum e some da vista. O resto se preenche com o tempo.
+    if(!f.data_prevista){ setErro('Informe a data prevista — é por ela que a peça entra no mês.'); return; }
+    setSalvando(true); setErro('');
+    const r = await aoSalvar(f);
+    setSalvando(false);
+    if(r && r.erro) setErro(r.erro);
+  }
+
+  return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:10}}>{inicial && inicial.id ? 'Editar conteúdo' : 'Novo conteúdo'}</div>
+
+      <div className="campos">
+        <label className="campo" style={{flex:'2 1 260px'}}><span>Título</span>
+          <input value={f.titulo || ''} onChange={e=>p('titulo', e.target.value)}
+            placeholder="Como você chama esta peça internamente" />
+        </label>
+        <label className="campo"><span>Data prevista *</span>
+          <input type="date" value={f.data_prevista || ''} onChange={e=>p('data_prevista', e.target.value)} />
+        </label>
+        <label className="campo"><span>Hora prevista</span>
+          <input type="time" value={f.hora_prevista ? String(f.hora_prevista).slice(0,5) : ''}
+            onChange={e=>p('hora_prevista', e.target.value)} />
+        </label>
+      </div>
+
+      <div className="campos">
+        <label className="campo"><span>Rede</span>
+          <select value={f.rede_id || ''} onChange={e=>p('rede_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.redes.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Formato</span>
+          <select value={f.formato || ''} onChange={e=>p('formato', e.target.value)}>
+            <option value="">—</option>
+            {APROV_FORMATOS.map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Produto</span>
+          <select value={f.produto_id || ''} onChange={e=>p('produto_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.produtos.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Editoria</span>
+          <select value={f.editoria_id || ''} onChange={e=>p('editoria_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.editorias.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="campos">
+        <label className="campo"><span>Campanha</span>
+          <input value={f.campanha || ''} onChange={e=>p('campanha', e.target.value)} placeholder="opcional" />
+        </label>
+        <label className="campo"><span>Responsável</span>
+          <input value={f.responsavel || ''} onChange={e=>p('responsavel', e.target.value)} placeholder="quem produz" />
+        </label>
+        <label className="campo"><span>CTA</span>
+          <input value={f.cta || ''} onChange={e=>p('cta', e.target.value)} placeholder="Saiba mais, Arraste para o lado…" />
+        </label>
+      </div>
+
+      <div className="reply">
+        <div className="lblcampo">Legenda</div>
+        <textarea value={f.legenda || ''} onChange={e=>p('legenda', e.target.value)}
+          placeholder="O texto que vai junto com a publicação." />
+      </div>
+      <div className="reply">
+        <div className="lblcampo">Hashtags</div>
+        <textarea style={{minHeight:44}} value={f.hashtags || ''} onChange={e=>p('hashtags', e.target.value)}
+          placeholder="#TesouroDireto #Investimentos" />
+      </div>
+      <div className="reply">
+        <div className="lblcampo">Observações internas</div>
+        <textarea style={{minHeight:44}} value={f.observacoes || ''} onChange={e=>p('observacoes', e.target.value)}
+          placeholder="O que a equipe precisa saber. Não aparece para o cliente." />
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginTop:10}}>{erro}</div>}
+
+      <div className="fluxo">
+        <button className="btn brand" style={{padding:'9px 20px'}} disabled={salvando} onClick={salvar}>
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+        <button className="btn" style={{padding:'9px 16px'}} onClick={aoCancelar}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
+  const [itens, setItens] = useState(null);   // null = ainda carregando
+  const [erro, setErro] = useState('');
+  const [mes, setMes] = useState(mesDeHoje());
+  const [f, setF] = useState(APROV_FILTRO_VAZIO);
+  const [editando, setEditando] = useState(null);   // null = fechado
+  const [verArquivados, setVerArquivados] = useState(false);
+  const [verSemData, setVerSemData] = useState(false);
+  const [eventos, setEventos] = useState({});       // {conteudoId: [...]}
+  const [arquivos, setArquivos] = useState({});     // {conteudoId: [...]}, com link temporário
+  // Só id, conteudo_id e tamanho de TODOS os arquivos do cliente: é o que
+  // permite mostrar a contagem no botão e o espaço usado sem abrir cada peça.
+  const [todosArquivos, setTodosArquivos] = useState([]);
+  const [ocupado, setOcupado] = useState(false);
+  const [avisoArq, setAvisoArq] = useState('');
+
+  const quem = (perfil && perfil.nome) || 'equipe';
+
+  useEffect(()=>{
+    let cancelado = false;
+    (async ()=>{
+      setErro(''); setItens(null);
+      if(!clienteId){ if(!cancelado) setItens([]); return; }
+      const { data, error } = await sb.from('conteudos').select('*')
+        .eq('cliente_id', clienteId).order('data_prevista', {ascending:true});
+      if(cancelado) return;
+      if(error){ setErro(aprovErro(error.message)); setItens([]); return; }
+      setItens(data || []);
+      // A ficha dos arquivos, sem o conteúdo deles: é o suficiente para o
+      // número no botão e para a conta de espaço, e custa uma consulta só.
+      const ids = (data || []).map(c => c.id);
+      if(ids.length){
+        const arq = await sb.from('conteudo_arquivos').select('id,conteudo_id,tamanho').in('conteudo_id', ids);
+        if(!cancelado) setTodosArquivos(arq.error ? [] : (arq.data || []));
+      } else if(!cancelado) setTodosArquivos([]);
+    })();
+    // Trocar de cliente no meio de um carregamento fazia a lista do cliente
+    // anterior chegar depois e sobrescrever a certa.
+    return ()=>{ cancelado = true; };
+  }, [clienteId]);
+
+  /* Toda mudança de status grava DUAS coisas: o novo estado na peça e uma
+     linha no histórico. O histórico nunca é apagado — é o que responde
+     "quem mandou isso para o cliente, e quando?". */
+  async function aoMudar(c, para){
+    const de = c.status || 'rascunho';
+    if(de === para) return;
+    const mud = {status: para, atualizado_em: new Date().toISOString()};
+    const { error } = await sb.from('conteudos').update(mud).eq('id', c.id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    const ev = await sb.from('conteudo_eventos')
+      .insert({conteudo_id: c.id, de, para, quem}).select().single();
+    setErro('');
+    setItens(prev => (prev||[]).map(x => x.id === c.id ? {...x, ...mud} : x));
+    // Mantém o histórico aberto coerente sem ir ao banco de novo.
+    if(!ev.error && eventos[c.id]) setEventos(p => ({...p, [c.id]: [ev.data, ...p[c.id]]}));
+  }
+
+  async function aoArquivar(c, valor){
+    const { error } = await sb.from('conteudos')
+      .update({arquivado: valor, atualizado_em: new Date().toISOString()}).eq('id', c.id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    setErro('');
+    setItens(prev => (prev||[]).map(x => x.id === c.id ? {...x, arquivado: valor} : x));
+  }
+
+  async function verHistorico(id){
+    if(eventos[id] !== undefined) return;
+    setEventos(p => ({...p, [id]: undefined}));
+    const { data, error } = await sb.from('conteudo_eventos').select('*')
+      .eq('conteudo_id', id).order('criado_em', {ascending:false});
+    setEventos(p => ({...p, [id]: error ? [] : (data || [])}));
+  }
+
+  /* ---------- ARQUIVOS ----------
+     A área é fechada, então nenhum arquivo tem endereço fixo: para cada um
+     se pede uma "chave de visita" que vale uma hora. É o preço de a arte
+     não vazar antes da campanha. */
+  async function comLink(linhas){
+    const caminhos = (linhas || []).map(a => a.caminho).filter(Boolean);
+    if(!caminhos.length) return linhas || [];
+    const { data, error } = await sb.storage.from(ARQ_BALDE).createSignedUrls(caminhos, ARQ_VALIDADE);
+    if(error) return linhas;
+    // O Supabase devolve na mesma ordem que recebeu, mas casar por caminho
+    // é mais seguro do que confiar nisso.
+    const porCaminho = {};
+    (data || []).forEach(d => { if(d && d.path) porCaminho[d.path] = d.signedUrl; });
+    return linhas.map(a => ({...a, link: porCaminho[a.caminho] || null}));
+  }
+
+  async function verArquivos(id){
+    if(arquivos[id] !== undefined) return;
+    setArquivos(p => ({...p, [id]: undefined}));
+    const { data, error } = await sb.from('conteudo_arquivos').select('*')
+      .eq('conteudo_id', id).order('ordem', {ascending:true});
+    if(error){ setAvisoArq(aprovErro(error.message)); setArquivos(p => ({...p, [id]: []})); return; }
+    const comUrl = await comLink(data || []);
+    setArquivos(p => ({...p, [id]: comUrl}));
+  }
+
+  async function subirArquivos(c, escolhidos){
+    if(!escolhidos || !escolhidos.length) return;
+    setAvisoArq(''); setOcupado(true);
+    // A ordem continua de onde parou, para o card novo entrar no fim do
+    // carrossel em vez de embaralhar o que já estava montado.
+    const atuais = arquivos[c.id] || [];
+    let proxima = atuais.reduce((m, a) => Math.max(m, (a.ordem || 0) + 1), 0);
+    const recusados = [];
+    const novos = [];
+
+    for(const f of escolhidos){
+      const ok = arquivoAceito(f);
+      if(!ok.ok){ recusados.push(ok.motivo); continue; }
+      const caminho = caminhoDoArquivo(clienteId, c.id, f.name);
+      const up = await sb.storage.from(ARQ_BALDE).upload(caminho, f, {contentType: f.type});
+      if(up.error){ recusados.push(`"${f.name}": ${up.error.message}`); continue; }
+      const { data, error } = await sb.from('conteudo_arquivos').insert({
+        conteudo_id: c.id, versao: c.versao || 1, tipo: ok.tipo, caminho,
+        nome: f.name, tamanho: f.size, ordem: proxima++,
+      }).select().single();
+      if(error){
+        // Gravou o arquivo mas não a ficha dele: sem isso ficaria um arquivo
+        // órfão ocupando espaço que ninguém consegue ver nem apagar.
+        await sb.storage.from(ARQ_BALDE).remove([caminho]);
+        recusados.push(`"${f.name}": ${error.message}`);
+        continue;
+      }
+      novos.push(data);
+    }
+
+    if(novos.length){
+      const comUrl = await comLink(novos);
+      setArquivos(p => ({...p, [c.id]: [...(p[c.id] || []), ...comUrl]}));
+      setTodosArquivos(p => [...p, ...novos.map(a => ({id:a.id, conteudo_id:a.conteudo_id, tamanho:a.tamanho}))]);
+    }
+    setOcupado(false);
+    if(recusados.length) setAvisoArq(recusados.join(' · '));
+  }
+
+  async function moverArquivo(c, id, direcao){
+    const nova = trocarOrdem(arquivos[c.id] || [], id, direcao);
+    if(!nova) return;   // já está na ponta
+    setOcupado(true);
+    setArquivos(p => ({...p, [c.id]: nova}));   // a tela responde na hora
+    for(const a of nova){
+      const antes = (arquivos[c.id] || []).find(x => x.id === a.id);
+      if(antes && antes.ordem === a.ordem) continue;   // não grava o que não mudou
+      const { error } = await sb.from('conteudo_arquivos').update({ordem: a.ordem}).eq('id', a.id);
+      if(error){ setAvisoArq('Não consegui salvar a ordem: ' + error.message); break; }
+    }
+    setOcupado(false);
+  }
+
+  async function removerArquivo(c, a){
+    setOcupado(true); setAvisoArq('');
+    // A ficha sai primeiro. Se o arquivo em si resistir, sobra um arquivo
+    // invisível ocupando espaço — chato, mas melhor que uma ficha apontando
+    // para um arquivo que não existe mais, que quebraria a prévia.
+    const { error } = await sb.from('conteudo_arquivos').delete().eq('id', a.id);
+    if(error){ setAvisoArq('Não consegui remover: ' + error.message); setOcupado(false); return; }
+    if(a.caminho) await sb.storage.from(ARQ_BALDE).remove([a.caminho]);
+    const restantes = (arquivos[c.id] || []).filter(x => x.id !== a.id)
+      .map((x, n) => ({...x, ordem: n}));
+    setArquivos(p => ({...p, [c.id]: restantes}));
+    setTodosArquivos(p => p.filter(x => x.id !== a.id));
+    for(const x of restantes) await sb.from('conteudo_arquivos').update({ordem: x.ordem}).eq('id', x.id);
+    setOcupado(false);
+  }
+
+  // Campo vazio na tela tem que virar null no banco, não string vazia:
+  // "" numa coluna de número quebra o insert, e "" numa data também.
+  function limpar(f){
+    const n = v => (v === '' || v === undefined) ? null : v;
+    return {
+      titulo: n(f.titulo), formato: n(f.formato),
+      rede_id: f.rede_id ? Number(f.rede_id) : null,
+      produto_id: f.produto_id ? Number(f.produto_id) : null,
+      editoria_id: f.editoria_id ? Number(f.editoria_id) : null,
+      data_prevista: n(f.data_prevista), hora_prevista: n(f.hora_prevista),
+      legenda: n(f.legenda), hashtags: n(f.hashtags), cta: n(f.cta),
+      campanha: n(f.campanha), observacoes: n(f.observacoes), responsavel: n(f.responsavel),
+    };
+  }
+
+  async function salvar(form){
+    const payload = limpar(form);
+    if(editando && editando.id){
+      const mud = {...payload, atualizado_em: new Date().toISOString()};
+      const { error } = await sb.from('conteudos').update(mud).eq('id', editando.id);
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      setItens(prev => (prev||[]).map(x => x.id === editando.id ? {...x, ...mud} : x));
+    } else {
+      const { data, error } = await sb.from('conteudos')
+        .insert({...payload, cliente_id: clienteId, status:'rascunho'}).select().single();
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      await sb.from('conteudo_eventos').insert({conteudo_id: data.id, de: null, para: 'rascunho', quem});
+      setItens(prev => [...(prev||[]), data]);
+      // Cadastrou para outro mês? Leva a tela até lá, senão a peça "some".
+      const m = mesDe(data.data_prevista);
+      if(m && m !== mes) setMes(m);
+    }
+    setEditando(null);
+    return {};
+  }
+
+  async function duplicar(c){
+    const copia = limpar({...c, titulo: c.titulo ? c.titulo + ' (cópia)' : null});
+    const { data, error } = await sb.from('conteudos')
+      .insert({...copia, cliente_id: clienteId, status:'rascunho'}).select().single();
+    if(error){ setErro('Não consegui duplicar: ' + error.message); return; }
+    await sb.from('conteudo_eventos').insert({conteudo_id: data.id, de: null, para: 'rascunho', quem});
+    setErro('');
+    setItens(prev => [...(prev||[]), data]);
+  }
+
+  const todos = itens || [];
+  const semData  = todos.filter(c => !mesDe(c.data_prevista) && !c.arquivado);
+  const doMes    = todos.filter(c => mesDe(c.data_prevista) === mes);
+  const base     = verSemData ? semData : doMes;
+  const naLista  = base.filter(c => verArquivados ? c.arquivado : !c.arquivado);
+  const vis      = naLista.filter(c => passaAprov(c, f, cfg));
+  const resumo   = resumoAprovacao(doMes);
+  const filtrando = Object.keys(APROV_FILTRO_VAZIO).some(k => f[k] !== APROV_FILTRO_VAZIO[k]);
+  const arquivados = base.filter(c => c.arquivado).length;
+  const espaco = espacoUsado(todosArquivos);
+  const p = (k, v) => setF({...f, [k]: v});
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          <h1>Aprovação de Conteúdo</h1>
+          <p>{clienteNome} · planejamento e aprovação das peças antes de publicar</p>
+        </div>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn brand" onClick={()=>setEditando(editando ? null : {})}>
+            {editando ? 'Fechar' : '+ Novo conteúdo'}
+          </button>
+        </div>
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginBottom:14}}>{erro}</div>}
+
+      <div className="mesbar">
+        <button className="btn" onClick={()=>{setMes(mesVizinho(mes,-1)); setVerSemData(false);}}>‹</button>
+        <div className="mesnome">{nomeDoMes(mes)}</div>
+        <button className="btn" onClick={()=>{setMes(mesVizinho(mes,1)); setVerSemData(false);}}>›</button>
+        {mes !== mesDeHoje() &&
+          <button className="btn" onClick={()=>{setMes(mesDeHoje()); setVerSemData(false);}}>hoje</button>}
+      </div>
+
+      {itens === null ? (
+        <div className="empty">Carregando…</div>
+      ) : erro ? null : (
+        <>
+          {/* O painel e os filtros só aparecem quando há o que contar e o que
+              filtrar. Num mês vazio, cinco cartões escritos "0" e cinco
+              seletores de nada só atrapalham a única coisa que importa ali:
+              o botão de criar a primeira peça. */}
+          {naLista.length > 0 && <>
+          {/* O painel do mês. A barra mostra a fração aprovada do mês inteiro,
+              não da lista filtrada — filtrar não pode mudar o andamento real. */}
+          <div className="cards">
+            <div className="card"><div className="lbl">Conteúdos no mês</div><div className="val">{resumo.total}</div></div>
+            <div className="card"><div className="lbl">Aprovados</div><div className="val" style={{color:'#1E9E6A'}}>{resumo.aprovados}</div></div>
+            <div className="card"><div className="lbl">Com o cliente</div><div className="val" style={{color:'#185FA5'}}>{resumo.aguardando}</div></div>
+            <div className="card"><div className="lbl">Em ajuste</div><div className="val" style={{color: resumo.ajuste ? 'var(--neg)' : 'inherit'}}>{resumo.ajuste}</div></div>
+            <div className="card"><div className="lbl">Ainda internos</div><div className="val">{resumo.interno}</div></div>
+          </div>
+
+          <div className="progresso">
+            <div className="trilho"><div className="cheio" style={{width:(resumo.pct || 0)+'%'}} /></div>
+            <div className="pctxt">
+              {resumo.pct === null
+                ? 'Nada planejado para este mês ainda.'
+                : `${resumo.pct}% do mês aprovado — ${resumo.aprovados} de ${resumo.total}.`}
+            </div>
+          </div>
+          </>}
+
+          {/* Os avisos continuam valendo com o mês vazio — o de "sem data
+              prevista" justamente mais ainda: é quando a peça escondida é a
+              única que existe. */}
+          {resumo.aguardando > 0 && (
+            <div className="aviso">{resumo.aguardando} conteúdo(s) aguardando resposta do cliente.</div>
+          )}
+          {resumo.ajuste > 0 && (
+            <div className="aviso">{resumo.ajuste} conteúdo(s) com ajuste pedido — precisam de revisão.</div>
+          )}
+          {/* Peça sem data não aparece em mês nenhum. Avisar é obrigatório:
+              sem isto, ela some da vista e ninguém sabe que existe. */}
+          {semData.length > 0 && !verSemData && (
+            <div className="aviso">
+              {semData.length} conteúdo(s) <b>sem data prevista</b> não aparecem em nenhum mês.{' '}
+              <button className="linkbtn" onClick={()=>setVerSemData(true)}>ver esses</button>
+            </div>
+          )}
+          {verSemData && (
+            <div className="aviso">
+              Mostrando os conteúdos <b>sem data prevista</b>.{' '}
+              <button className="linkbtn" onClick={()=>setVerSemData(false)}>voltar para {nomeDoMes(mes)}</button>
+            </div>
+          )}
+
+          {editando && (
+            <FormConteudo inicial={editando} cfg={cfg}
+              aoSalvar={salvar} aoCancelar={()=>setEditando(null)} />
+          )}
+
+          {naLista.length > 0 && (
+          <div className="filtros">
+            <div className="chips">
+              <button className={"chip"+(f.status===''?' on':'')} onClick={()=>p('status','')}>
+                Todos<span className="n">{naLista.length}</span>
+              </button>
+              {Object.entries(APROV_STATUS).map(([id, s]) => {
+                const n = naLista.filter(c => (c.status||'rascunho') === id).length;
+                if(!n && f.status !== id) return null;
+                return (
+                  <button key={id} className={"chip"+(f.status===id?' on':'')} onClick={()=>p('status',id)}>
+                    {s.rotulo}<span className="n">{n}</span>
+                  </button>
+                );
+              })}
+              {arquivados > 0 && (
+                <button className={"chip"+(verArquivados?' on':'')} onClick={()=>setVerArquivados(!verArquivados)}>
+                  Arquivados<span className="n">{arquivados}</span>
+                </button>
+              )}
+            </div>
+            <div className="filters">
+              <input value={f.busca} onChange={e=>p('busca', e.target.value)}
+                placeholder="Buscar por título, legenda, hashtag ou campanha…" />
+              <select value={f.rede} onChange={e=>p('rede', e.target.value)}>
+                <option value="">Rede: todas</option>
+                {cfg.redes.map(r => <option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+              </select>
+              <select value={f.formato} onChange={e=>p('formato', e.target.value)}>
+                <option value="">Formato: todos</option>
+                {APROV_FORMATOS.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={f.editoria} onChange={e=>p('editoria', e.target.value)}>
+                <option value="">Editoria: todas</option>
+                {cfg.editorias.map(x => <option key={x.id} value={String(x.id)}>{x.nome}</option>)}
+              </select>
+              <select value={f.produto} onChange={e=>p('produto', e.target.value)}>
+                <option value="">Produto: todos</option>
+                {cfg.produtos.map(x => <option key={x.id} value={String(x.id)}>{x.nome}</option>)}
+              </select>
+              {filtrando && <button className="btn" onClick={()=>setF(APROV_FILTRO_VAZIO)}>Limpar filtros</button>}
+            </div>
+          </div>
+          )}
+
+          {vis.length === 0 ? (
+            naLista.length === 0 ? (
+              <div className="soon">
+                <div style={{fontSize:16,fontWeight:600,color:'var(--ink)'}}>
+                  {verArquivados ? 'Nada arquivado aqui.'
+                    : verSemData ? 'Nenhum conteúdo sem data.'
+                    : `Nenhum conteúdo planejado para ${nomeDoMes(mes)}`}
+                </div>
+                {!verArquivados && !verSemData &&
+                  <div style={{marginTop:6}}>Clique em <b>+ Novo conteúdo</b> para montar o mês.</div>}
+              </div>
+            ) : (
+              <div className="empty">
+                Nenhum conteúdo corresponde ao que você filtrou.{' '}
+                <button className="linkbtn" onClick={()=>setF(APROV_FILTRO_VAZIO)}>limpar</button>
+              </div>
+            )
+          ) : vis.map(c => (
+            <CartaoConteudo key={c.id} c={c} cfg={cfg} eventos={eventos[c.id]}
+              aoMudar={aoMudar} aoEditar={x=>setEditando(x)} aoDuplicar={duplicar}
+              aoArquivar={aoArquivar} aoVerHistorico={verHistorico}
+              arquivos={arquivos[c.id]} aoVerArquivos={verArquivos}
+              aoSubir={subirArquivos} aoMover={moverArquivo} aoRemover={removerArquivo}
+              espaco={espaco} ocupado={ocupado} avisoArq={avisoArq}
+              quantosArquivos={todosArquivos.filter(a => a.conteudo_id === c.id).length} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* O erro do banco em linguagem de gente. Mesma ideia da tela Manhã:
+   "relation does not exist" não diz nada para quem não é programador, e a
+   saída é sempre a mesma — rodar o guia de migração. */
+function aprovErro(msg){
+  const m = String(msg || '');
+  if(/conteudo|aprovacao_link/.test(m) && /does not exist|not find|schema cache/i.test(m)){
+    return 'As tabelas do módulo de Aprovação ainda não existem no banco. Rode o guia MIGRACAO-APROVACAO.md — leva uns 3 minutos.';
+  }
+  return m;
+}
+
+/* ============================================================
+   MANHÃ — o que chegou desde ontem, com sugestão pronta
+
+   Esta tela NÃO ENVIA NADA. Não existe aqui — nem em nenhum outro canto do
+   MUVUCA — ligação de envio para o Instagram. O que ela faz é juntar o que
+   chegou, mostrar uma sugestão de resposta e deixar copiar. Quem manda é uma
+   pessoa, com o texto na mão, olhando a conversa.
+
+   "Marcar como respondido" quer dizer "eu já respondi lá", não "o sistema
+   respondeu". É uma fila de leitura.
+   ============================================================ */
+
+const MANHA_SITUACOES = {
+  pendente:   {rotulo:'Na fila',    cor:'var(--neu)'},
+  respondido: {rotulo:'Respondido', cor:'#1E9E6A'},
+  ignorado:   {rotulo:'Ignorado',   cor:'var(--bot)'},
+};
+
+const MANHA_FILTRO_VAZIO = {origem:'', status:'pendente', escalar:false};
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+function manhaPassa(it, f){
+  if(f.origem  && (it.source||'feed') !== f.origem)  return false;
+  if(f.status  && (it.status||'pendente') !== f.status) return false;
+  if(f.escalar && !it.escalate)                      return false;
+  return true;
+}
+
+/* Conta SÓ o que ainda está na fila. Somar respondido e ignorado junto faria
+   o aviso do topo crescer para sempre e nunca voltar a zero — e número que
+   nunca zera ninguém olha. */
+function manhaResumo(itens){
+  const fila = (itens||[]).filter(i => (i.status||'pendente') === 'pendente');
+  return {
+    feed:    fila.filter(i => (i.source||'feed') === 'feed').length,
+    dm:      fila.filter(i => i.source === 'dm').length,
+    escalar: fila.filter(i => i.escalate).length,
+    total:   fila.length,
+  };
+}
+
+function manhaTitulo(r){
+  if(!r.total) return 'Nada novo hoje 💙';
+  return 'Novidades desde ontem — ' +
+    [ r.feed === 1 ? '1 comentário' : r.feed + ' comentários',
+      r.dm   === 1 ? '1 DM'         : r.dm   + ' DMs',
+      r.escalar === 1 ? '1 para escalar' : r.escalar + ' para escalar',
+    ].join(' · ');
+}
+
+/* O erro do banco em linguagem de gente. "relation does not exist" não diz
+   nada para quem não é programador — e a saída, aqui, é sempre a mesma:
+   rodar o guia de migração. */
+function manhaErro(msg){
+  const m = String(msg || '');
+  if(/manha_items/.test(m) && /does not exist|not find|schema cache/i.test(m)){
+    return 'A tabela da tela Manhã ainda não existe no banco. Rode o guia MIGRACAO-MANHA.md — leva uns 3 minutos.';
+  }
+  return m;
+}
+
+function LinhaManha({it, aoMudar}){
+  const [resp, setResp] = useState(it.reply || '');
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState('');
+  useEffect(()=>{ setResp(it.reply || ''); },[it.reply]);
+
+  const status = it.status || 'pendente';
+  const sit = MANHA_SITUACOES[status] || MANHA_SITUACOES.pendente;
+  const lab = it.label || {};
+  const iaRec = IA_TRIAGEM[lab.triagem];
+  const editado = resp !== (it.reply || '');
+
+  /* Copiar também guarda o texto ajustado. Sem isso, quem corrigisse a
+     sugestão perderia a correção ao recarregar a página — e descobriria
+     tarde, sem entender por quê. */
+  async function copiar(){
+    try{
+      await navigator.clipboard.writeText(resp);
+      setCopiado(true); setTimeout(()=>setCopiado(false), 1600);
+      if(editado) aoMudar(it.id, {reply: resp});
+    }catch(e){
+      setAviso('O navegador bloqueou a cópia. Selecione o texto e use Ctrl+C.');
+    }
+  }
+
+  return (
+    <div className="row" style={{borderLeft:`3px solid ${sit.cor}`, paddingLeft:11,
+      opacity: status === 'pendente' ? 1 : .75}}>
+      <div className="av">{iniciais(it.author)}</div>
+      <div className="body">
+        <div className="meta">
+          <span className="who">{it.author || 'Sem autor'}</span>
+          <span className="tag">{it.source === 'dm' ? 'DM' : 'Feed'}</span>
+          <span style={{fontSize:11,fontWeight:700,color:sit.cor}}>{sit.rotulo}</span>
+          {it.url && /^https?:\/\//i.test(it.url) &&
+            <a href={it.url} target="_blank" rel="noopener noreferrer"
+               style={{fontSize:12,color:'#185FA5'}}>abrir no Instagram ↗</a>}
+        </div>
+
+        <div className="txt">{it.text || '(mensagem sem texto)'}</div>
+
+        {(iaRec || lab.needsLegal || lab.motivo) && (
+          <div className="iatags">
+            {iaRec && <span className="pill" style={{color:iaRec.cor, borderColor:iaRec.cor+'55', background:iaRec.cor+'14'}}>{iaRec.label}</span>}
+            {lab.needsLegal && <span className="pill" style={{color:'#B5852A', borderColor:'#B5852A55', background:'#B5852A14'}}>Jurídico/STN</span>}
+            {lab.motivo && <span className="motivo">· {lab.motivo}</span>}
+          </div>
+        )}
+
+        {/* Ou o bloco vermelho, ou a resposta. Nunca os dois: mostrar um texto
+            pronto ao lado de "isto precisa escalar" é convite para mandar
+            assim mesmo. */}
+        {it.escalate ? (
+          <div className="escalar">
+            <div className="titulo">ESCALAR</div>
+            <div className="motivo">{it.escalate_reason || 'motivo não informado'}</div>
+            <div className="oque">Não há resposta sugerida para este caso, de propósito. Leve para quem decide antes de responder qualquer coisa.</div>
+          </div>
+        ) : (
+          <div className="reply">
+            <div className="lblcampo">Resposta sugerida — leia, ajuste e copie</div>
+            <textarea value={resp} onChange={e=>setResp(e.target.value)}
+              placeholder="Sem sugestão para esta mensagem. Escreva a sua." />
+            <div className="acoes">
+              <button className="btn brand" style={{padding:'6px 12px'}}
+                disabled={!resp.trim()} onClick={copiar}>
+                {copiado ? 'Copiado ✓' : 'Copiar'}
+              </button>
+              {editado && <span style={{fontSize:12,color:'var(--muted)',alignSelf:'center'}}>o texto ajustado é salvo ao copiar</span>}
+            </div>
+            {aviso && <div className="avisoerro">{aviso}</div>}
+          </div>
+        )}
+
+        <div className="fluxo">
+          {status === 'pendente' ? (
+            <>
+              <button className="btn ok" style={{padding:'8px 18px'}}
+                onClick={()=>aoMudar(it.id, {status:'respondido', ...(editado?{reply:resp}:{})})}>
+                ✓ Marcar como respondido
+              </button>
+              <button className="btn" style={{padding:'8px 16px'}}
+                onClick={()=>aoMudar(it.id, {status:'ignorado'})}>Ignorar</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'8px 16px'}}
+              onClick={()=>aoMudar(it.id, {status:'pendente'})}>↩ Voltar para a fila</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Manha({clienteId, clienteNome}){
+  // null é "ainda não sei", [] é "sei que não tem nada". Misturar os dois faz
+  // a tela dizer "nada novo" enquanto o banco ainda está respondendo.
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState('');
+  const [f, setF] = useState(MANHA_FILTRO_VAZIO);
+
+  useEffect(()=>{
+    let cancelado = false;
+    (async ()=>{
+      setErro(''); setItens(null);
+      if(!clienteId){ if(!cancelado) setItens([]); return; }
+      const { data, error } = await sb.from('manha_items').select('*')
+        .eq('cliente_id', clienteId).order('created_at', {ascending:false});
+      if(cancelado) return;
+      if(error){ setErro(manhaErro(error.message)); setItens([]); return; }
+      setItens(data || []);
+    })();
+    // Trocar de cliente no meio de um carregamento fazia a lista do cliente
+    // anterior chegar depois e sobrescrever a certa.
+    return ()=>{ cancelado = true; };
+  }, [clienteId]);
+
+  async function aoMudar(id, mud){
+    const { error } = await sb.from('manha_items').update(mud).eq('id', id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    setErro('');
+    setItens(p => (p||[]).map(x => x.id === id ? {...x, ...mud} : x));
+  }
+
+  const p = (k,v) => setF({...f, [k]:v});
+  const resumo = manhaResumo(itens || []);
+  const vis = (itens || []).filter(i => manhaPassa(i, f));
+  const filtrando = Object.keys(MANHA_FILTRO_VAZIO)
+    .some(k => f[k] !== MANHA_FILTRO_VAZIO[k]);
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          {/* Com erro na tela, o título NÃO pode dizer "Nada novo hoje": a
+              lista veio vazia porque a consulta falhou, não porque não há
+              novidade. Seriam duas afirmações contraditórias na mesma tela,
+              e a tranquilizadora é a que se lê primeiro. */}
+          <h1>{(itens === null || erro) ? 'Manhã' : manhaTitulo(resumo)}</h1>
+          <p>{clienteNome}{' · '}o MUVUCA sugere; quem responde é você</p>
+        </div>
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginBottom:14}}>{erro}</div>}
+
+      {itens === null ? (
+        <div className="empty">Carregando…</div>
+      ) : itens.length === 0 && !erro ? (
+        <div className="soon">
+          <div style={{fontSize:16,fontWeight:600,color:'var(--ink)'}}>Nada novo hoje 💙</div>
+          <div style={{marginTop:6}}>Quando a varredura trouxer comentários e DMs novos, eles aparecem aqui já com uma sugestão de resposta.</div>
+        </div>
+      ) : (
+        <>
+          <div className="cards">
+            <div className="card"><div className="lbl">Na fila</div><div className="val">{resumo.total}</div></div>
+            <div className="card"><div className="lbl">Comentários</div><div className="val">{resumo.feed}</div></div>
+            <div className="card"><div className="lbl">DMs</div><div className="val">{resumo.dm}</div></div>
+            <div className="card"><div className="lbl">Para escalar</div><div className="val" style={{color: resumo.escalar ? 'var(--neg)' : 'inherit'}}>{resumo.escalar}</div></div>
+          </div>
+
+          <div className="filtros">
+            <div className="chips">
+              <button className={"chip"+(f.origem===''?' on':'')} onClick={()=>p('origem','')}>Tudo</button>
+              <button className={"chip"+(f.origem==='feed'?' on':'')} onClick={()=>p('origem','feed')}>Comentários</button>
+              <button className={"chip"+(f.origem==='dm'?' on':'')} onClick={()=>p('origem','dm')}>DMs</button>
+              <span style={{width:10}} />
+              <button className={"chip"+(f.status==='pendente'?' on':'')} onClick={()=>p('status','pendente')}>Na fila</button>
+              <button className={"chip"+(f.status==='respondido'?' on':'')} onClick={()=>p('status','respondido')}>Respondidos</button>
+              <button className={"chip"+(f.status==='ignorado'?' on':'')} onClick={()=>p('status','ignorado')}>Ignorados</button>
+              <button className={"chip"+(f.status===''?' on':'')} onClick={()=>p('status','')}>Todos</button>
+              <span style={{width:10}} />
+              <button className={"chip juri"+(f.escalar?' on':'')} onClick={()=>p('escalar',!f.escalar)}>
+                Só para escalar{resumo.escalar>0 && <span className="n">{resumo.escalar}</span>}
+              </button>
+              {filtrando && <button className="chip" onClick={()=>setF(MANHA_FILTRO_VAZIO)}>limpar filtros</button>}
+            </div>
+          </div>
+
+          {vis.length === 0
+            ? <div className="empty">Nenhuma novidade com esses filtros. <button className="linkbtn" onClick={()=>setF(MANHA_FILTRO_VAZIO)}>limpar</button></div>
+            : vis.map(it => <LinhaManha key={it.id} it={it} aoMudar={aoMudar} />)}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta, onExcluir}){
+  const [aba, setAba] = useState('comentarios');
+  const [busca, setBusca] = useState('');
+  const [f, setF] = useState(FILTRO_VAZIO);
+  const [mostrarAdd, setMostrarAdd] = useState(false);
+  const [mostrarColar, setMostrarColar] = useState(false);
+  const [mostrarIA, setMostrarIA] = useState(false);
+
+  // Tudo que não está na lixeira. É esta lista que alimenta estatísticas, IA e
+  // histórico — o que foi jogado fora não deve pesar em conta nenhuma.
+  const vivos = interacoes.filter(i => !naLixeira(i));
+
+  // O número no botão é quantos a IA ainda NÃO analisou — o que ela tem de
+  // novo para fazer. Contar "campos vazios" mostrava 29 quando havia 3 novos,
+  // e o número só crescia, porque campo vazio de propósito nunca se resolve.
+  const semClass = vivos.filter(i => !i.ia_em).length;
+  // O botão continua clicável quando não há novidade mas sobrou algum buraco:
+  // é por ele que se chega à opção de pagar de novo por aqueles. Sem isso, o
+  // botão ficaria cinza e a opção ficaria inalcançável.
+  const podeIA = semClass > 0 || vivos.some(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim());
+  const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
+  const total = vivos.length;
+  const pend = vivos.filter(i=>(i.triagem||'Pendente')==='Pendente').length;
+  const duv = vivos.filter(i=>nomeSent(i)==='Dúvida').length;
+  const neg = vivos.filter(i=>nomeSent(i)==='Negativo').length;
+
+  // Quantos há em cada aba, para o número ao lado do nome.
+  const daAba = a => a.sit === null ? vivos : interacoes.filter(i => (i.triagem||'Pendente') === a.sit);
+  const abaAtual = ABAS.find(a => a.id === aba) || ABAS[0];
+
+  // Os filtros valem dentro da aba aberta: filtrar "Negativos" na aba
+  // Respondidos tem que dar os negativos já respondidos, não o acervo todo.
+  const naAba = daAba(abaAtual);
+  const vis = naAba.filter(i => passaNoFiltro(i, f, busca));
+  const filtrando = !!busca || Object.keys(FILTRO_VAZIO).some(k => f[k] !== FILTRO_VAZIO[k]);
   return (
     <div>
       <div className="head">
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
-        <button className="btn brand" onClick={()=>setMostrarAdd(!mostrarAdd)}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn" disabled={!podeIA} title={podeIA?'':'A IA já analisou todos os comentários'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
+          {/* Exporta o que está na tela — a aba aberta com os filtros ligados.
+              O número no botão deixa isso explícito: exportar em silêncio o
+              acervo inteiro quando a pessoa filtrou três comentários seria
+              surpresa desagradável na planilha. */}
+          <button className="btn" disabled={!vis.length}
+            title={vis.length ? 'Baixa os comentários que estão na tela' : 'Nada para exportar'}
+            onClick={()=>baixarCSV(paraCSV(vis, cfg),
+              `muvuca_${abaAtual.id}_${new Date().toISOString().slice(0,10)}.csv`)}>
+            Exportar {vis.length}
+          </button>
+          <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false); setMostrarIA(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
+          <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
+        </div>
       </div>
       <div className="cards">
         <div className="card"><div className="lbl">Total</div><div className="val">{total}</div></div>
@@ -500,18 +3498,28 @@ function Community({cfg, interacoes, clienteId, onCampo, onAdd}){
         <div className="card"><div className="lbl">Dúvidas</div><div className="val">{duv}</div></div>
         <div className="card"><div className="lbl">Negativos</div><div className="val">{neg}</div></div>
       </div>
+      {/* A lista de alvos da IA exclui a lixeira: não se paga para classificar
+          o que foi jogado fora. */}
+      {mostrarIA && <ClassificarIA interacoes={vivos} clienteNome={clienteNome} onClassificar={onClassificar} onFechar={()=>setMostrarIA(false)} />}
+      {mostrarColar && <ColarLote cfg={cfg} clienteId={clienteId} onAddLote={onAddLote} />}
       {mostrarAdd && <Adicionar cfg={cfg} clienteId={clienteId} onAdd={onAdd} />}
-      <div className="filters">
-        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor ou texto…" />
-        <select value={fOrigem} onChange={e=>setFOrigem(e.target.value)}><option value="">Origem: todas</option><option>Feed</option><option>DM</option></select>
-        <select value={fSent} onChange={e=>setFSent(e.target.value)}>
-          <option value="">Sentimento: todos</option>
-          {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
+
+      <div className="abas">
+        {ABAS.map(a=>{
+          const n = daAba(a).length;
+          return (
+            <button key={a.id} className={"aba"+(aba===a.id?' on':'')} onClick={()=>setAba(a.id)}>
+              {a.nome}{n>0 && <span className="n">{n}</span>}
+            </button>
+          );
+        })}
       </div>
+
+      <Filtros cfg={cfg} f={f} setF={setF} busca={busca} setBusca={setBusca}
+        naAba={naAba} filtrando={filtrando} aoLimpar={()=>{ setF(FILTRO_VAZIO); setBusca(''); }} />
       {vis.length===0
-        ? <div className="empty">Nenhuma interação por aqui ainda. Clique em <b>+ Adicionar</b> para começar.</div>
-        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} />)}
+        ? <div className="empty">{filtrando ? 'Nenhum comentário corresponde ao que você filtrou.' : abaAtual.vazio}</div>
+        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />)}
     </div>
   );
 }
@@ -533,13 +3541,18 @@ function Crumb({trilha}){
   );
 }
 
-function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente}){
+function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente, irPara}){
   const [rede, setRede] = useState(null);   // rede selecionada
-  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
+  const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro | analise
+  const [analise, setAnalise] = useState(null);      // qual modulo analitico esta aberto
   const cliente = clientes.find(c=>c.id===clienteId);
 
   function abrirWorkspace(c){ setClienteId(c.id); setRede(null); setNivel('redes'); }
   function abrirRede(r){ setRede(r); setNivel('centro'); }
+  // Os modulos analiticos que ja existem de verdade. Card que nao esta aqui
+  // continua dizendo, honestamente, que a tela ainda nao foi construida.
+  const MODULOS_PRONTOS = {evol_diaria: EvolucaoDiaria};
+  function abrirAnalise(id){ setAnalise(id); setNivel('analise'); }
 
   async function novoCliente(){
     const nome = prompt('Nome do novo cliente:');
@@ -608,6 +3621,24 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
     );
   }
 
+  // ---- nível 4: um módulo analítico aberto ----
+  if(nivel==='analise' && MODULOS_PRONTOS[analise]){
+    const Modulo = MODULOS_PRONTOS[analise];
+    const nome = ANALITICOS.find(a => a.id === analise)?.nome || 'Análise';
+    return (
+      <div>
+        <Crumb trilha={[
+          {label:'Projetos', onClick:()=>setNivel('workspaces')},
+          {label:cliente?.nome || '—', onClick:()=>setNivel('redes')},
+          {label:rede?.nome || '—', onClick:()=>setNivel('centro')},
+          {label:nome}
+        ]}/>
+        <Modulo cfg={cfg} interacoes={interacoes} publicacoes={publicacoes}
+          cliente={cliente} rede={rede} />
+      </div>
+    );
+  }
+
   // ---- nível 3: centro de inteligência ----
   return (
     <div>
@@ -623,19 +3654,27 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
         </div>
       </div>
       <div className="grid">
-        {ANALITICOS.map(m=>(
-          <button key={m.id} className="tile2" onClick={()=>alert('Módulo "'+m.nome+'" entra na Etapa 3, depois da importação da planilha.')}>
-            <div className="top">
-              <div className="ic">▥</div>
-              <div className="nm">{m.nome}</div>
-            </div>
-            <div className="ds">{m.desc}</div>
-            <div className="stats">
-              <div><b>—</b>dados analisados</div>
-              <div><span className="badge off">Aguardando dados</span></div>
-            </div>
-          </button>
-        ))}
+        {ANALITICOS.map(m=>{
+          const e = estadoAnalitico(m.id, interacoes, publicacoes, rede);
+          return (
+            <button key={m.id} className="tile2" title={e.explica}
+              onClick={()=>{
+                if(MODULOS_PRONTOS[m.id] && e.estado !== 'sem_dados') abrirAnalise(m.id);
+                else if(e.estado === 'pronto' && irPara) irPara('relatorios');
+                else alert(e.explica);
+              }}>
+              <div className="top">
+                <div className="ic">▥</div>
+                <div className="nm">{m.nome}</div>
+              </div>
+              <div className="ds">{m.desc}</div>
+              <div className="stats">
+                <div><b>{e.quantos === null ? '—' : e.quantos.toLocaleString('pt-BR')}</b>{e.unidade}</div>
+                <div><span className={'badge' + (e.estado === 'pronto' ? '' : ' off')}>{e.selo}</span></div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -882,11 +3921,149 @@ function Painel({user, perfil, onSair}){
     if(error){ alert('Erro ao salvar: '+error.message); return; }
     setInteracoes(prev=>prev.map(x=>x.id===id?{...x,[campo]:valor}:x));
   }
+  /* Apaga o comentário do banco de vez. É o ÚNICO lugar do MUVUCA que destrói
+     dado, e só se chega aqui por dentro da Lixeira e depois de confirmar na
+     tela — dois passos de propósito. */
+  async function onExcluir(id){
+    const {error} = await sb.from('interacoes').delete().eq('id', id);
+    if(error){ alert('Erro ao excluir: '+error.message); return; }
+    setInteracoes(prev => prev.filter(x => x.id !== id));
+  }
   async function onAdd(payload){
     const {data,error} = await sb.from('interacoes').insert(payload).select().single();
     if(error){ alert('Erro ao adicionar: '+error.message); return false; }
     setInteracoes(prev=>[data,...prev]);
     return true;
+  }
+  // Lote: uma única inserção. Se qualquer linha falhar, o Postgres desfaz
+  // todas — melhor do que gravar metade e deixar o usuário sem saber quais.
+  async function onAddLote(payloads){
+    if(!payloads.length) return false;
+    const {data,error} = await sb.from('interacoes').insert(payloads).select();
+    if(error){ alert('Erro ao adicionar o lote: '+error.message+'\nNenhum comentário foi salvo.'); return false; }
+    setInteracoes(prev=>[...(data||[]).slice().reverse(), ...prev]);
+    return true;
+  }
+
+  /* Classifica em lotes de 4. Regra fundamental: o humano sempre vence — só
+     preenchemos campo que está vazio, nunca sobrescrevemos o que alguém editou.
+     A triagem não é tocada: no MUVUCA ela é estado de trabalho
+     (Pendente/Respondido), não recomendação da IA. */
+  async function onClassificar(alvos, aoProgredir){
+    const TAM = 4;
+    let ok = 0, falhas = 0, juridico = 0, entrada = 0, saida = 0, erro = '';
+
+    for(let i = 0; i < alvos.length; i += TAM){
+      const lote = alvos.slice(i, i + TAM);
+      try {
+        const resp = await fetch('/api/classify', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            cliente: clienteNome,
+            batch: lote.map(it => ({id: it.id, autor: it.autor, texto: it.texto}))
+          })
+        });
+        if(!resp.ok){
+          let msg = 'Falha na classificação ('+resp.status+')';
+          try { const j = await resp.json(); if(j.error) msg = j.error; } catch(e){}
+          throw new Error(msg);
+        }
+        const {results, uso} = await resp.json();
+        if(uso){ entrada += uso.input_tokens || 0; saida += uso.output_tokens || 0; }
+
+        for(const it of lote){
+          const r = (results || []).find(x => x.i === it.id);
+          if(!r){ falhas++; continue; }
+          if(r.needsLegal) juridico++;
+
+          const mud = {};
+          if(!it.sentimento_id){
+            const sid = idPorNome(cfg.sentimentos, r.sentimento);
+            if(sid) mud.sentimento_id = sid;
+          }
+          if(!it.produto_id){
+            const nome = PRODUTO_DA_IA[semAcento(r.produto)];
+            const pid = nome ? idPorNome(cfg.produtos, nome) : null;
+            if(pid) mud.produto_id = pid;
+          }
+          if(!String(it.resposta || '').trim() && r.rascunho) mud.resposta = r.rascunho;
+
+          // Carimbo de "a IA já analisou este comentário". Gravado SEMPRE,
+          // inclusive quando não houve nada a preencher — era justamente esse
+          // caso (produto "nenhum", spam sem rascunho) que devolvia o
+          // comentário para a fila e fazia pagar de novo pelo mesmo trabalho.
+          // Por isso não existe mais atalho de "nada mudou, pula o update".
+          mud.ia_em = new Date().toISOString();
+
+          // O que a IA devolve e o MUVUCA descartava. São informativos: dizem
+          // o que ela achou e por quê, sem mexer em nenhuma decisão sua.
+          //
+          // ia_triagem é a RECOMENDAÇÃO dela (responder / curtir / não
+          // responder) e mora em campo próprio de propósito: a coluna
+          // "triagem" do MUVUCA é o seu estado de trabalho (Pendente /
+          // Respondido / Ignorar), e gravar por cima apagaria esse estado.
+          if(r.triagem)  mud.ia_triagem = r.triagem;
+          if(r.motivo)   mud.ia_motivo  = r.motivo;
+          mud.ia_juridico = !!r.needsLegal;
+          const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
+          if(error){ falhas++; continue; }
+          setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
+          ok++;
+        }
+      } catch(e){
+        falhas += lote.length;
+        if(!erro) erro = String(e.message || e);
+      }
+      if(aoProgredir) aoProgredir(Math.min(i + TAM, alvos.length));
+    }
+
+    const custoReal = ((entrada/1e6)*PRECO_ENTRADA + (saida/1e6)*PRECO_SAIDA).toFixed(4);
+    return {ok, falhas, juridico, erro, custoReal, tokens: (entrada||saida) ? {entrada, saida} : null};
+  }
+
+  /* "Gerar de novo", de um comentário só. Diferente do lote de propósito: o
+     lote só preenche o que está vazio, e aqui o pedido é explicitamente para
+     REFAZER — quem clica está dizendo que não gostou do rascunho atual. Por
+     isso a resposta é sobrescrita.
+
+     Sentimento, produto e editoria continuam intocados: esses o usuário pode
+     ter corrigido à mão, e o clique foi no botão da resposta, não neles. */
+  async function onGerarResposta(it){
+    try {
+      const resp = await fetch('/api/classify', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          cliente: clienteNome,
+          batch: [{id: it.id, autor: it.autor, texto: it.texto}]
+        })
+      });
+      if(!resp.ok){
+        let msg = 'Falha ao gerar ('+resp.status+')';
+        try { const j = await resp.json(); if(j.error) msg = j.error; } catch(e){}
+        return {erro: msg};
+      }
+      const {results} = await resp.json();
+      const r = (results || [])[0];
+      if(!r) return {erro: 'A IA não devolveu resposta para este comentário.'};
+      if(!r.rascunho) return {erro: 'A IA entendeu que este comentário não pede resposta (' + (r.motivo || r.triagem || 'sem motivo') + ').'};
+
+      const mud = {
+        resposta: r.rascunho,
+        ia_em: new Date().toISOString(),
+        ia_juridico: !!r.needsLegal,
+      };
+      if(r.triagem) mud.ia_triagem = r.triagem;
+      if(r.motivo)  mud.ia_motivo  = r.motivo;
+
+      const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
+      return {ok: true};
+    } catch(e){
+      return {erro: String(e.message || e)};
+    }
   }
 
   async function novoCliente(nome){
@@ -934,11 +4111,19 @@ function Painel({user, perfil, onSair}){
           : status==='loading'
             ? <div className="empty">Carregando…</div>
             : modulo==='projetos'
-              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} />
+              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} irPara={setModulo} />
+            : modulo==='manha'
+              ? <Manha clienteId={clienteId} clienteNome={clienteNome} />
+            : modulo==='aprovacoes'
+              ? <Aprovacoes clienteId={clienteId} clienteNome={clienteNome} cfg={cfg} perfil={perfil} />
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
-              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} onCampo={onCampo} onAdd={onAdd} />
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />
+            : modulo==='conteudos'
+              ? <Conteudos cfg={cfg} publicacoes={publicacoes} interacoes={interacoes} clienteNome={clienteNome} />
+            : modulo==='relatorios'
+              ? <Dashboard cfg={cfg} interacoes={interacoes} clienteNome={clienteNome} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>

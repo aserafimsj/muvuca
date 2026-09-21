@@ -1,0 +1,186 @@
+// Testa as contas do dashboard sem navegador: periodos, agrupamento e serie
+// diaria. Numero errado em relatorio nao aparece como erro — aparece como um
+// numero plausivel e errado. Por isso estas contas sao funcao pura.
+const fs = require('fs');
+const path = require('path');
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const ini = html.indexOf('const PERIODOS = [');
+const fimIdx = html.indexOf('\n}', html.indexOf('function doDia'));
+if(ini < 0 || fimIdx < 0){ console.error('FALHA: nao achei as funcoes do dashboard no index.html'); process.exit(2); }
+const fonte = html.slice(ini, fimIdx + 2);
+
+const M = eval('(function(){' + fonte + `
+return {resolvePeriodo, noPeriodo, dataDoComentario, contarPor, cruzarPor, serieDiaria,
+        serieDiariaPor, doDia, inicioDoDia, fimDoDia, dataLocal, chaveDia, topoDoEixo};})()`);
+
+const r = [];
+const check = (nome, ok, extra='') => { r.push(!!ok); console.log((ok?'  OK  ':' FALHA')+` | ${nome}${extra?' -> '+extra:''}`); };
+const DIA = 86400000;
+
+console.log('--- que data vale para o comentario ---');
+// Regra: a data analitica e UMA SO, a de publicacao. Nada de reserva.
+// Um comentario publicado em 10/09 e analisado em 12/09 nao pode contar como
+// 12/09 — o relatorio diria que houve movimento num dia em que nao houve.
+check('usa a data de publicacao',
+  M.chaveDia(M.dataDoComentario({data_publicacao:'2026-09-15'})) === '2026-09-15');
+check('NAO cai na data em que a IA analisou',
+  M.dataDoComentario({data_publicacao:null, ia_em:'2026-09-10T12:00:00Z'}) === null);
+check('NAO cai na data de importacao',
+  M.dataDoComentario({data_publicacao:null, criado_em:'2026-09-12T12:00:00Z'}) === null);
+check('sem data de publicacao, nao tem data',
+  M.dataDoComentario({data_publicacao:null}) === null);
+check('a data de publicacao ganha de qualquer outra',
+  M.chaveDia(M.dataDoComentario({data_publicacao:'2026-03-02', ia_em:'2026-09-10T12:00:00Z',
+    criado_em:'2026-09-12T12:00:00Z'})) === '2026-03-02');
+
+console.log('\n--- recortes de periodo ---');
+const p7 = M.resolvePeriodo('7d');
+check('"7 dias" comeca as 00:00', p7.de.getHours() === 0 && p7.de.getMinutes() === 0);
+check('"7 dias" termina as 23:59', p7.ate.getHours() === 23 && p7.ate.getMinutes() === 59);
+check('"7 dias" cobre 7 dias', Math.round((p7.ate - p7.de)/DIA) === 7, Math.round((p7.ate-p7.de)/DIA)+'');
+check('"28 dias" cobre 28', Math.round((M.resolvePeriodo('28d').ate - M.resolvePeriodo('28d').de)/DIA) === 28);
+check('"90 dias" cobre 90', Math.round((M.resolvePeriodo('90d').ate - M.resolvePeriodo('90d').de)/DIA) === 90);
+const ont = M.resolvePeriodo('ontem');
+check('"ontem" e um dia so', Math.round((ont.ate - ont.de)/DIA) === 1);
+check('"ontem" e antes de hoje', ont.ate < M.inicioDoDia(new Date()));
+const sem = M.resolvePeriodo('semana');
+check('"esta semana" comeca numa segunda', sem.de.getDay() === 1, 'dia '+sem.de.getDay());
+const semP = M.resolvePeriodo('semana_passada');
+check('"semana passada" comeca numa segunda', semP.de.getDay() === 1);
+check('"semana passada" tem 7 dias', Math.round((semP.ate - semP.de)/DIA) === 7);
+check('"semana passada" termina antes desta', semP.ate < sem.de);
+const mes = M.resolvePeriodo('mes');
+check('"este mes" comeca no dia 1', mes.de.getDate() === 1);
+const mesP = M.resolvePeriodo('mes_passado');
+check('"mes passado" comeca no dia 1', mesP.de.getDate() === 1);
+check('"mes passado" termina antes deste', mesP.ate < mes.de);
+check('"este ano" comeca em 1 de janeiro',
+  M.resolvePeriodo('ano').de.getMonth() === 0 && M.resolvePeriodo('ano').de.getDate() === 1);
+const cus = M.resolvePeriodo('custom', '2026-09-01', '2026-09-30');
+check('datas escolhidas a mao viram o intervalo certo',
+  M.chaveDia(cus.de) === '2026-09-01' && M.chaveDia(cus.ate) === '2026-09-30');
+check('"todo o periodo" nao limita', M.resolvePeriodo('total').de === null);
+
+console.log('\n--- quem entra no periodo ---');
+const dentro = {data_publicacao:'2026-09-15'}, fora = {data_publicacao:'2020-01-01'}, semdata = {data_publicacao:null, ia_em:null};
+const jan = M.resolvePeriodo('custom','2026-09-01','2026-09-30');
+check('dentro do intervalo entra',  M.noPeriodo(dentro, 'custom', jan.de, jan.ate) === true);
+check('fora do intervalo nao entra', M.noPeriodo(fora, 'custom', jan.de, jan.ate) === false);
+check('SEM DATA nao entra em recorte', M.noPeriodo(semdata, 'custom', jan.de, jan.ate) === false);
+check('SEM DATA entra em "todo o periodo"', M.noPeriodo(semdata, 'total', null, null) === true);
+check('no primeiro dia do intervalo entra',
+  M.noPeriodo({data_publicacao:'2026-09-01'}, 'custom', jan.de, jan.ate) === true);
+check('no ultimo dia do intervalo entra',
+  M.noPeriodo({data_publicacao:'2026-09-30'}, 'custom', jan.de, jan.ate) === true);
+
+console.log('\n--- agrupamento ---');
+const itens = [
+  {s:'Negativo'}, {s:'Negativo'}, {s:'Negativo'}, {s:'Dúvida'}, {s:'Dúvida'}, {s:'Positivo'}, {s:null},
+];
+const porS = M.contarPor(itens, i => i.s, 'Sem sentimento');
+check('conta certo', porS[0].n === 3 && porS[0].nome === 'Negativo');
+check('ordena do maior para o menor', porS.map(d=>d.n).join(',') === '3,2,1,1', porS.map(d=>d.n).join(','));
+check('o vazio vira balde proprio', porS.some(d => d.nome === 'Sem sentimento' && d.n === 1));
+check('a soma fecha com o total',
+  porS.reduce((a,d)=>a+d.n,0) === itens.length, porS.reduce((a,d)=>a+d.n,0)+' de '+itens.length);
+const porSemBalde = M.contarPor(itens, i => i.s);
+check('sem balde, o vazio some da conta', porSemBalde.reduce((a,d)=>a+d.n,0) === 6);
+check('empate desempata por nome',
+  M.contarPor([{s:'Zebra'},{s:'Abacaxi'}], i=>i.s).map(d=>d.nome).join(',') === 'Abacaxi,Zebra');
+check('lista vazia nao quebra', M.contarPor([], i=>i.s).length === 0);
+
+console.log('\n--- serie diaria ---');
+const serie = M.serieDiaria([
+  {data_publicacao:'2026-09-01'}, {data_publicacao:'2026-09-01'},
+  {data_publicacao:'2026-09-04'},   // dias 2 e 3 sem nada
+]);
+check('vai do primeiro ao ultimo dia', serie.length === 4, serie.length+' dias');
+check('primeiro dia com 2', serie[0].dia === '2026-09-01' && serie[0].n === 2);
+// O ponto importante: dia parado tem que valer zero, nao sumir. Se sumisse, um
+// fim de semana sem movimento viraria uma linha reta enganosa.
+check('dia sem comentario vale zero', serie[1].n === 0 && serie[2].n === 0);
+check('ultimo dia com 1', serie[3].dia === '2026-09-04' && serie[3].n === 1);
+check('a soma bate com a entrada', serie.reduce((a,p)=>a+p.n,0) === 3);
+check('sem datas, serie vazia', M.serieDiaria([{data_publicacao:null, ia_em:null}]).length === 0);
+check('um dia so nao quebra', M.serieDiaria([{data_publicacao:'2026-09-01'}]).length === 1);
+
+console.log('\n--- topo do eixo ---');
+// Com maximo 11 a linha do meio cai em 5,5 e o rotulo arredondado dizia "6".
+// Rotulo que nao corresponde a linha e mentirinha no eixo.
+[[11,12],[9,10],[16,16],[24,24],[1,2],[2,2],[137,138],[0,2]].forEach(([m,esp]) =>
+  check(`maximo ${m} vira topo ${esp} (metade ${esp/2})`, M.topoDoEixo(m) === esp, String(M.topoDoEixo(m))));
+check('a metade e sempre inteira',
+  [1,2,3,7,11,19,54,137,999].every(m => (M.topoDoEixo(m)/2) % 1 === 0));
+check('o topo nunca corta a maior barra',
+  [1,2,3,7,11,19,54,137,999].every(m => M.topoDoEixo(m) >= m));
+
+console.log('\n--- cruzamento (o grafico empilhado) ---');
+const cruzados = [
+  {s:'Negativo', rede:'Instagram'}, {s:'Negativo', rede:'Instagram'}, {s:'Negativo', rede:'Facebook'},
+  {s:'Dúvida',  rede:'Instagram'}, {s:'Dúvida',   rede:'YouTube'},
+  {s:null,      rede:'Instagram'},
+];
+const cz = M.cruzarPor(cruzados, i=>i.s, i=>i.rede, 'Sem sentimento');
+check('acha as categorias', cz.cats.join(',') === 'Negativo,Dúvida,Sem sentimento', cz.cats.join(','));
+check('acha as series', cz.series.length === 3, cz.series.join(','));
+check('Negativo soma 3', cz.linhas[0].soma === 3);
+check('e a fatia do Instagram e 2', cz.linhas[0].fatias['Instagram'] === 2);
+check('e a do Facebook e 1', cz.linhas[0].fatias['Facebook'] === 1);
+check('e a do YouTube e 0', cz.linhas[0].fatias['YouTube'] === 0);
+// A regra que pega erro de cruzamento: a soma das pilhas tem que ser o total.
+check('a soma de todas as pilhas fecha com o total',
+  cz.linhas.reduce((a,l)=>a+l.soma,0) === cruzados.length,
+  cz.linhas.reduce((a,l)=>a+l.soma,0)+' de '+cruzados.length);
+check('cada pilha soma suas proprias fatias',
+  cz.linhas.every(l => cz.series.reduce((a,s)=>a+l.fatias[s],0) === l.soma));
+check('lista vazia nao quebra', M.cruzarPor([], i=>i.s, i=>i.rede).linhas.length === 0);
+
+console.log('\n--- linha do tempo por sentimento ---');
+const porSent = M.serieDiariaPor([
+  {data_publicacao:'2026-09-01', s:'Negativo'}, {data_publicacao:'2026-09-01', s:'Dúvida'},
+  {data_publicacao:'2026-09-03', s:'Negativo'},
+], i=>i.s);
+check('os dias sao os mesmos da serie total', porSent.dias.join(',') === '2026-09-01,2026-09-02,2026-09-03',
+  porSent.dias.join(','));
+check('uma linha por sentimento', porSent.series.length === 2);
+check('todas as linhas tem o mesmo tamanho',
+  porSent.series.every(s => s.valores.length === porSent.dias.length));
+const neg = porSent.series.find(s=>s.nome==='Negativo');
+check('Negativo: 1, 0, 1', neg.valores.join(',') === '1,0,1', neg.valores.join(','));
+check('a soma das linhas bate com o total de entrada',
+  porSent.series.reduce((a,s)=>a+s.valores.reduce((x,v)=>x+v,0),0) === 3);
+check('sem datas nao quebra', M.serieDiariaPor([{data_publicacao:null, ia_em:null}], i=>i.s).dias.length === 0);
+
+console.log('\n--- pilha do dia fecha com o total do dia ---');
+// O defeito que existia: comentario SEM sentimento sumia da pilha em silencio.
+// A barra ficava menor do que o numero escrito em cima dela.
+const mistura = [
+  {data_publicacao:'2026-09-01', s:'Negativo'},
+  {data_publicacao:'2026-09-01', s:null},        // sem sentimento
+  {data_publicacao:'2026-09-02', s:'Dúvida'},
+];
+const emp = M.serieDiariaPor(mistura, i=>i.s, 'Sem sentimento');
+check('o sem sentimento vira balde proprio',
+  emp.series.some(x => x.nome === 'Sem sentimento'), emp.series.map(x=>x.nome).join(','));
+check('devolve o total de cada dia', emp.totais.join(',') === '2,1', emp.totais.join(','));
+emp.dias.forEach((d,k) => {
+  const soma = emp.series.reduce((a,x)=>a+x.valores[k],0);
+  check(`dia ${d}: pilha soma ${soma}, total ${emp.totais[k]}`, soma === emp.totais[k]);
+});
+check('a soma geral bate com a entrada',
+  emp.totais.reduce((a,n)=>a+n,0) === mistura.length);
+// Sem o balde, o sem sentimento some — e e por isso que ele existe.
+const semBalde = M.serieDiariaPor(mistura, i=>i.s);
+check('sem o balde, a pilha NAO fecha (por isso o balde existe)',
+  semBalde.series.reduce((a,x)=>a+x.valores[0],0) !== semBalde.totais[0]);
+
+console.log('\n--- comentarios de um dia ---');
+check('acha os do dia certo', M.doDia(mistura, '2026-09-01').length === 2);
+check('nao mistura com o vizinho', M.doDia(mistura, '2026-09-02').length === 1);
+check('dia sem nada devolve lista vazia', M.doDia(mistura, '2026-09-03').length === 0);
+check('sem data nao entra em dia nenhum',
+  M.doDia([{data_publicacao:null}], '2026-09-01').length === 0);
+
+console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
+process.exit(r.every(Boolean) ? 0 : 1);
