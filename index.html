@@ -102,8 +102,10 @@
   .aba.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
   .aba .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px}
   .aba.on .n{background:#fff}
+  /* margin-left:auto em vez de um espaçador: quando a linha do cabeçalho
+     quebra no celular, o espaçador deixava o × solto no meio do cartão. */
   .btnx{background:transparent;border:none;color:#C2C8D0;font-size:19px;line-height:1;
-    padding:0 4px;cursor:pointer;flex-shrink:0}
+    padding:0 4px;cursor:pointer;flex-shrink:0;margin-left:auto}
   .btnx:hover{color:var(--neg)}
   .fluxo{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
     border-top:1px solid var(--line);padding-top:11px}
@@ -198,6 +200,26 @@
     .row{flex-wrap:wrap}
     .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
     .campo{flex:1 1 100%}
+  }
+  /* --- celular (etapa 7) ---
+     Medido com o auditor: a tela do Community ficava com 622px de largura num
+     aparelho de 375px e rolava para o lado. A causa era a fileira de botões do
+     cabeçalho, que não quebrava linha. */
+  @media(max-width:560px){
+    .head{flex-wrap:wrap}
+    .head>div:last-child{width:100%;flex-wrap:wrap}
+    .head>div:last-child .btn{flex:1 1 auto}
+    /* Tamanho de dedo. O auditor achou botão de 19px e campo de 29px; abaixo
+       de ~38px erra o toque com frequência. */
+    .btn,.filters input,.filters select,.campo input,.campo select,
+    .aba,.chip,.periodo select,.periodo input{min-height:38px}
+    .btnx{min-width:38px;min-height:38px;font-size:22px}
+    .seg{min-height:34px;padding:6px 12px}
+    .ppe a,.meta a{display:inline-flex;align-items:center;min-height:34px}
+    /* A lista de comentários ocupa a largura toda: no celular não há espaço
+       para a coluna lateral de sentimento ficar à direita. */
+    .row{padding-left:9px}
+    .pembed{height:420px}
   }
   .addwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
   .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
@@ -788,6 +810,60 @@ function baixarCSV(texto, nome){
   URL.revokeObjectURL(url);
 }
 
+/* ---------- estado de cada análise ----------
+   O pedido é explícito: "Aguardando dados" não pode ser resposta genérica.
+   São três situações diferentes, e confundi-las esconde o que está faltando:
+
+     sem_dados     — não há nada deste canal
+     insuficiente  — há comentários, mas falta JUSTAMENTE o campo que este
+                     gráfico usa (e a tela diz qual)
+     nao_construido— o dado existe; a tela é que ainda não foi feita
+     pronto        — dá para ver agora, em Relatórios
+
+   Fora do componente para ser testada sem navegador. */
+const PRECISA = {
+  evol_diaria: {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  vol_mensal:  {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  vol_semana:  {campo:'data_publicacao', falta:'data de publicação preenchida'},
+  sentimento:  {campo:'sentimento_id',   falta:'sentimento definido'},
+  termos:      {campo:'texto',           falta:'texto'},
+  hashtags:    {campo:'texto',           falta:'texto'},
+  top_posts:   {fonte:'publicacoes',     falta:'publicações importadas'},
+};
+// O que já dá para ver hoje, no módulo Relatórios.
+const JA_PRONTO = {evol_diaria:true, sentimento:true};
+
+function estadoAnalitico(id, interacoes, publicacoes, rede){
+  const regra = PRECISA[id] || {};
+  const daRede = x => !rede || x.rede_id === rede.id;
+
+  if(regra.fonte === 'publicacoes'){
+    const pubs = (publicacoes || []).filter(daRede);
+    if(!pubs.length) return {estado:'sem_dados', selo:'Sem dados', quantos:0, unidade:'publicações',
+      explica:'Nenhuma publicação deste canal foi importada ainda. Elas entram pela planilha, em Importar dados.'};
+    return {estado:'nao_construido', selo:'Ainda não construído', quantos:pubs.length, unidade:'publicações',
+      explica:`${pubs.length} publicação(ões) deste canal já estão no sistema. Esta tela ainda não foi construída.`};
+  }
+
+  const vivos = (interacoes || []).filter(i => !naLixeira(i) && daRede(i));
+  if(!vivos.length) return {estado:'sem_dados', selo:'Sem dados', quantos:0, unidade:'comentários',
+    explica:'Nenhum comentário deste canal ainda. Traga comentários em Community › Colar em lote, ou importe a planilha.'};
+
+  const com = vivos.filter(i => {
+    const v = i[regra.campo];
+    return v !== null && v !== undefined && String(v).trim() !== '';
+  }).length;
+
+  if(com === 0) return {estado:'insuficiente', selo:'Falta preencher', quantos:0, unidade:'comentários prontos',
+    explica:`Há ${vivos.length} comentário(s) deste canal, mas nenhum tem ${regra.falta}. Esta análise depende desse campo — preencha no cartão do comentário.`};
+
+  if(JA_PRONTO[id]) return {estado:'pronto', selo:'Pode ver agora', quantos:com, unidade:'comentários',
+    explica:`${com} comentário(s) prontos. Clique para abrir em Relatórios.`};
+
+  return {estado:'nao_construido', selo:'Ainda não construído', quantos:com, unidade:'comentários prontos',
+    explica:`${com} de ${vivos.length} comentário(s) deste canal têm ${regra.falta}. O dado está aqui; esta tela ainda não foi construída.`};
+}
+
 /* ---------- conteúdos (publicações) ----------
    Puras e fora do componente, para poderem ser testadas sem navegador. */
 
@@ -923,7 +999,6 @@ function Linha({it, cfg, onCampo, onGerarResposta, onExcluir}){
           {sitInfo.rotulo && <span style={{fontSize:11,fontWeight:700,color:sitInfo.cor}}>{sitInfo.rotulo}</span>}
           {it.link_conteudo && /^https?:\/\//i.test(it.link_conteudo) &&
             <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
-          <span style={{flex:1}} />
           {!noLixo && <button className="btnx" title="Mover para a Lixeira" onClick={()=>onCampo(it.id,'triagem','Lixeira')}>×</button>}
         </div>
 
@@ -2044,7 +2119,7 @@ function Crumb({trilha}){
   );
 }
 
-function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente}){
+function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicacoes, onNovoCliente, irPara}){
   const [rede, setRede] = useState(null);   // rede selecionada
   const [nivel, setNivel] = useState('workspaces'); // workspaces | redes | centro
   const cliente = clientes.find(c=>c.id===clienteId);
@@ -2134,19 +2209,23 @@ function Projetos({clientes, clienteId, setClienteId, cfg, interacoes, publicaco
         </div>
       </div>
       <div className="grid">
-        {ANALITICOS.map(m=>(
-          <button key={m.id} className="tile2" onClick={()=>alert('Módulo "'+m.nome+'" entra na Etapa 3, depois da importação da planilha.')}>
-            <div className="top">
-              <div className="ic">▥</div>
-              <div className="nm">{m.nome}</div>
-            </div>
-            <div className="ds">{m.desc}</div>
-            <div className="stats">
-              <div><b>—</b>dados analisados</div>
-              <div><span className="badge off">Aguardando dados</span></div>
-            </div>
-          </button>
-        ))}
+        {ANALITICOS.map(m=>{
+          const e = estadoAnalitico(m.id, interacoes, publicacoes, rede);
+          return (
+            <button key={m.id} className="tile2" title={e.explica}
+              onClick={()=>{ if(e.estado === 'pronto' && irPara) irPara('relatorios'); else alert(e.explica); }}>
+              <div className="top">
+                <div className="ic">▥</div>
+                <div className="nm">{m.nome}</div>
+              </div>
+              <div className="ds">{m.desc}</div>
+              <div className="stats">
+                <div><b>{e.quantos === null ? '—' : e.quantos.toLocaleString('pt-BR')}</b>{e.unidade}</div>
+                <div><span className={'badge' + (e.estado === 'pronto' ? '' : ' off')}>{e.selo}</span></div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -2583,7 +2662,7 @@ function Painel({user, perfil, onSair}){
           : status==='loading'
             ? <div className="empty">Carregando…</div>
             : modulo==='projetos'
-              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} />
+              ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} irPara={setModulo} />
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
