@@ -122,6 +122,40 @@
   .chip.juri.on{background:#FBF1DC;border-color:#B5852A;color:#7a5a12}
   .dedata{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
   .dedata input{width:auto}
+  /* --- dashboard (etapa 4) --- */
+  .periodo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+  .resumoper{margin-left:auto;text-align:right}
+  .resumoper .quando{font-size:12px;color:var(--muted)}
+  .resumoper .quantos{font-size:13px;font-weight:600}
+  /* Duas colunas fixas no desktop: são quatro blocos, e uma grade "automática"
+     dava três colunas e deixava o quarto órfão numa linha sozinha. */
+  .blocos{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+  @media(min-width:780px){ .blocos{grid-template-columns:1fr 1fr} }
+  .bloco{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .btit{font-weight:600;font-size:14px;margin-bottom:2px}
+  .bnota{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  .bvazio{font-size:12.5px;color:var(--muted);padding:14px 0}
+  .barras{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+  .barra{display:grid;grid-template-columns:minmax(64px,26%) 1fr auto;align-items:center;gap:10px}
+  .barra .rot{font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* trilho recessivo; o dado é a barra, não o fundo */
+  .barra .trilho{background:var(--bg);border-radius:4px;height:14px;overflow:hidden}
+  .barra .preenche{height:100%;border-radius:0 4px 4px 0;min-width:3px}
+  .barra .num{font-size:12.5px;font-weight:700;white-space:nowrap}
+  .barra .num .pct{font-weight:400;color:var(--muted);margin-left:6px;font-size:11.5px}
+  .tabnum{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  .tabnum th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);border-bottom:1px solid var(--line);padding:5px 4px}
+  .tabnum td{padding:5px 4px;border-bottom:1px solid var(--line)}
+  .tabnum td:nth-child(2),.tabnum th:nth-child(2),.tabnum td:last-child,.tabnum th:last-child{text-align:right}
+  .svgtempo{width:100%;height:auto;display:block}
+  .svgtempo .gradelinha{stroke:var(--line);stroke-width:1}
+  .svgtempo .eixotxt{font-size:10px;fill:var(--muted)}
+  .svgtempo .serie{fill:none;stroke:#8A6516;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .svgtempo .cruz{stroke:var(--line);stroke-width:1}
+  .svgtempo .ponto{fill:#8A6516;stroke:#fff;stroke-width:2}
+  .dicatempo{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:18px}
   @media(max-width:760px){
     .row{flex-wrap:wrap}
     .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
@@ -458,6 +492,68 @@ const ABAS = [
 // classificar o que você jogou fora seria dinheiro no lixo, literalmente.
 const naLixeira = i => i.triagem === 'Lixeira';
 
+/* ---------- período do dashboard ----------
+   Contas em horário local de propósito: "hoje" para quem usa o sistema é o dia
+   do relógio dele. */
+const PERIODOS = [
+  ['total','Todo o período'], ['ontem','Ontem'], ['7d','Últimos 7 dias'],
+  ['28d','Últimos 28 dias'], ['90d','Últimos 90 dias'], ['semana','Esta semana'],
+  ['mes','Este mês'], ['ano','Este ano'], ['semana_passada','Semana passada'],
+  ['mes_passado','Mês passado'], ['custom','Escolher as datas'],
+];
+const DIA_MS = 86400000;
+const inicioDoDia = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+const fimDoDia    = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
+function dataLocal(s){
+  if(!s) return null;
+  const [a,m,d] = String(s).slice(0,10).split('-').map(Number);
+  return (a && m && d) ? new Date(a, m-1, d) : null;
+}
+function segundaDe(d){ const x = inicioDoDia(d); return new Date(x.getTime() - ((x.getDay()+6)%7)*DIA_MS); }
+
+/* A data que vale para um comentário: a que você informou; na falta dela, a de
+   quando a IA o analisou. Sem nenhuma das duas ele não tem data, e aparece só
+   em "Todo o período" — entrar num recorte de datas sem ter data faria o
+   número do relatório mentir. */
+function dataDoComentario(i){
+  const d = dataLocal(i.data_coment);
+  if(d) return d;
+  if(i.ia_em){ const x = new Date(i.ia_em); if(!isNaN(x.getTime())) return x; }
+  return null;
+}
+
+function resolvePeriodo(chave, de, ate){
+  const agora = new Date(), h0 = inicioDoDia(agora), h1 = fimDoDia(agora);
+  switch(chave){
+    case 'ontem': { const o = new Date(h0.getTime()-DIA_MS); return {de:inicioDoDia(o), ate:fimDoDia(o)}; }
+    case '7d':    return {de: inicioDoDia(new Date(h0.getTime()-6*DIA_MS)),  ate:h1};
+    case '28d':   return {de: inicioDoDia(new Date(h0.getTime()-27*DIA_MS)), ate:h1};
+    case '90d':   return {de: inicioDoDia(new Date(h0.getTime()-89*DIA_MS)), ate:h1};
+    case 'semana':return {de: segundaDe(agora), ate:h1};
+    case 'mes':   return {de: new Date(agora.getFullYear(), agora.getMonth(), 1), ate:h1};
+    case 'ano':   return {de: new Date(agora.getFullYear(), 0, 1), ate:h1};
+    case 'semana_passada': { const s = segundaDe(agora);
+      return {de: new Date(s.getTime()-7*DIA_MS), ate: fimDoDia(new Date(s.getTime()-DIA_MS))}; }
+    case 'mes_passado': return {de: new Date(agora.getFullYear(), agora.getMonth()-1, 1),
+      ate: fimDoDia(new Date(agora.getFullYear(), agora.getMonth(), 0))};
+    case 'custom': { const a = dataLocal(de), b = dataLocal(ate);
+      return {de: a?inicioDoDia(a):null, ate: b?fimDoDia(b):null}; }
+    default: return {de:null, ate:null};
+  }
+}
+
+function noPeriodo(i, chave, de, ate){
+  if(chave === 'total') return true;
+  const d = dataDoComentario(i);
+  if(!d) return false;
+  if(de && d < de) return false;
+  if(ate && d > ate) return false;
+  return true;
+}
+
+const fmtBR = d => d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '…';
+const chaveDia = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
 /* ---------- filtros da lista de comentários ----------
    Fora do componente de propósito: assim a regra de "este comentário passa?"
    é uma função pura, que dá para testar sem abrir tela nenhuma. */
@@ -487,6 +583,43 @@ function passaNoFiltro(i, f, busca){
     if(!achou) return false;
   }
   return true;
+}
+
+/* ---------- contas do dashboard ----------
+   Puras e fora dos componentes, pelo mesmo motivo dos filtros: número errado
+   em relatório é mentira silenciosa, e só teste pega. */
+
+// Conta quantos comentários caem em cada valor, do maior para o menor.
+// "semNome" agrupa o que está em branco num balde explícito, em vez de
+// simplesmente sumir da conta — o total tem que fechar com a lista.
+function contarPor(itens, valorDe, semNome){
+  const baldes = {};
+  itens.forEach(i => {
+    const v = valorDe(i);
+    const k = (v === null || v === undefined || v === '') ? (semNome || null) : String(v);
+    if(k === null) return;
+    baldes[k] = (baldes[k] || 0) + 1;
+  });
+  return Object.keys(baldes)
+    .map(nome => ({nome, n: baldes[nome]}))
+    .sort((a,b) => b.n - a.n || a.nome.localeCompare(b.nome,'pt-BR'));
+}
+
+/* Série dia a dia. Os dias sem nenhum comentário entram valendo zero: sem
+   isso a linha do tempo "pula" o vazio e um fim de semana parado parece
+   movimento contínuo. */
+function serieDiaria(itens){
+  const porDia = {};
+  itens.forEach(i => { const d = dataDoComentario(i); if(d) porDia[chaveDia(inicioDoDia(d))] = (porDia[chaveDia(inicioDoDia(d))]||0) + 1; });
+  const dias = Object.keys(porDia).sort();
+  if(!dias.length) return [];
+  const ini = dataLocal(dias[0]), fim = dataLocal(dias[dias.length-1]);
+  const serie = [];
+  for(let t = ini.getTime(); t <= fim.getTime(); t += DIA_MS){
+    const k = chaveDia(new Date(t));
+    serie.push({dia: k, n: porDia[k] || 0});
+  }
+  return serie;
 }
 
 // Encurta um link comprido para caber na lista, mantendo o começo e o fim —
@@ -1046,6 +1179,214 @@ function Filtros({cfg, f, setF, busca, setBusca, naAba, filtrando, aoLimpar}){
           <label className="dedata">de<input type="date" value={f.de} onChange={e=>p('de',e.target.value)} /></label>
           <label className="dedata">até<input type="date" value={f.ate} onChange={e=>p('ate',e.target.value)} /></label>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   DASHBOARD
+   Barras horizontais em vez de pizza: o trabalho aqui é comparar tamanhos, e
+   comparar ângulo é mais difícil que comparar comprimento. O número fica
+   sempre visível ao lado — as cores de sentimento do MUVUCA são claras demais
+   contra o branco para carregarem sozinhas a informação.
+   ============================================================ */
+const COR_BARRA = '#8A6516';   // âmbar escuro: família do MUVUCA e legível no branco
+
+function Barras({dados, total, corDe}){
+  const maior = Math.max(1, ...dados.map(d => d.n));
+  return (
+    <div className="barras">
+      {dados.map(d => {
+        const pct = total ? Math.round(d.n/total*100) : 0;
+        return (
+          <div key={d.nome} className="barra" title={`${d.nome}: ${d.n} de ${total} (${pct}%)`}>
+            <div className="rot">{d.nome}</div>
+            <div className="trilho">
+              <div className="preenche" style={{width: Math.max(2, d.n/maior*100)+'%', background: corDe ? corDe(d.nome) : COR_BARRA}} />
+            </div>
+            <div className="num">{d.n}<span className="pct">{pct}%</span></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Tabela({dados, total}){
+  return (
+    <table className="tabnum">
+      <thead><tr><th>Item</th><th>Comentários</th><th>%</th></tr></thead>
+      <tbody>
+        {dados.map(d => (
+          <tr key={d.nome}><td>{d.nome}</td><td>{d.n}</td><td>{total?Math.round(d.n/total*100):0}%</td></tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function Bloco({titulo, dados, total, corDe, tabela, nota}){
+  return (
+    <div className="bloco">
+      <div className="btit">{titulo}</div>
+      {nota && <div className="bnota">{nota}</div>}
+      {dados.length === 0
+        ? <div className="bvazio">Nada preenchido neste período.</div>
+        : tabela ? <Tabela dados={dados} total={total} /> : <Barras dados={dados} total={total} corDe={corDe} />}
+    </div>
+  );
+}
+
+/* Linha do tempo em SVG. Sem biblioteca de gráfico: o MUVUCA é uma página só,
+   sem compilação, e puxar uma biblioteca de fora para desenhar uma linha
+   custaria mais do que desenhá-la. */
+function LinhaTempo({serie}){
+  const [sob, setSob] = useState(null);
+  if(serie.length < 2) return <div className="bvazio">Poucos dias com data para desenhar uma linha. Preencha a data dos comentários.</div>;
+
+  const L=40, R=12, T=12, B=26, W=760, H=190;
+  const maior = Math.max(1, ...serie.map(p=>p.n));
+  const x = k => L + (W-L-R) * (serie.length===1 ? 0 : k/(serie.length-1));
+  const y = v => T + (H-T-B) * (1 - v/maior);
+  const d = serie.map((p,k)=>`${k?'L':'M'}${x(k).toFixed(1)},${y(p.n).toFixed(1)}`).join(' ');
+
+  // Três marcas no eixo de baixo: começo, meio e fim. Mais do que isso vira
+  // amontoado ilegível em período longo.
+  const marcas = [0, Math.floor((serie.length-1)/2), serie.length-1].filter((v,i,a)=>a.indexOf(v)===i);
+
+  return (
+    <div className="linhatempo">
+      <svg viewBox={`0 0 ${W} ${H}`} className="svgtempo" role="img"
+        aria-label={`Comentários por dia, de ${serie[0].dia} a ${serie[serie.length-1].dia}`}
+        onMouseLeave={()=>setSob(null)}
+        onMouseMove={e=>{
+          const c = e.currentTarget.getBoundingClientRect();
+          const px = (e.clientX - c.left) / c.width * W;
+          const k = Math.round((px - L) / Math.max(1,(W-L-R)) * (serie.length-1));
+          setSob(k>=0 && k<serie.length ? k : null);
+        }}>
+        {[0, .5, 1].map(f=>(
+          <g key={f}>
+            <line x1={L} x2={W-R} y1={y(maior*f)} y2={y(maior*f)} className="gradelinha" />
+            <text x={L-6} y={y(maior*f)+4} className="eixotxt" textAnchor="end">{Math.round(maior*f)}</text>
+          </g>
+        ))}
+        <path d={d} className="serie" />
+        {sob !== null && (
+          <g>
+            <line x1={x(sob)} x2={x(sob)} y1={T} y2={H-B} className="cruz" />
+            <circle cx={x(sob)} cy={y(serie[sob].n)} r="5" className="ponto" />
+          </g>
+        )}
+        {marcas.map(k=>(
+          <text key={k} x={x(k)} y={H-8} className="eixotxt"
+            textAnchor={k===0?'start':k===serie.length-1?'end':'middle'}>
+            {fmtBR(dataLocal(serie[k].dia))}
+          </text>
+        ))}
+      </svg>
+      <div className="dicatempo">
+        {sob !== null
+          ? <span><b>{serie[sob].n}</b> comentário(s) em {fmtBR(dataLocal(serie[sob].dia))}</span>
+          : <span>Passe o mouse sobre a linha para ver o número de cada dia.</span>}
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({cfg, interacoes, clienteNome}){
+  const [periodo, setPeriodo] = useState('total');
+  const [de, setDe] = useState('');
+  const [ate, setAte] = useState('');
+  const [tabela, setTabela] = useState(false);
+
+  const {de:d0, ate:d1} = resolvePeriodo(periodo, de, ate);
+  const vivos = interacoes.filter(i => !naLixeira(i));
+  const itens = vivos.filter(i => noPeriodo(i, periodo, d0, d1));
+
+  const nomePor = (lista, id) => lista.find(x => x.id === id)?.nome || null;
+  const sentDe  = i => nomePor(cfg.sentimentos, i.sentimento_id);
+
+  const porSent = contarPor(itens, sentDe, 'Sem sentimento');
+  const porRede = contarPor(itens, i => nomePor(cfg.redes, i.rede_id), 'Sem rede');
+  const porProd = contarPor(itens, i => nomePor(cfg.produtos, i.produto_id));
+  const porEdit = contarPor(itens, i => nomePor(cfg.editorias, i.editoria_id));
+  const porAutor = contarPor(itens, i => i.autor).slice(0, 10);
+  const serie = serieDiaria(itens);
+
+  const respondidos = itens.filter(i => i.triagem === 'Respondido').length;
+  const pendentes   = itens.filter(i => (i.triagem||'Pendente') === 'Pendente').length;
+  const juridicos   = itens.filter(i => i.ia_juridico).length;
+  const semData     = itens.filter(i => !dataDoComentario(i)).length;
+
+  return (
+    <div>
+      <div className="head">
+        <div><h1>Relatórios</h1><p>{clienteNome}</p></div>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn" onClick={()=>setTabela(!tabela)}>{tabela?'Ver gráficos':'Ver como tabela'}</button>
+        </div>
+      </div>
+
+      <div className="periodo">
+        <label className="campo" style={{flex:'0 1 200px'}}><span>Período</span>
+          <select value={periodo} onChange={e=>setPeriodo(e.target.value)}>
+            {PERIODOS.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        {periodo === 'custom' && (
+          <>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>De</span>
+              <input type="date" value={de} onChange={e=>setDe(e.target.value)} /></label>
+            <label className="campo" style={{flex:'0 1 150px'}}><span>Até</span>
+              <input type="date" value={ate} onChange={e=>setAte(e.target.value)} /></label>
+          </>
+        )}
+        <div className="resumoper">
+          <div className="quando">{periodo==='total' ? 'Todos os comentários' : `${fmtBR(d0)} — ${fmtBR(d1)}`}</div>
+          <div className="quantos"><b>{itens.length}</b> de {vivos.length} comentário(s)</div>
+        </div>
+      </div>
+
+      {itens.length === 0 ? (
+        <div className="empty">
+          Nenhum comentário neste período.
+          {periodo !== 'total' && <> Comentário sem data preenchida só aparece em <b>Todo o período</b>.</>}
+        </div>
+      ) : (
+        <>
+          <div className="cards">
+            <div className="card"><div className="lbl">No período</div><div className="val">{itens.length}</div></div>
+            <div className="card"><div className="lbl">Respondidos</div><div className="val">{respondidos}</div></div>
+            <div className="card"><div className="lbl">Na fila</div><div className="val">{pendentes}</div></div>
+            <div className="card"><div className="lbl">Jurídico/STN</div><div className="val">{juridicos}</div></div>
+          </div>
+
+          {semData > 0 && periodo === 'total' && (
+            <div className="aviso">{semData} comentário(s) sem data preenchida. Eles entram aqui, mas <b>ficam de fora de qualquer recorte por período</b> — preencha a data no cartão para que apareçam nos relatórios.</div>
+          )}
+
+          <div className="bloco" style={{marginTop:14}}>
+            <div className="btit">Comentários por dia</div>
+            <LinhaTempo serie={serie} />
+          </div>
+
+          <div className="blocos">
+            <Bloco titulo="Sentimento" dados={porSent} total={itens.length} tabela={tabela}
+              corDe={nome => corSent(nome)} />
+            <Bloco titulo="Rede" dados={porRede} total={itens.length} tabela={tabela} />
+            <Bloco titulo="Produto" dados={porProd} total={itens.length} tabela={tabela}
+              nota="Só conta quem tem produto definido." />
+            <Bloco titulo="Editoria" dados={porEdit} total={itens.length} tabela={tabela}
+              nota="Só conta quem tem editoria definida." />
+          </div>
+
+          <div style={{marginTop:14}}>
+            <Bloco titulo="Quem mais comentou" dados={porAutor} total={itens.length} tabela={tabela}
+              nota="Os dez primeiros." />
+          </div>
+        </>
       )}
     </div>
   );
@@ -1689,6 +2030,8 @@ function Painel({user, perfil, onSair}){
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
               ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />
+            : modulo==='relatorios'
+              ? <Dashboard cfg={cfg} interacoes={interacoes} clienteNome={clienteNome} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>

@@ -27,6 +27,8 @@ npm run teste
 | `valida-jsx.js` | Se o `index.html` compila. Pega erro de digitação que deixaria a tela branca. |
 | `teste-classify.js` | A função da IA contra respostas simuladas: boa, cortada no meio, recusada, sem JSON, JSON inválido, erro da Anthropic e gateway quebrado. Nenhuma pode virar falha silenciosa. |
 | `teste-filtros.js` | A regra "este comentário passa no filtro?" sem navegador. Cobre os casos chatos: comentário sem data num recorte de datas, campo vazio que não pode virar coringa, filtros somados com E e não OU. |
+| `teste-dashboard.js` | As contas do relatório sem navegador: os onze recortes de período, o agrupamento e a série diária. Número errado em relatório não aparece como erro — aparece como um número plausível e errado. |
+| `monta-dash.js` / `roda-dash.js` | Montam e testam o dashboard num navegador real, com 55 comentários espalhados em 40 dias, dois dias parados de propósito, três sem data e um na lixeira. Conferem que as somas fecham e que a lixeira não entra na conta. |
 | `monta-bancada.js` | Monta uma página de teste com a tela do Community, dados falsos e um Supabase de mentira. |
 | `roda-bancada.js` | Abre essa página num navegador de verdade e confere o comportamento: etiquetas da IA, campos, gravação só ao sair do campo, Gerar de novo, abas, lixeira, exclusão com confirmação, pastilhas de filtro. Falha se houver qualquer erro no console. Remonta a bancada sozinho antes de rodar. |
 
