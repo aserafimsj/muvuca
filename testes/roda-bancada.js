@@ -1,6 +1,11 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
+// Remonta a bancada sempre. Rodar contra um bancada.html velho dá falso
+// alarme — o teste acusa um defeito que já foi corrigido, ou pior, deixa de
+// acusar um que acabou de entrar.
+require('./monta-bancada.js');
+
 /* Dados da bancada (ver monta-bancada.js), e o que se espera de cada aba:
      Pendente   3  (id 1 duvida, id 3 juridico, id 4 nunca analisado)
      Respondido 1  (id 5)
@@ -42,7 +47,10 @@ const path = require('path');
 
   console.log('\n--- cartao do comentario (etapa 1) ---');
   check('etiqueta "IA: responder" nos dois analisados', await page.getByText('IA: responder').count() === 2);
-  check('alerta Juridico/STN so no sensivel', await page.getByText('Jurídico/STN').count() === 1);
+  // Restrito aos cartoes: a pastilha de filtro tambem diz "Juridico/STN", e
+  // contar a tela inteira acusaria dois.
+  check('alerta Juridico/STN so no cartao sensivel',
+    await page.locator('.row .pill', {hasText:'Jurídico/STN'}).count() === 1);
   check('comentario nunca analisado nao mostra etiqueta', await page.locator('.row').nth(2).locator('.iatags').count() === 0);
 
   const primeiro = page.locator('.row').first();
@@ -61,6 +69,46 @@ const path = require('path');
   check('motivo da IA aparece', await page.getByText('· spam').count() === 1);
   check('spam nao oferece geracao paga', await page.locator('.row').first().getByRole('button', {name:/Gerar/}).count() === 0);
   check('spam ainda deixa escrever a mao', await page.locator('.row').first().locator('.reply textarea').count() === 1);
+
+  console.log('\n--- filtros e busca (etapa 3) ---');
+  await irPara('Comentários a responder');
+  // Na fila estao: id1 (Duvida), id3 (Negativo, juridico), id4 (sem sentimento).
+  const chip = n => page.locator('.chip', { hasText: n }).first();
+  check('pastilha Todos conta 3', (await chip('Todos').textContent()).includes('3'));
+  check('pastilha Duvida conta 1', (await chip('Dúvida').textContent()).includes('1'));
+  check('pastilha Negativo conta 1', (await chip('Negativo').textContent()).includes('1'));
+  check('pastilha Positivo conta 0', (await chip('Positivo').textContent()).includes('0'));
+  check('pastilha Juridico aparece com 1', (await chip('Jurídico/STN').textContent()).includes('1'));
+
+  await chip('Dúvida').click(); await page.waitForTimeout(250);
+  check('clicar em Duvida deixa 1 comentario', await linhas() === 1);
+  check('e e o comentario certo', (await page.locator('.row').first().textContent()).includes('investir'));
+  check('aparece o botao de limpar', await page.getByRole('button', {name:'Limpar filtros'}).count() === 1);
+  await page.getByRole('button', {name:'Limpar filtros'}).click(); await page.waitForTimeout(250);
+  check('limpar devolve os 3', await linhas() === 3);
+  check('e o botao de limpar some', await page.getByRole('button', {name:'Limpar filtros'}).count() === 0);
+
+  await chip('Jurídico/STN').click(); await page.waitForTimeout(250);
+  check('filtrar por Juridico deixa 1', await linhas() === 1);
+  check('e e o caso sensivel', (await page.locator('.row').first().textContent()).includes('aposta'));
+  await page.getByRole('button', {name:'Limpar filtros'}).click(); await page.waitForTimeout(250);
+
+  await page.locator('.filters input').first().fill('bitcoin'); await page.waitForTimeout(300);
+  check('busca sem resultado esvazia a lista', await linhas() === 0);
+  check('e explica que foi o filtro, nao a aba', await page.getByText(/corresponde ao que você filtrou/).count() === 1);
+  await page.locator('.filters input').first().fill('boa noite'); await page.waitForTimeout(300);
+  check('busca nao liga para maiuscula', await linhas() === 1);
+  await page.getByRole('button', {name:'Limpar filtros'}).click(); await page.waitForTimeout(250);
+
+  check('os filtros extras comecam escondidos', await page.locator('select').filter({hasText:'IA sugeriu'}).count() === 0);
+  await page.getByRole('button', {name:'Mais filtros'}).click(); await page.waitForTimeout(250);
+  check('"Mais filtros" revela os demais', await page.locator('.filters select').count() >= 6, await page.locator('.filters select').count()+'');
+  await page.getByRole('button', {name:'Menos filtros'}).click(); await page.waitForTimeout(250);
+
+  // As contagens sao da aba aberta, nao do acervo inteiro.
+  await irPara('Não Respondidos');
+  check('contagem da pastilha acompanha a aba', (await chip('Bot').textContent()).includes('2'));
+  check('Juridico some quando a aba nao tem nenhum', await page.locator('.chip', {hasText:'Jurídico/STN'}).count() === 0);
 
   console.log('\n--- fluxo de trabalho (etapa 2) ---');
   await irPara('Comentários a responder');

@@ -63,6 +63,8 @@
   .card .val{font-size:26px;font-weight:600;margin-top:2px}
   .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .filters input,.filters select{width:auto;min-width:150px}
+  /* A busca é o filtro mais usado: merece caber inteira, e crescer com a tela. */
+  .filters input[type=text],.filters input:not([type]){flex:1 1 240px;min-width:220px;max-width:420px}
   .row{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
   .row:last-child{border-bottom:1px solid var(--line)}
   .row .av{width:34px;height:34px;flex-shrink:0;border-radius:50%;background:var(--bg);
@@ -108,6 +110,18 @@
   .btn.ok{background:#1E9E6A;border-color:#1E9E6A;color:#fff;font-weight:700}
   .btn.perigo{background:var(--neg);border-color:var(--neg);color:#fff;font-weight:600}
   .confirma{font-size:12.5px;color:var(--neg);font-weight:600}
+  /* --- filtros (etapa 3) --- */
+  .filtros{margin-bottom:14px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+    font-size:12.5px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .chip:hover{border-color:var(--brand)}
+  .chip.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .chip .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px}
+  .chip.on .n{background:#fff}
+  .chip.juri.on{background:#FBF1DC;border-color:#B5852A;color:#7a5a12}
+  .dedata{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .dedata input{width:auto}
   @media(max-width:760px){
     .row{flex-wrap:wrap}
     .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
@@ -443,6 +457,44 @@ const ABAS = [
 // entra em filtro e, principalmente, não vai para a IA — pagar para
 // classificar o que você jogou fora seria dinheiro no lixo, literalmente.
 const naLixeira = i => i.triagem === 'Lixeira';
+
+/* ---------- filtros da lista de comentários ----------
+   Fora do componente de propósito: assim a regra de "este comentário passa?"
+   é uma função pura, que dá para testar sem abrir tela nenhuma. */
+const FILTRO_VAZIO = {
+  sent:'', iaTriagem:'', juridico:false, rede:'', produto:'',
+  editoria:'', origem:'', post:'', de:'', ate:'',
+};
+
+function passaNoFiltro(i, f, busca){
+  if(f.sent      && String(i.sentimento_id||'') !== f.sent)     return false;
+  if(f.iaTriagem && (i.ia_triagem||'')          !== f.iaTriagem) return false;
+  if(f.juridico  && !i.ia_juridico)                             return false;
+  if(f.rede      && String(i.rede_id||'')       !== f.rede)     return false;
+  if(f.produto   && String(i.produto_id||'')    !== f.produto)  return false;
+  if(f.editoria  && String(i.editoria_id||'')   !== f.editoria) return false;
+  if(f.origem    && (i.origem||'')              !== f.origem)   return false;
+  if(f.post      && (i.link_conteudo||'')       !== f.post)     return false;
+  // Comentário sem data não entra em recorte de data. Deixá-lo passar faria
+  // "de 1 a 5 de setembro" devolver coisa de data desconhecida junto.
+  if(f.de   && !(i.data_coment && i.data_coment >= f.de))   return false;
+  if(f.ate  && !(i.data_coment && i.data_coment <= f.ate))  return false;
+  if(busca){
+    const q = busca.toLowerCase();
+    const achou = (i.texto||'').toLowerCase().includes(q)
+               || (i.autor||'').toLowerCase().includes(q)
+               || (i.resposta||'').toLowerCase().includes(q);
+    if(!achou) return false;
+  }
+  return true;
+}
+
+// Encurta um link comprido para caber na lista, mantendo o começo e o fim —
+// cortar só o fim deixaria vários posts do mesmo perfil com o mesmo rótulo.
+function rotuloPost(p){
+  const s = String(p||'').replace(/^https?:\/\/(www\.)?/,'');
+  return s.length <= 42 ? s : s.slice(0,24) + '…' + s.slice(-14);
+}
 
 // Como a recomendação da IA aparece na tela. É informativa: diz o que a IA
 // acha que fazer com o comentário. Não confundir com a coluna "triagem", que
@@ -925,11 +977,84 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
+/* Barra de filtros. O sentimento vira pastilha com contagem, como no Zmetrics:
+   ver "Negativo 7" sem precisar abrir a lista é metade do trabalho de quem
+   cuida de comunidade. O resto fica em listas, que ocupam menos espaço. */
+function Filtros({cfg, f, setF, busca, setBusca, naAba, filtrando, aoLimpar}){
+  const [abrir, setAbrir] = useState(false);
+  const p = (k,v) => setF(prev => ({...prev, [k]: v}));
+  const conta = id => naAba.filter(i => String(i.sentimento_id||'') === String(id)).length;
+  const juridicos = naAba.filter(i => i.ia_juridico).length;
+
+  // Só os posts que realmente aparecem nesta aba — uma lista com todo post
+  // que já existiu seria inútil e enorme.
+  const posts = [...new Set(naAba.map(i => i.link_conteudo).filter(Boolean))];
+
+  return (
+    <div className="filtros">
+      <div className="chips">
+        <button className={"chip"+(f.sent===''?' on':'')} onClick={()=>p('sent','')}>
+          Todos<span className="n">{naAba.length}</span>
+        </button>
+        {cfg.sentimentos.map(s=>(
+          <button key={s.id} className={"chip"+(f.sent===String(s.id)?' on':'')} onClick={()=>p('sent',String(s.id))}>
+            <span className="dot" style={{background:corSent(s.nome)}} />{s.nome}<span className="n">{conta(s.id)}</span>
+          </button>
+        ))}
+        {juridicos > 0 && (
+          <button className={"chip juri"+(f.juridico?' on':'')} onClick={()=>p('juridico',!f.juridico)}>
+            Jurídico/STN<span className="n">{juridicos}</span>
+          </button>
+        )}
+      </div>
+
+      <div className="filters">
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor, texto ou resposta…" />
+        <button className="btn" onClick={()=>setAbrir(!abrir)}>{abrir?'Menos filtros':'Mais filtros'}</button>
+        {filtrando && <button className="btn" onClick={aoLimpar}>Limpar filtros</button>}
+      </div>
+
+      {abrir && (
+        <div className="filters">
+          <select value={f.iaTriagem} onChange={e=>p('iaTriagem',e.target.value)}>
+            <option value="">IA sugeriu: tudo</option>
+            <option value="responder">IA: responder</option>
+            <option value="curtir">IA: só curtir</option>
+            <option value="nao_responder">IA: não responder</option>
+          </select>
+          <select value={f.origem} onChange={e=>p('origem',e.target.value)}>
+            <option value="">Origem: todas</option><option>Feed</option><option>DM</option>
+          </select>
+          <select value={f.rede} onChange={e=>p('rede',e.target.value)}>
+            <option value="">Rede: todas</option>
+            {cfg.redes.map(r=><option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+          </select>
+          <select value={f.produto} onChange={e=>p('produto',e.target.value)}>
+            <option value="">Produto: todos</option>
+            {cfg.produtos.map(pp=><option key={pp.id} value={String(pp.id)}>{pp.nome}</option>)}
+          </select>
+          <select value={f.editoria} onChange={e=>p('editoria',e.target.value)}>
+            <option value="">Editoria: todas</option>
+            {cfg.editorias.map(ed=><option key={ed.id} value={String(ed.id)}>{ed.nome}</option>)}
+          </select>
+          {posts.length > 0 && (
+            <select value={f.post} onChange={e=>p('post',e.target.value)}>
+              <option value="">Post: todos</option>
+              {posts.map(u=><option key={u} value={u}>{rotuloPost(u)}</option>)}
+            </select>
+          )}
+          <label className="dedata">de<input type="date" value={f.de} onChange={e=>p('de',e.target.value)} /></label>
+          <label className="dedata">até<input type="date" value={f.ate} onChange={e=>p('ate',e.target.value)} /></label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta, onExcluir}){
   const [aba, setAba] = useState('comentarios');
   const [busca, setBusca] = useState('');
-  const [fOrigem, setFOrigem] = useState('');
-  const [fSent, setFSent] = useState('');
+  const [f, setF] = useState(FILTRO_VAZIO);
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [mostrarColar, setMostrarColar] = useState(false);
   const [mostrarIA, setMostrarIA] = useState(false);
@@ -956,13 +1081,11 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
   const daAba = a => a.sit === null ? vivos : interacoes.filter(i => (i.triagem||'Pendente') === a.sit);
   const abaAtual = ABAS.find(a => a.id === aba) || ABAS[0];
 
-  const vis = daAba(abaAtual).filter(i=>{
-    if(fOrigem && i.origem!==fOrigem) return false;
-    if(fSent && String(i.sentimento_id)!==fSent) return false;
-    if(busca){ const q=busca.toLowerCase(); if(!((i.texto||'').toLowerCase().includes(q) || (i.autor||'').toLowerCase().includes(q))) return false; }
-    return true;
-  });
-  const filtrando = !!(busca || fOrigem || fSent);
+  // Os filtros valem dentro da aba aberta: filtrar "Negativos" na aba
+  // Respondidos tem que dar os negativos já respondidos, não o acervo todo.
+  const naAba = daAba(abaAtual);
+  const vis = naAba.filter(i => passaNoFiltro(i, f, busca));
+  const filtrando = !!busca || Object.keys(FILTRO_VAZIO).some(k => f[k] !== FILTRO_VAZIO[k]);
   return (
     <div>
       <div className="head">
@@ -996,14 +1119,8 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
         })}
       </div>
 
-      <div className="filters">
-        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor ou texto…" />
-        <select value={fOrigem} onChange={e=>setFOrigem(e.target.value)}><option value="">Origem: todas</option><option>Feed</option><option>DM</option></select>
-        <select value={fSent} onChange={e=>setFSent(e.target.value)}>
-          <option value="">Sentimento: todos</option>
-          {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
-      </div>
+      <Filtros cfg={cfg} f={f} setF={setF} busca={busca} setBusca={setBusca}
+        naAba={naAba} filtrando={filtrando} aoLimpar={()=>{ setF(FILTRO_VAZIO); setBusca(''); }} />
       {vis.length===0
         ? <div className="empty">{filtrando ? 'Nenhum comentário corresponde ao que você filtrou.' : abaAtual.vazio}</div>
         : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />)}
