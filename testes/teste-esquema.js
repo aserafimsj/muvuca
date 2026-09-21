@@ -53,7 +53,15 @@ function chavesDoObjeto(texto, inicio){
   const corpo = texto.slice(inicio + 1, fim);
   // So o nivel de cima: `{a: 1, b: {c: 2}}` da a e b, nunca c.
   const topo = corpo.replace(/\{[^{}]*\}/g, '');
-  return [...topo.matchAll(/(?:^|,)\s*([a-z_]+)\s*:/g)].map(m => m[1]);
+  return [
+    // chave: valor
+    ...[...topo.matchAll(/(?:^|,)\s*([a-z_]+)\s*:/g)].map(m => m[1]),
+    /* chave abreviada — `{tipo: x, caminho, nome: y}`. O JavaScript deixa
+     * escrever so o nome quando a variavel se chama igual a coluna, e era
+     * por ai que uma coluna entrava sem ser conferida: `caminho` passou
+     * despercebido justamente assim. */
+    ...[...topo.matchAll(/(?:^|,)\s*([a-z_]+)\s*(?=[,}]|$)/g)].map(m => m[1]),
+  ];
 }
 
 // 1) mud.coluna = ...  (montado campo a campo)
@@ -132,6 +140,24 @@ const guia = fs.readFileSync(path.join(__dirname, '..', 'MIGRACAO-TELA-DE-COMENT
 check('e o guia nao tem comando que crie a coluna descartada',
   !/add column[^\n]*data_coment/i.test(guia));
 
+console.log('\n--- a area de arquivos nasce FECHADA ---');
+/* Area aberta significaria que qualquer um com o endereco veria a campanha
+   antes da hora. O guia e a unica coisa que decide isso, entao e ele que
+   este teste le. */
+const guiaArq = fs.readFileSync(path.join(__dirname, '..', 'MIGRACAO-ARQUIVOS.md'), 'utf8');
+check('o guia cria o balde "conteudos"', /insert into storage\.buckets/.test(guiaArq));
+check('e ele nasce fechado, nao publico',
+  /'conteudos',\s*'conteudos',\s*false/.test(guiaArq));
+check('e um "rodar de novo" nao o abre',
+  /do update set[\s\S]{0,80}public\s*=\s*false/.test(guiaArq));
+check('o limite por arquivo do guia bate com o do codigo',
+  /52428800/.test(guiaArq) && /50 \* 1024 \* 1024/.test(html),
+  'guia e codigo precisam dizer o mesmo limite');
+// Todo tipo que o codigo aceita tem que estar liberado no balde, senao o
+// arquivo e recusado pelo Supabase depois de a pessoa ja ter escolhido.
+['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/quicktime','video/webm']
+  .forEach(t => check(`o guia libera ${t}`, guiaArq.includes(t) && html.includes(t)));
+
 console.log('\n--- as metricas usadas na tela existem no banco ---');
 const METRICAS = ['visu','curtidas','coment','compart','salvos'];
 METRICAS.forEach(base => {
@@ -153,6 +179,14 @@ check('o codigo so fala com as tabelas que existem ou tem migracao', tabelasFora
 
 console.log('\n--- toda tabela pendente tem um guia que a cria de verdade ---');
 Object.entries(pendentes).forEach(([tabela, info]) => {
+  // Entradas que comecam com "_" nao sao tabela: sao outra coisa criada por
+  // um guia (a area de arquivos do Storage, por exemplo). Conferimos so que
+  // o guia existe.
+  if(tabela.startsWith('_')){
+    check(`${tabela}: o guia ${info.migracao} existe`,
+      fs.existsSync(path.join(__dirname, '..', info.migracao)));
+    return;
+  }
   const arq = path.join(__dirname, '..', info.migracao);
   const existe = fs.existsSync(arq);
   check(`${tabela}: o guia ${info.migracao} existe`, existe);

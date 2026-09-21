@@ -254,6 +254,30 @@
   .historico .hev{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:12.5px}
   .historico .quando{color:var(--muted);font-variant-numeric:tabular-nums;min-width:132px}
   .historico .quem{color:var(--muted)}
+  /* --- arquivos da peça (etapa 2) --- */
+  .arquivos{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+  .tiras{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .tira{display:flex;align-items:center;gap:10px}
+  .tira .mini{position:relative;width:62px;height:62px;flex-shrink:0;border-radius:8px;
+    overflow:hidden;background:var(--bg);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center}
+  .tira .mini img,.tira .mini video{width:100%;height:100%;object-fit:cover;display:block}
+  .tira .mini .semlink{font-size:10.5px;color:var(--muted)}
+  /* O número é a posição no carrossel. Quem monta carrossel pensa em
+     "esse é o segundo card", não em "índice 1". */
+  .tira .mini .numero{position:absolute;left:4px;top:4px;min-width:17px;height:17px;
+    border-radius:5px;background:rgba(0,0,0,.66);color:#fff;font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .tira .dados{flex:1;min-width:0}
+  .tira .nome{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tira .peso{font-size:11.5px;color:var(--muted)}
+  .tira .mexer{display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap}
+  .tira .mexer .btn{padding:5px 9px;font-size:12.5px}
+  .subir{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .subir .btn{cursor:pointer}
+  .subir .btn.desligado{opacity:.6;cursor:default}
+  .subir .dica{font-size:11.5px;color:var(--muted)}
+  .btn .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px;margin-left:5px}
   /* --- tela Manhã ---
      O bloco vermelho toma o lugar da resposta, não fica ao lado dela: quando
      o caso é para escalar, NÃO existe texto sugerido para mostrar. Um aviso
@@ -2331,6 +2355,89 @@ const APROV_EM_AJUSTE  = ['ajuste_solicitado', 'em_alteracao'];
 
 const APROV_FILTRO_VAZIO = {rede:'', formato:'', status:'', editoria:'', produto:'', busca:''};
 
+/* ---------- ARQUIVOS (etapa 2) ----------
+   A área de arquivos do Supabase nasce FECHADA (ver MIGRACAO-ARQUIVOS.md):
+   arte não publicada é material sob embargo, e área aberta significaria que
+   qualquer um com o endereço veria a campanha antes da hora. Por isso cada
+   imagem precisa de uma "chave de visita" temporária, pedida na hora. */
+const ARQ_BALDE = 'conteudos';
+const ARQ_LIMITE = 50 * 1024 * 1024;          // 50 MB, o mesmo limite do balde
+const ARQ_ESPACO_TOTAL = 1024 * 1024 * 1024;  // 1 GB do plano gratuito
+const ARQ_AVISAR_EM = 0.8;                    // avisa a partir de 80% cheio
+const ARQ_VALIDADE = 3600;                    // a chave de visita vale 1 hora
+
+const ARQ_TIPOS = {
+  'image/jpeg':'imagem', 'image/png':'imagem', 'image/webp':'imagem', 'image/gif':'imagem',
+  'video/mp4':'video', 'video/quicktime':'video', 'video/webm':'video',
+};
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+// "1,4 MB". Numero cru em byte nao diz nada para quem olha.
+function tamanhoLegivel(bytes){
+  const n = Number(bytes);
+  if(!n || n < 0) return '—';
+  if(n < 1024) return n + ' B';
+  if(n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+  if(n < 1024*1024*1024) return (n/(1024*1024)).toFixed(1).replace('.', ',') + ' MB';
+  return (n/(1024*1024*1024)).toFixed(2).replace('.', ',') + ' GB';
+}
+
+/* Diz se o arquivo pode entrar, e POR QUE não, quando não pode. Recusar sem
+   explicar é o mesmo que falhar em silêncio. */
+function arquivoAceito(arquivo){
+  if(!arquivo) return {ok:false, motivo:'Nenhum arquivo escolhido.'};
+  const tipo = ARQ_TIPOS[arquivo.type];
+  if(!tipo){
+    return {ok:false, motivo:
+      `"${arquivo.name}" é do tipo ${arquivo.type || 'desconhecido'}, que não dá para mostrar na prévia. ` +
+      `Use JPG, PNG, WEBP, GIF, MP4, MOV ou WEBM.`};
+  }
+  if(arquivo.size > ARQ_LIMITE){
+    return {ok:false, motivo:
+      `"${arquivo.name}" tem ${tamanhoLegivel(arquivo.size)} e o limite é ${tamanhoLegivel(ARQ_LIMITE)}. ` +
+      `Exporte num tamanho menor e tente de novo.`};
+  }
+  return {ok:true, tipo};
+}
+
+/* O caminho dentro da área de arquivos. Começa pelo cliente para nunca
+   misturar o material de dois clientes na mesma pasta, e leva um sufixo
+   aleatório para duas artes com o mesmo nome não se sobrescreverem. */
+function caminhoDoArquivo(clienteId, conteudoId, nome){
+  const limpo = String(nome || 'arquivo')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(-60) || 'arquivo';
+  const marca = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  return `${clienteId}/${conteudoId}/${marca}-${limpo}`;
+}
+
+/* Quanto espaço já foi usado, e se está na hora de avisar. */
+function espacoUsado(arquivos){
+  const usado = (arquivos || []).reduce((s, a) => s + (Number(a.tamanho) || 0), 0);
+  const fracao = usado / ARQ_ESPACO_TOTAL;
+  return {
+    usado, fracao,
+    texto: `${tamanhoLegivel(usado)} de ${tamanhoLegivel(ARQ_ESPACO_TOTAL)}`,
+    pct: Math.min(100, Math.round(fracao * 100)),
+    apertado: fracao >= ARQ_AVISAR_EM,
+  };
+}
+
+/* Troca duas peças de lugar na ordem do carrossel. Devolve a lista NOVA com
+   o campo "ordem" já renumerado de 0 em diante — renumerar tudo evita que
+   trocas repetidas deixem buracos e empates na numeração. */
+function trocarOrdem(lista, id, direcao){
+  const ord = (lista || []).slice().sort((a,b) => (a.ordem||0) - (b.ordem||0));
+  const i = ord.findIndex(a => a.id === id);
+  const j = i + direcao;
+  if(i === -1 || j < 0 || j >= ord.length) return null;   // já está na ponta
+  [ord[i], ord[j]] = [ord[j], ord[i]];
+  return ord.map((a, n) => ({...a, ordem: n}));
+}
+
 /* Puras e fora do componente, para poderem ser testadas sem navegador. */
 
 // 'AAAA-MM' do mês de uma data, ou null. É a chave de agrupamento do mês.
@@ -2389,8 +2496,98 @@ function resumoAprovacao(lista){
   };
 }
 
-function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, eventos, aoVerHistorico}){
+/* O painel de arquivos de uma peça: as artes na ordem em que vão aparecer,
+   subir, reordenar e remover.
+
+   A ordem é o carrossel. Por isso as setas mostram sempre o número do card
+   ("1", "2", "3") — quem monta carrossel pensa em "esse é o segundo", não
+   em "esse está na posição de índice 1". */
+function ArquivosDoConteudo({arquivos, ocupado, aviso, aoSubir, aoMover, aoRemover, espaco}){
+  const [confirmando, setConfirmando] = useState(null);
+  const lista = (arquivos || []).slice().sort((a,b) => (a.ordem||0) - (b.ordem||0));
+
+  return (
+    <div className="arquivos">
+      {arquivos === undefined ? (
+        <div style={{color:'var(--muted)',fontSize:12.5}}>Carregando os arquivos…</div>
+      ) : (
+        <>
+          {lista.length === 0 ? (
+            <div style={{color:'var(--muted)',fontSize:12.5}}>
+              Nenhum arquivo ainda. Suba a arte, os cards do carrossel ou o vídeo.
+            </div>
+          ) : (
+            <div className="tiras">
+              {lista.map((a, i) => (
+                <div key={a.id} className="tira">
+                  <div className="mini">
+                    {a.tipo === 'video'
+                      ? (a.link
+                          ? <video src={a.link} muted playsInline preload="metadata" />
+                          : <span className="semlink">vídeo</span>)
+                      : (a.link
+                          ? <img src={a.link} alt={a.nome || 'arte'} loading="lazy" />
+                          : <span className="semlink">imagem</span>)}
+                    <span className="numero">{i + 1}</span>
+                  </div>
+                  <div className="dados">
+                    <div className="nome" title={a.nome || ''}>{a.nome || 'sem nome'}</div>
+                    <div className="peso">{tamanhoLegivel(a.tamanho)}</div>
+                  </div>
+                  <div className="mexer">
+                    <button className="btn" disabled={i === 0 || ocupado}
+                      title="Mover para antes" onClick={()=>aoMover(a.id, -1)}>↑</button>
+                    <button className="btn" disabled={i === lista.length - 1 || ocupado}
+                      title="Mover para depois" onClick={()=>aoMover(a.id, 1)}>↓</button>
+                    {confirmando === a.id ? (
+                      <>
+                        <button className="btn perigo" disabled={ocupado}
+                          onClick={()=>{ setConfirmando(null); aoRemover(a); }}>Apagar</button>
+                        <button className="btn" onClick={()=>setConfirmando(null)}>Não</button>
+                      </>
+                    ) : (
+                      <button className="btn" disabled={ocupado} title="Remover este arquivo"
+                        onClick={()=>setConfirmando(a.id)}>×</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="subir">
+            <label className={"btn brand" + (ocupado ? ' desligado' : '')}>
+              {ocupado ? 'Subindo…' : '+ Adicionar arquivo'}
+              <input type="file" multiple disabled={ocupado}
+                accept={Object.keys(ARQ_TIPOS).join(',')}
+                style={{display:'none'}}
+                onChange={e=>{ aoSubir([...e.target.files]); e.target.value = ''; }} />
+            </label>
+            <span className="dica">
+              JPG, PNG, WEBP, GIF, MP4, MOV ou WEBM · até {tamanhoLegivel(ARQ_LIMITE)} por arquivo
+            </span>
+          </div>
+
+          {/* O aviso de espaço só aparece quando há motivo. Uma barra de
+              "2% usado" permanente na tela é ruído. */}
+          {espaco && espaco.apertado && (
+            <div className="aviso" style={{marginTop:8}}>
+              O espaço de arquivos está em <b>{espaco.pct}%</b> ({espaco.texto}).
+              Vídeo antigo é o que mais pesa — vale apagar o que já foi publicado.
+            </div>
+          )}
+          {aviso && <div className="avisoerro" style={{marginTop:8}}>{aviso}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, eventos, aoVerHistorico,
+                         arquivos, aoVerArquivos, aoSubir, aoMover, aoRemover, espaco, ocupado, avisoArq,
+                         quantosArquivos}){
   const [abrindo, setAbrindo] = useState(false);
+  const [abrindoArq, setAbrindoArq] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const st = APROV_STATUS[c.status] || APROV_STATUS.rascunho;
   const nome = (lista, id) => (cfg[lista] || []).find(x => x.id === id)?.nome || null;
@@ -2433,6 +2630,13 @@ function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, even
 
         <div className="fluxo" style={{borderTop:'none',paddingTop:0,marginTop:6}}>
           {!c.arquivado && <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoEditar(c)}>Editar</button>}
+          <button className="btn" style={{padding:'6px 12px'}}
+            onClick={()=>{ setAbrindoArq(!abrindoArq); if(!abrindoArq) aoVerArquivos(c.id); }}>
+            {abrindoArq ? 'Fechar arquivos' : 'Arquivos'}
+            {/* O número só faz sentido com o painel fechado: aberto, os
+                arquivos estão à vista, e "Fechar arquivos 4" é ruído. */}
+            {!abrindoArq && quantosArquivos > 0 && <span className="n">{quantosArquivos}</span>}
+          </button>
           <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoDuplicar(c)}>Duplicar</button>
           <button className="btn" style={{padding:'6px 12px'}}
             onClick={()=>{ setAbrindo(!abrindo); if(!abrindo) aoVerHistorico(c.id); }}>
@@ -2452,6 +2656,13 @@ function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, even
             <button className="btn" style={{padding:'6px 12px'}} onClick={()=>setConfirmando(true)}>Arquivar</button>
           )}
         </div>
+
+        {abrindoArq && (
+          <ArquivosDoConteudo arquivos={arquivos} ocupado={ocupado} aviso={avisoArq} espaco={espaco}
+            aoSubir={fs => aoSubir(c, fs)}
+            aoMover={(id, d) => aoMover(c, id, d)}
+            aoRemover={a => aoRemover(c, a)} />
+        )}
 
         {abrindo && (
           <div className="historico">
@@ -2589,6 +2800,12 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
   const [verArquivados, setVerArquivados] = useState(false);
   const [verSemData, setVerSemData] = useState(false);
   const [eventos, setEventos] = useState({});       // {conteudoId: [...]}
+  const [arquivos, setArquivos] = useState({});     // {conteudoId: [...]}, com link temporário
+  // Só id, conteudo_id e tamanho de TODOS os arquivos do cliente: é o que
+  // permite mostrar a contagem no botão e o espaço usado sem abrir cada peça.
+  const [todosArquivos, setTodosArquivos] = useState([]);
+  const [ocupado, setOcupado] = useState(false);
+  const [avisoArq, setAvisoArq] = useState('');
 
   const quem = (perfil && perfil.nome) || 'equipe';
 
@@ -2602,6 +2819,13 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
       if(cancelado) return;
       if(error){ setErro(aprovErro(error.message)); setItens([]); return; }
       setItens(data || []);
+      // A ficha dos arquivos, sem o conteúdo deles: é o suficiente para o
+      // número no botão e para a conta de espaço, e custa uma consulta só.
+      const ids = (data || []).map(c => c.id);
+      if(ids.length){
+        const arq = await sb.from('conteudo_arquivos').select('id,conteudo_id,tamanho').in('conteudo_id', ids);
+        if(!cancelado) setTodosArquivos(arq.error ? [] : (arq.data || []));
+      } else if(!cancelado) setTodosArquivos([]);
     })();
     // Trocar de cliente no meio de um carregamento fazia a lista do cliente
     // anterior chegar depois e sobrescrever a certa.
@@ -2639,6 +2863,101 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
     const { data, error } = await sb.from('conteudo_eventos').select('*')
       .eq('conteudo_id', id).order('criado_em', {ascending:false});
     setEventos(p => ({...p, [id]: error ? [] : (data || [])}));
+  }
+
+  /* ---------- ARQUIVOS ----------
+     A área é fechada, então nenhum arquivo tem endereço fixo: para cada um
+     se pede uma "chave de visita" que vale uma hora. É o preço de a arte
+     não vazar antes da campanha. */
+  async function comLink(linhas){
+    const caminhos = (linhas || []).map(a => a.caminho).filter(Boolean);
+    if(!caminhos.length) return linhas || [];
+    const { data, error } = await sb.storage.from(ARQ_BALDE).createSignedUrls(caminhos, ARQ_VALIDADE);
+    if(error) return linhas;
+    // O Supabase devolve na mesma ordem que recebeu, mas casar por caminho
+    // é mais seguro do que confiar nisso.
+    const porCaminho = {};
+    (data || []).forEach(d => { if(d && d.path) porCaminho[d.path] = d.signedUrl; });
+    return linhas.map(a => ({...a, link: porCaminho[a.caminho] || null}));
+  }
+
+  async function verArquivos(id){
+    if(arquivos[id] !== undefined) return;
+    setArquivos(p => ({...p, [id]: undefined}));
+    const { data, error } = await sb.from('conteudo_arquivos').select('*')
+      .eq('conteudo_id', id).order('ordem', {ascending:true});
+    if(error){ setAvisoArq(aprovErro(error.message)); setArquivos(p => ({...p, [id]: []})); return; }
+    const comUrl = await comLink(data || []);
+    setArquivos(p => ({...p, [id]: comUrl}));
+  }
+
+  async function subirArquivos(c, escolhidos){
+    if(!escolhidos || !escolhidos.length) return;
+    setAvisoArq(''); setOcupado(true);
+    // A ordem continua de onde parou, para o card novo entrar no fim do
+    // carrossel em vez de embaralhar o que já estava montado.
+    const atuais = arquivos[c.id] || [];
+    let proxima = atuais.reduce((m, a) => Math.max(m, (a.ordem || 0) + 1), 0);
+    const recusados = [];
+    const novos = [];
+
+    for(const f of escolhidos){
+      const ok = arquivoAceito(f);
+      if(!ok.ok){ recusados.push(ok.motivo); continue; }
+      const caminho = caminhoDoArquivo(clienteId, c.id, f.name);
+      const up = await sb.storage.from(ARQ_BALDE).upload(caminho, f, {contentType: f.type});
+      if(up.error){ recusados.push(`"${f.name}": ${up.error.message}`); continue; }
+      const { data, error } = await sb.from('conteudo_arquivos').insert({
+        conteudo_id: c.id, versao: c.versao || 1, tipo: ok.tipo, caminho,
+        nome: f.name, tamanho: f.size, ordem: proxima++,
+      }).select().single();
+      if(error){
+        // Gravou o arquivo mas não a ficha dele: sem isso ficaria um arquivo
+        // órfão ocupando espaço que ninguém consegue ver nem apagar.
+        await sb.storage.from(ARQ_BALDE).remove([caminho]);
+        recusados.push(`"${f.name}": ${error.message}`);
+        continue;
+      }
+      novos.push(data);
+    }
+
+    if(novos.length){
+      const comUrl = await comLink(novos);
+      setArquivos(p => ({...p, [c.id]: [...(p[c.id] || []), ...comUrl]}));
+      setTodosArquivos(p => [...p, ...novos.map(a => ({id:a.id, conteudo_id:a.conteudo_id, tamanho:a.tamanho}))]);
+    }
+    setOcupado(false);
+    if(recusados.length) setAvisoArq(recusados.join(' · '));
+  }
+
+  async function moverArquivo(c, id, direcao){
+    const nova = trocarOrdem(arquivos[c.id] || [], id, direcao);
+    if(!nova) return;   // já está na ponta
+    setOcupado(true);
+    setArquivos(p => ({...p, [c.id]: nova}));   // a tela responde na hora
+    for(const a of nova){
+      const antes = (arquivos[c.id] || []).find(x => x.id === a.id);
+      if(antes && antes.ordem === a.ordem) continue;   // não grava o que não mudou
+      const { error } = await sb.from('conteudo_arquivos').update({ordem: a.ordem}).eq('id', a.id);
+      if(error){ setAvisoArq('Não consegui salvar a ordem: ' + error.message); break; }
+    }
+    setOcupado(false);
+  }
+
+  async function removerArquivo(c, a){
+    setOcupado(true); setAvisoArq('');
+    // A ficha sai primeiro. Se o arquivo em si resistir, sobra um arquivo
+    // invisível ocupando espaço — chato, mas melhor que uma ficha apontando
+    // para um arquivo que não existe mais, que quebraria a prévia.
+    const { error } = await sb.from('conteudo_arquivos').delete().eq('id', a.id);
+    if(error){ setAvisoArq('Não consegui remover: ' + error.message); setOcupado(false); return; }
+    if(a.caminho) await sb.storage.from(ARQ_BALDE).remove([a.caminho]);
+    const restantes = (arquivos[c.id] || []).filter(x => x.id !== a.id)
+      .map((x, n) => ({...x, ordem: n}));
+    setArquivos(p => ({...p, [c.id]: restantes}));
+    setTodosArquivos(p => p.filter(x => x.id !== a.id));
+    for(const x of restantes) await sb.from('conteudo_arquivos').update({ordem: x.ordem}).eq('id', x.id);
+    setOcupado(false);
   }
 
   // Campo vazio na tela tem que virar null no banco, não string vazia:
@@ -2696,6 +3015,7 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
   const resumo   = resumoAprovacao(doMes);
   const filtrando = Object.keys(APROV_FILTRO_VAZIO).some(k => f[k] !== APROV_FILTRO_VAZIO[k]);
   const arquivados = base.filter(c => c.arquivado).length;
+  const espaco = espacoUsado(todosArquivos);
   const p = (k, v) => setF({...f, [k]: v});
 
   return (
@@ -2726,6 +3046,11 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
         <div className="empty">Carregando…</div>
       ) : erro ? null : (
         <>
+          {/* O painel e os filtros só aparecem quando há o que contar e o que
+              filtrar. Num mês vazio, cinco cartões escritos "0" e cinco
+              seletores de nada só atrapalham a única coisa que importa ali:
+              o botão de criar a primeira peça. */}
+          {naLista.length > 0 && <>
           {/* O painel do mês. A barra mostra a fração aprovada do mês inteiro,
               não da lista filtrada — filtrar não pode mudar o andamento real. */}
           <div className="cards">
@@ -2744,7 +3069,11 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
                 : `${resumo.pct}% do mês aprovado — ${resumo.aprovados} de ${resumo.total}.`}
             </div>
           </div>
+          </>}
 
+          {/* Os avisos continuam valendo com o mês vazio — o de "sem data
+              prevista" justamente mais ainda: é quando a peça escondida é a
+              única que existe. */}
           {resumo.aguardando > 0 && (
             <div className="aviso">{resumo.aguardando} conteúdo(s) aguardando resposta do cliente.</div>
           )}
@@ -2771,6 +3100,7 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
               aoSalvar={salvar} aoCancelar={()=>setEditando(null)} />
           )}
 
+          {naLista.length > 0 && (
           <div className="filtros">
             <div className="chips">
               <button className={"chip"+(f.status===''?' on':'')} onClick={()=>p('status','')}>
@@ -2813,6 +3143,7 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
               {filtrando && <button className="btn" onClick={()=>setF(APROV_FILTRO_VAZIO)}>Limpar filtros</button>}
             </div>
           </div>
+          )}
 
           {vis.length === 0 ? (
             naLista.length === 0 ? (
@@ -2834,7 +3165,11 @@ function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
           ) : vis.map(c => (
             <CartaoConteudo key={c.id} c={c} cfg={cfg} eventos={eventos[c.id]}
               aoMudar={aoMudar} aoEditar={x=>setEditando(x)} aoDuplicar={duplicar}
-              aoArquivar={aoArquivar} aoVerHistorico={verHistorico} />
+              aoArquivar={aoArquivar} aoVerHistorico={verHistorico}
+              arquivos={arquivos[c.id]} aoVerArquivos={verArquivos}
+              aoSubir={subirArquivos} aoMover={moverArquivo} aoRemover={removerArquivo}
+              espaco={espaco} ocupado={ocupado} avisoArq={avisoArq}
+              quantosArquivos={todosArquivos.filter(a => a.conteudo_id === c.id).length} />
           ))}
         </>
       )}

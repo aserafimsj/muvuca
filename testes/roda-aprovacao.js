@@ -120,6 +120,119 @@ require('./monta-aprovacao.js');
   await clicar(carrossel.getByRole('button', {name:'Fechar histórico'}));
   check('fecha de novo', await carrossel.locator('.historico').count() === 0);
 
+  console.log('\n--- os arquivos da peca ---');
+  // A peca 3 (o carrossel) tem 3 cards; a 7 (o video) tem 1.
+  check('o botão mostra quantos arquivos a peça tem',
+    (await carrossel.getByRole('button', {name:/^Arquivos/}).textContent()).includes('3'),
+    await carrossel.getByRole('button', {name:/^Arquivos/}).textContent());
+  await clicar(carrossel.getByRole('button', {name:/^Arquivos/}));
+  check('abre o painel de arquivos', await carrossel.locator('.arquivos').count() === 1);
+  check('mostra as três artes', await carrossel.locator('.tira').count() === 3,
+    String(await carrossel.locator('.tira').count()));
+  check('na ordem do carrossel',
+    (await carrossel.locator('.tira .nome').allTextContents()).join(',') === 'card-01.jpg,card-02.jpg,card-03.jpg',
+    (await carrossel.locator('.tira .nome').allTextContents()).join(','));
+  check('numerados 1, 2, 3',
+    (await carrossel.locator('.tira .numero').allTextContents()).join(',') === '1,2,3');
+  check('com o peso de cada um', (await carrossel.locator('.tira .peso').first().textContent()).includes('KB'));
+
+  /* A area e FECHADA: nenhum arquivo tem endereco fixo. Se a tela deixasse
+     de pedir a chave de visita, a arte simplesmente nao apareceria — e um
+     teste que so conta <img> nao pegaria isso. */
+  const assinou = await page.evaluate(() => window.__storage.filter(s => s.acao === 'assinar'));
+  check('pediu chave de visita para as artes', assinou.length >= 1, JSON.stringify(assinou[0] || {}));
+  check('e a chave tem prazo de validade', (assinou[0] || {}).validade === 3600, String((assinou[0]||{}).validade));
+  check('as três miniaturas desenham', await carrossel.locator('.tira .mini img').count() === 3);
+
+  console.log('\n--- reordenar o carrossel ---');
+  const nomes = async () => (await carrossel.locator('.tira .nome').allTextContents()).join(',');
+  // Sem isto, clicar em "subir" no primeiro tiraria o card da lista.
+  check('o primeiro não pode subir',
+    await carrossel.locator('.tira').first().getByRole('button', {name:'↑'}).isDisabled());
+  check('o último não pode descer',
+    await carrossel.locator('.tira').last().getByRole('button', {name:'↓'}).isDisabled());
+
+  await clicar(carrossel.locator('.tira').nth(1).getByRole('button', {name:'↑'}));
+  check('subir o segundo troca com o primeiro', await nomes() === 'card-02.jpg,card-01.jpg,card-03.jpg', await nomes());
+  check('e a numeração acompanha',
+    (await carrossel.locator('.tira .numero').allTextContents()).join(',') === '1,2,3');
+  const ordens = await page.evaluate(() => window.__gravacoes
+    .filter(g => g.tabela === 'conteudo_arquivos' && g.valores && 'ordem' in g.valores));
+  check('grava a ordem nova no banco', ordens.length >= 2, JSON.stringify(ordens));
+  // Gravar o que nao mudou e escrita a toa no banco a cada clique.
+  check('e não grava o que não mudou', ordens.length === 2, String(ordens.length));
+
+  console.log('\n--- subir arquivo novo ---');
+  const antesUp = await page.evaluate(() => window.__storage.filter(s => s.acao === 'upload').length);
+  await carrossel.locator('.subir input[type=file]').setInputFiles({
+    name:'card-04.jpg', mimeType:'image/jpeg', buffer: Buffer.from('conteudo falso da arte'),
+  });
+  await page.waitForTimeout(700);
+  const up = await page.evaluate(() => window.__storage.filter(s => s.acao === 'upload'));
+  check('subiu o arquivo', up.length === antesUp + 1, String(up.length));
+  check('para a área certa', up[up.length-1].balde === 'conteudos');
+  // O caminho comeca pelo cliente e pela peca: nunca misturar o material de
+  // dois clientes na mesma pasta.
+  check('num caminho separado por cliente e peça',
+    /^1\/3\//.test(up[up.length-1].caminho), up[up.length-1].caminho);
+  check('aparece como o quarto card', await carrossel.locator('.tira').count() === 4);
+  check('e entra no FIM do carrossel, sem embaralhar o resto',
+    (await nomes()).endsWith('card-04.jpg'), await nomes());
+  const fichas = await page.evaluate(() => window.__gravacoes
+    .filter(g => g.tabela === 'conteudo_arquivos' && g.acao === 'insert'));
+  check('gravou a ficha do arquivo', fichas.length === 1, JSON.stringify(fichas.length));
+  check('com o tipo, o nome e o tamanho',
+    fichas[0].linhas[0].tipo === 'imagem' && fichas[0].linhas[0].nome === 'card-04.jpg'
+      && fichas[0].linhas[0].tamanho > 0, JSON.stringify(fichas[0].linhas[0]));
+  console.log('\n--- arquivo recusado explica o porque ---');
+  await carrossel.locator('.subir input[type=file]').setInputFiles({
+    name:'briefing.pdf', mimeType:'application/pdf', buffer: Buffer.from('nao e imagem'),
+  });
+  await page.waitForTimeout(600);
+  check('PDF é recusado', await carrossel.locator('.tira').count() === 4, String(await carrossel.locator('.tira').count()));
+  // Recusar em silencio e o mesmo que falhar em silencio.
+  check('e a tela diz por quê', await carrossel.getByText(/briefing\.pdf/).count() === 1);
+  check('dizendo o que serve', await carrossel.getByText(/JPG, PNG/).count() >= 1);
+  check('e nada foi enviado para a área de arquivos',
+    (await page.evaluate(() => window.__storage.filter(s => s.acao === 'upload').length)) === up.length);
+
+  console.log('\n--- remover arquivo ---');
+  await clicar(carrossel.locator('.tira').first().getByRole('button', {name:'×'}));
+  check('pede confirmação', await carrossel.locator('.tira').first().getByRole('button', {name:'Apagar'}).count() === 1);
+  const antesDel = await page.evaluate(() => window.__gravacoes.filter(g => g.acao === 'delete').length);
+  await clicar(carrossel.locator('.tira').first().getByRole('button', {name:'Não'}));
+  check('desistir não apaga nada',
+    (await page.evaluate(() => window.__gravacoes.filter(g => g.acao === 'delete').length)) === antesDel);
+  check('e os 4 continuam lá', await carrossel.locator('.tira').count() === 4);
+
+  await clicar(carrossel.locator('.tira').first().getByRole('button', {name:'×'}));
+  await clicar(carrossel.locator('.tira').first().getByRole('button', {name:'Apagar'}));
+  await page.waitForTimeout(500);
+  check('confirmar remove da lista', await carrossel.locator('.tira').count() === 3,
+    String(await carrossel.locator('.tira').count()));
+  check('apaga a ficha no banco',
+    (await page.evaluate(() => window.__gravacoes.filter(g => g.tabela==='conteudo_arquivos' && g.acao==='delete').length)) === 1);
+  // Apagar so a ficha deixaria o arquivo ocupando espaco para sempre, sem
+  // ninguem conseguir ver nem apagar.
+  check('E apaga o arquivo de verdade',
+    (await page.evaluate(() => window.__storage.filter(s => s.acao === 'remove').length)) === 1);
+  check('e a numeração fecha o buraco',
+    (await carrossel.locator('.tira .numero').allTextContents()).join(',') === '1,2,3');
+
+  await clicar(carrossel.getByRole('button', {name:'Fechar arquivos'}));
+  check('fecha o painel', await carrossel.locator('.arquivos').count() === 0);
+  // Comecou com 3, subiu 1, apagou 1: o contador tem que acompanhar as duas.
+  check('e o contador do botão acompanhou',
+    (await carrossel.getByRole('button', {name:/^Arquivos/}).textContent()).includes('3'),
+    await carrossel.getByRole('button', {name:/^Arquivos/}).textContent());
+
+  console.log('\n--- peca sem arquivo nenhum ---');
+  const semArq = page.locator('.row', {hasText:'Stories da semana'}).first();
+  check('o botão não mostra número', !(await semArq.getByRole('button', {name:/^Arquivos/}).textContent()).match(/\d/));
+  await clicar(semArq.getByRole('button', {name:/^Arquivos/}));
+  check('e o painel convida a subir', await semArq.getByText(/Nenhum arquivo ainda/).count() === 1);
+  await clicar(semArq.getByRole('button', {name:'Fechar arquivos'}));
+
   console.log('\n--- mover o status ---');
   const antesGrav = await page.evaluate(() => window.__gravacoes.length);
   await clicar(carrossel.getByRole('button', {name:'O cliente aprovou'}));
@@ -262,8 +375,14 @@ require('./monta-aprovacao.js');
   check('novembro está vazio e diz isso',
     await page.getByText(/Nenhum conteúdo planejado para Novembro de 2026/).count() === 1);
   check('e convida a criar', await page.getByText(/Clique em/).count() === 1);
-  check('a barra não inventa 0%',
-    /Nada planejado para este mês ainda/.test(await page.locator('.progresso .pctxt').textContent()));
+  /* Num mes vazio nao ha painel, nem barra, nem filtros. Cinco cartoes
+     escritos "0" e cinco seletores de nada so atrapalhariam a unica coisa
+     que importa ali: o botao de criar a primeira peca. */
+  check('mês vazio não mostra cartões de zero', await page.locator('.cards').count() === 0);
+  check('nem barra de progresso',              await page.locator('.progresso').count() === 0);
+  check('nem filtros para filtrar nada',       await page.locator('.filtros').count() === 0);
+  check('mas o botão de criar continua lá',
+    await page.getByRole('button', {name:'+ Novo conteúdo'}).count() === 1);
 
   await clicar(page.locator('#b-erro'));
   await page.waitForTimeout(350);

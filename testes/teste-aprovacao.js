@@ -30,7 +30,8 @@ const sandbox = {
 sandbox.window.window = sandbox.window;
 const fn = new Function('React','ReactDOM','window','document','navigator',
   compilado + '\n; return {mesDe, mesDeHoje, mesVizinho, nomeDoMes, passaAprov, resumoAprovacao, ' +
-  'APROV_STATUS, APROV_CAMINHOS, APROV_FORMATOS, APROV_FILTRO_VAZIO, APROV_AGUARDANDO, APROV_EM_AJUSTE, aprovErro};');
+  'APROV_STATUS, APROV_CAMINHOS, APROV_FORMATOS, APROV_FILTRO_VAZIO, APROV_AGUARDANDO, APROV_EM_AJUSTE, aprovErro, ' +
+  'tamanhoLegivel, arquivoAceito, caminhoDoArquivo, espacoUsado, trocarOrdem, ARQ_LIMITE, ARQ_TIPOS};');
 const A = fn(sandbox.React, sandbox.ReactDOM, sandbox.window, sandbox.document, sandbox.navigator);
 
 const r = [];
@@ -251,6 +252,99 @@ check('tabela de link faltando tambem',
 // migracao" esconderia o problema de verdade.
 check('outro erro passa inteiro',
   A.aprovErro('permission denied for table conteudos') === 'permission denied for table conteudos');
+
+/* ============================================================
+   6. OS ARQUIVOS (etapa 2)
+   ============================================================ */
+console.log('\n--- tamanho em linguagem de gente ---');
+check('900 bytes',      A.tamanhoLegivel(900) === '900 B', A.tamanhoLegivel(900));
+check('meio mega',      A.tamanhoLegivel(512000) === '500 KB', A.tamanhoLegivel(512000));
+check('1,4 MB com virgula', A.tamanhoLegivel(1468006) === '1,4 MB', A.tamanhoLegivel(1468006));
+check('30 MB de um Reel', A.tamanhoLegivel(31457280) === '30,0 MB', A.tamanhoLegivel(31457280));
+check('1 GB',           A.tamanhoLegivel(1073741824) === '1,00 GB', A.tamanhoLegivel(1073741824));
+// Numero cru em byte nao diz nada; zero ou lixo tem que virar travessao, e
+// nao "NaN B" na cara do usuario.
+check('zero vira travessao',  A.tamanhoLegivel(0) === '—');
+check('nulo vira travessao',  A.tamanhoLegivel(null) === '—');
+check('lixo vira travessao',  A.tamanhoLegivel('abc') === '—');
+
+console.log('\n--- o que pode subir ---');
+const arq = (nome, tipo, tam) => ({name:nome, type:tipo, size:tam});
+check('JPG passa',  A.arquivoAceito(arq('arte.jpg','image/jpeg', 500000)).ok === true);
+check('PNG passa',  A.arquivoAceito(arq('card.png','image/png', 500000)).ok === true);
+check('WEBP passa', A.arquivoAceito(arq('a.webp','image/webp', 500000)).ok === true);
+check('GIF passa',  A.arquivoAceito(arq('a.gif','image/gif', 500000)).ok === true);
+check('MP4 passa',  A.arquivoAceito(arq('reel.mp4','video/mp4', 30000000)).ok === true);
+check('MOV passa',  A.arquivoAceito(arq('reel.mov','video/quicktime', 30000000)).ok === true);
+check('imagem e marcada como imagem', A.arquivoAceito(arq('a.jpg','image/jpeg',1)).tipo === 'imagem');
+check('video e marcado como video',   A.arquivoAceito(arq('a.mp4','video/mp4',1)).tipo === 'video');
+
+console.log('\n--- e o que NAO pode, com o motivo ---');
+const pdf = A.arquivoAceito(arq('briefing.pdf','application/pdf', 100000));
+check('PDF e recusado', pdf.ok === false);
+check('e o motivo diz o nome do arquivo', /briefing\.pdf/.test(pdf.motivo), pdf.motivo);
+check('e diz o que serve',  /JPG, PNG/.test(pdf.motivo));
+const psd = A.arquivoAceito(arq('arte.psd','', 100000));
+check('arquivo sem tipo e recusado', psd.ok === false);
+check('e nao quebra a mensagem', /desconhecido/.test(psd.motivo), psd.motivo);
+
+const grande = A.arquivoAceito(arq('filme.mp4','video/mp4', A.ARQ_LIMITE + 1));
+check('acima do limite e recusado', grande.ok === false);
+// Recusar sem dizer o tamanho deixa a pessoa adivinhando quanto cortar.
+check('e o motivo diz o tamanho dele e o limite',
+  /50,0 MB/.test(grande.motivo) && /filme\.mp4/.test(grande.motivo), grande.motivo);
+check('exatamente no limite ainda passa',
+  A.arquivoAceito(arq('no-limite.mp4','video/mp4', A.ARQ_LIMITE)).ok === true);
+check('nenhum arquivo e recusado sem explicacao',
+  A.arquivoAceito(null).ok === false && A.arquivoAceito(null).motivo.length > 10);
+
+console.log('\n--- o caminho dentro da area de arquivos ---');
+const cam = A.caminhoDoArquivo(1, 34, 'Arte Final — Setembro (v2).jpg');
+check('comeca pelo cliente e pela peca', /^1\/34\//.test(cam), cam);
+check('tira acento e espaco',  !/[ áéíóúãõçÁ—]/.test(cam), cam);
+check('guarda a extensao',     /\.jpg$/.test(cam), cam);
+// Duas artes com o MESMO nome nao podem se sobrescrever — seria perder a
+// arte de uma peca ao subir a de outra.
+const a1 = A.caminhoDoArquivo(1, 34, 'capa.jpg');
+const a2 = A.caminhoDoArquivo(1, 34, 'capa.jpg');
+check('dois arquivos de mesmo nome nao colidem', a1 !== a2, a1 + ' vs ' + a2);
+check('cliente diferente, pasta diferente',
+  A.caminhoDoArquivo(2, 34, 'capa.jpg').startsWith('2/34/'));
+check('nome vazio nao gera caminho quebrado',
+  /^1\/34\/[a-z0-9]+-arquivo$/.test(A.caminhoDoArquivo(1, 34, '')),
+  A.caminhoDoArquivo(1, 34, ''));
+
+console.log('\n--- o espaco usado ---');
+const e0 = A.espacoUsado([]);
+check('sem arquivo, zero',        e0.usado === 0 && e0.pct === 0);
+check('e nao esta apertado',      e0.apertado === false);
+const e1 = A.espacoUsado([{tamanho:500*1024*1024}, {tamanho:100*1024*1024}]);
+check('soma os tamanhos',         e1.pct === 59, String(e1.pct));
+check('com 59% nao avisa',        e1.apertado === false);
+const e2 = A.espacoUsado([{tamanho:900*1024*1024}]);
+check('com 88% avisa',            e2.apertado === true, String(e2.pct));
+check('o texto diz usado e total',/de 1,00 GB/.test(e2.texto), e2.texto);
+check('tamanho nulo nao vira NaN',
+  A.espacoUsado([{tamanho:null}, {tamanho:1024}]).usado === 1024);
+
+console.log('\n--- a ordem do carrossel ---');
+const cards = [{id:10, ordem:0}, {id:20, ordem:1}, {id:30, ordem:2}];
+const subiu = A.trocarOrdem(cards, 20, -1);
+check('subir troca com o de cima', subiu.map(a=>a.id).join(',') === '20,10,30', subiu.map(a=>a.id).join(','));
+check('e renumera de 0 em diante', subiu.map(a=>a.ordem).join(',') === '0,1,2');
+const desceu = A.trocarOrdem(cards, 20, 1);
+check('descer troca com o de baixo', desceu.map(a=>a.id).join(',') === '10,30,20');
+// Sem isso, clicar em "subir" no primeiro tiraria o card da lista.
+check('o primeiro nao sobe',  A.trocarOrdem(cards, 10, -1) === null);
+check('o ultimo nao desce',   A.trocarOrdem(cards, 30, 1) === null);
+check('id que nao existe nao faz nada', A.trocarOrdem(cards, 99, 1) === null);
+check('a lista original nao e alterada', cards.map(a=>a.id).join(',') === '10,20,30');
+// Numeracao com buracos e empates acontece depois de remover arquivos.
+// Renumerar sempre e o que impede a ordem de embaralhar sozinha.
+const bagunca = [{id:1, ordem:5}, {id:2, ordem:5}, {id:3, ordem:9}];
+const arrumado = A.trocarOrdem(bagunca, 3, -1);
+check('ordem com buraco e empate e renumerada',
+  arrumado.map(a=>a.ordem).join(',') === '0,1,2', arrumado.map(a=>a.ordem).join(','));
 
 console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
 process.exit(r.every(Boolean) ? 0 : 1);

@@ -79,6 +79,21 @@ const PECAS = [
    responsavel:null, criado_em:'2026-08-30T10:00:00Z'},
 ];
 
+// Um PNG e um MP4 minusculos, em base64, para o duble devolver como se
+// fossem a arte de verdade. Sao arquivos validos: a tag <img> desenha.
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+const ARQUIVOS = [
+  {id:1, conteudo_id:3, versao:1, tipo:'imagem', caminho:'1/3/aaa-card-01.jpg',
+   nome:'card-01.jpg', tamanho:  480000, ordem:0, criado_em:'2026-09-01T10:00:00Z'},
+  {id:2, conteudo_id:3, versao:1, tipo:'imagem', caminho:'1/3/bbb-card-02.jpg',
+   nome:'card-02.jpg', tamanho:  512000, ordem:1, criado_em:'2026-09-01T10:00:00Z'},
+  {id:3, conteudo_id:3, versao:1, tipo:'imagem', caminho:'1/3/ccc-card-03.jpg',
+   nome:'card-03.jpg', tamanho:  495000, ordem:2, criado_em:'2026-09-01T10:00:00Z'},
+  {id:4, conteudo_id:7, versao:2, tipo:'video',  caminho:'1/7/ddd-reel.mp4',
+   nome:'reel.mp4',    tamanho:31457280, ordem:0, criado_em:'2026-09-01T10:00:00Z'},
+];
+
 const EVENTOS = [
   {id:1, conteudo_id:3, de:null,        para:'rascunho',   quem:'Bruno', criado_em:'2026-08-30T10:00:00Z'},
   {id:2, conteudo_id:3, de:'rascunho',  para:'em_revisao', quem:'Bruno', criado_em:'2026-09-01T11:00:00Z'},
@@ -99,7 +114,12 @@ const pagina = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <script src="./node_modules/@babel/standalone/babel.min.js"></script>
 <script>
   window.__pecas = ${JSON.stringify(PECAS)};
+  window.__pecasOriginais = ${JSON.stringify(PECAS)};
   window.__eventos = ${JSON.stringify(EVENTOS)};
+  window.__arquivos = ${JSON.stringify(ARQUIVOS)};
+  window.__arquivosOriginais = ${JSON.stringify(ARQUIVOS)};
+  window.__storage = [];              // o que foi subido/removido de verdade
+  window.__pngFalso = '${PNG_1PX}';
   window.__gravacoes = [];
   window.__erro = null;
   let proximoId = 100;
@@ -109,12 +129,18 @@ const pagina = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
      deixaria passar um insert que perde campo pelo caminho. */
   function tabela(nome){
     const dados = () => nome === 'conteudos' ? window.__pecas
-                      : nome === 'conteudo_eventos' ? window.__eventos : [];
+                      : nome === 'conteudo_eventos' ? window.__eventos
+                      : nome === 'conteudo_arquivos' ? window.__arquivos : [];
     let filtradas = null;
     const api = {
       select(){ filtradas = dados().slice(); return api; },
       eq(campo, valor){
         if(filtradas) filtradas = filtradas.filter(l => String(l[campo]) === String(valor));
+        return api;
+      },
+      in(campo, valores){
+        const alvo = (valores || []).map(String);
+        if(filtradas) filtradas = filtradas.filter(l => alvo.includes(String(l[campo])));
         return api;
       },
       order(campo, opc){
@@ -150,10 +176,39 @@ const pagina = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
           return Promise.resolve({error:null});
         }};
       },
+      delete(){
+        return { eq(campo, valor){
+          window.__gravacoes.push({tabela:nome, acao:'delete', id:valor});
+          const restam = dados().filter(l => String(l[campo]) !== String(valor));
+          if(nome === 'conteudo_arquivos') window.__arquivos = restam;
+          return Promise.resolve({error:null});
+        }};
+      },
     };
   }
+  /* Area de arquivos de mentira. Registra tudo e devolve uma "chave de
+     visita" falsa apontando para um PNG de 1 pixel, para a tag <img>
+     realmente desenhar alguma coisa no teste. */
+  const storage = (balde) => ({
+    async upload(caminho, arquivo, opc){
+      window.__storage.push({acao:'upload', balde, caminho, nome:arquivo.name,
+                             tamanho:arquivo.size, tipo:(opc||{}).contentType});
+      if(window.__falharUpload) return {data:null, error:{message:'deu ruim no upload'}};
+      return {data:{path:caminho}, error:null};
+    },
+    async remove(caminhos){
+      window.__storage.push({acao:'remove', balde, caminhos});
+      return {data:null, error:null};
+    },
+    async createSignedUrls(caminhos, validade){
+      window.__storage.push({acao:'assinar', balde, caminhos, validade});
+      return {data: caminhos.map(p => ({path:p, signedUrl: window.__pngFalso})), error:null};
+    },
+  });
+
   window.supabase = { createClient: () => ({
     from: tabela,
+    storage: { from: storage },
     auth: { getSession: () => Promise.resolve({data:{session:null}}), onAuthStateChange: () => ({data:{subscription:{unsubscribe(){}}}}) },
   })};
 </script>

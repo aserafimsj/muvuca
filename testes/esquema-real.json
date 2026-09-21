@@ -176,6 +176,10 @@
     "link_id",
     "conteudo_id"
    ]
+  },
+  "_area_de_arquivos": {
+   "migracao": "MIGRACAO-ARQUIVOS.md",
+   "_nota": "Nao e tabela: e o balde 'conteudos' do Storage do Supabase, criado pelo MIGRACAO-ARQUIVOS.md. Fica registrado aqui para o teste conferir que o guia existe e cria o balde fechado."
   }
  },
  "_sem_dump": {

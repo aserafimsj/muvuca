@@ -111,6 +111,11 @@ function consulta(tabela){
   const api = {
     select(){ return api; },
     eq(campo, valor){ linhas = linhas.filter(l => String(l[campo]) === String(valor)); return api; },
+    in(campo, valores){
+      const alvo = (valores || []).map(String);
+      linhas = linhas.filter(l => alvo.includes(String(l[campo])));
+      return api;
+    },
     order(){ return api; },
     limit(){ return api; },
     maybeSingle(){ return Promise.resolve({data: linhas[0] || null, error: null}); },
@@ -119,7 +124,18 @@ function consulta(tabela){
   };
   return api;
 }
+/* Area de arquivos de mentira. O App inteiro so precisa que ela exista e
+   nao exploda; quem testa upload de verdade e a bancada da Aprovacao. */
+const storageFalso = () => ({
+  async upload(caminho){ return {data:{path:caminho}, error:null}; },
+  async remove(){ return {data:null, error:null}; },
+  async createSignedUrls(caminhos){
+    return {data: caminhos.map(p => ({path:p, signedUrl:'about:blank'})), error:null};
+  },
+});
+
 window.supabase = { createClient: () => ({
+  storage: { from: storageFalso },
   from(tabela){
     return {
       select: () => consulta(tabela),
