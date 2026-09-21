@@ -701,6 +701,70 @@ function serieDiariaPor(itens, valorDe){
   return {dias, series};
 }
 
+/* ---------- exportação CSV ----------
+   Função pura: recebe os comentários e devolve o texto do arquivo. Fora do
+   componente para poder ser testada sem navegador. */
+
+// Como o estado de trabalho sai no arquivo. Sem rótulo, "Pendente" viraria
+// vazio, e "Ignorar" não diz nada para quem abre a planilha depois.
+const SITUACAO_CSV = {
+  'Pendente':'Na fila', 'Respondido':'Respondido',
+  'Ignorar':'Não responder', 'Lixeira':'Na lixeira',
+};
+
+function paraCSV(itens, cfg){
+  const nomeDe = (lista, id) => lista.find(x => x.id === id)?.nome || '';
+  const colunas = [
+    'situacao','data_publicacao','rede','origem','post','autor','texto',
+    'sentimento','produto','editoria','resposta',
+    'ia_recomendacao','ia_motivo','ia_juridico','ia_analisado_em',
+  ];
+
+  /* Toda célula sai entre aspas, e aspas de dentro viram aspas duplas. É o
+     que protege o texto do comentário: ponto e vírgula, quebra de linha e
+     aspas dentro dele deixam de partir o arquivo em colunas erradas. */
+  const esc = v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g,'""') + '"';
+
+  const linhas = itens.map(i => [
+    SITUACAO_CSV[i.triagem || 'Pendente'] || i.triagem,
+    i.data_publicacao || '',
+    nomeDe(cfg.redes, i.rede_id),
+    i.origem || '',
+    i.link_conteudo || '',
+    i.autor || '',
+    i.texto || '',
+    nomeDe(cfg.sentimentos, i.sentimento_id),
+    nomeDe(cfg.produtos, i.produto_id),
+    nomeDe(cfg.editorias, i.editoria_id),
+    i.resposta || '',
+    IA_TRIAGEM[i.ia_triagem]?.label || '',
+    i.ia_motivo || '',
+    // Vazio quando a IA nunca olhou: "não" daria a entender que ela avaliou
+    // e concluiu que não era sensível, o que é diferente de não ter olhado.
+    i.ia_em ? (i.ia_juridico ? 'sim' : 'não') : '',
+    i.ia_em || '',
+  ].map(esc).join(';'));
+
+  /* Duas escolhas para o arquivo abrir certo ao ser clicado duas vezes:
+
+     ";" em vez de "," — no Excel em português o separador de lista é ponto e
+     vírgula, e um arquivo com vírgula abre com tudo amontoado numa coluna só.
+     (O Zmetrics usa vírgula; aqui não, de propósito.)
+
+     "﻿" na frente é a marca que diz ao Excel que o texto está em UTF-8.
+     Sem ela, "Dúvida" vira "DÃºvida". */
+  return '﻿' + [colunas.join(';'), ...linhas].join('\r\n');
+}
+
+function baixarCSV(texto, nome){
+  const blob = new Blob([texto], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Encurta um link comprido para caber na lista, mantendo o começo e o fim —
 // cortar só o fim deixaria vários posts do mesmo perfil com o mesmo rótulo.
 function rotuloPost(p){
@@ -1711,6 +1775,16 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
         <div><h1>Community management</h1><p>Comentários e DMs</p></div>
         <div style={{display:'flex',gap:8,flexShrink:0}}>
           <button className="btn" disabled={!podeIA} title={podeIA?'':'A IA já analisou todos os comentários'} onClick={()=>{setMostrarIA(!mostrarIA); setMostrarAdd(false); setMostrarColar(false);}}>{mostrarIA?'Fechar':'Classificar com IA'+(semClass?' ('+semClass+')':'')}</button>
+          {/* Exporta o que está na tela — a aba aberta com os filtros ligados.
+              O número no botão deixa isso explícito: exportar em silêncio o
+              acervo inteiro quando a pessoa filtrou três comentários seria
+              surpresa desagradável na planilha. */}
+          <button className="btn" disabled={!vis.length}
+            title={vis.length ? 'Baixa os comentários que estão na tela' : 'Nada para exportar'}
+            onClick={()=>baixarCSV(paraCSV(vis, cfg),
+              `muvuca_${abaAtual.id}_${new Date().toISOString().slice(0,10)}.csv`)}>
+            Exportar {vis.length}
+          </button>
           <button className="btn" onClick={()=>{setMostrarColar(!mostrarColar); setMostrarAdd(false); setMostrarIA(false);}}>{mostrarColar?'Fechar':'Colar em lote'}</button>
           <button className="btn brand" onClick={()=>{setMostrarAdd(!mostrarAdd); setMostrarColar(false);}}>{mostrarAdd?'Fechar':'+ Adicionar'}</button>
         </div>

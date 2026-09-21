@@ -162,6 +162,44 @@ require('./monta-bancada.js');
   const iaFinal = (await page.getByRole('button', {name:/Classificar com IA/}).textContent()).trim();
   check('restaurado entra na fila da IA', iaFinal.includes('(2)'), iaFinal);
 
+  console.log('\n--- exportar CSV (etapa 5) ---');
+  // No Historico, que a esta altura tem 6: os comentarios ja andaram bastante
+  // nos testes acima, entao filtro por texto, que nao depende do estado deles.
+  await irPara('Histórico');
+  const btnExp = () => page.getByRole('button', {name:/^Exportar/});
+  check('o botao mostra quantos vai exportar',
+    /Exportar \d+/.test(await btnExp().textContent()), (await btnExp().textContent()).trim());
+  const antesDoFiltro = Number((await btnExp().textContent()).replace(/\D/g,''));
+  check('e esse numero e o da lista', antesDoFiltro === await linhas(), `${antesDoFiltro} vs ${await linhas()}`);
+
+  // Filtrar tem que mudar o que sai no arquivo — exportar o acervo inteiro em
+  // silencio depois de filtrar seria surpresa desagradavel na planilha.
+  await page.locator('.filters input').first().fill('boa noite');
+  await page.waitForTimeout(300);
+  const depoisDoFiltro = Number((await btnExp().textContent()).replace(/\D/g,''));
+  check('filtrar muda o que sera exportado', depoisDoFiltro === 1 && depoisDoFiltro < antesDoFiltro,
+    `${antesDoFiltro} -> ${depoisDoFiltro}`);
+
+  const baixa = page.waitForEvent('download', {timeout:10000});
+  await btnExp().click();
+  const arquivo = await baixa;
+  check('o clique baixa um arquivo', !!arquivo);
+  check('o nome diz a aba e a data',
+    /^muvuca_[a-z_]+_\d{4}-\d{2}-\d{2}\.csv$/.test(arquivo.suggestedFilename()),
+    arquivo.suggestedFilename());
+
+  const destino = path.join(__dirname, 'exportado.csv');
+  await arquivo.saveAs(destino);
+  const conteudo = require('fs').readFileSync(destino, 'utf8');
+  check('o arquivo tem a marca de UTF-8', conteudo.charCodeAt(0) === 0xFEFF);
+  check('tem cabecalho + so o que estava filtrado',
+    conteudo.trim().split('\r\n').length === depoisDoFiltro + 1,
+    conteudo.trim().split('\r\n').length + ' linhas');
+  require('fs').unlinkSync(destino);
+
+  await page.getByRole('button', {name:'Limpar filtros'}).click();
+  await page.waitForTimeout(250);
+
   check('nenhum erro de execucao no console', erros.length === 0, erros.slice(0,2).join(' | '));
 
   await irPara('Comentários a responder');

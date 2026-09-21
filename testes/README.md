@@ -27,6 +27,7 @@ npm run teste
 | `valida-jsx.js` | Se o `index.html` compila. Pega erro de digitação que deixaria a tela branca. |
 | `teste-classify.js` | A função da IA contra respostas simuladas: boa, cortada no meio, recusada, sem JSON, JSON inválido, erro da Anthropic e gateway quebrado. Nenhuma pode virar falha silenciosa. |
 | `teste-filtros.js` | A regra "este comentário passa no filtro?" sem navegador. Cobre os casos chatos: comentário sem data num recorte de datas, campo vazio que não pode virar coringa, filtros somados com E e não OU. |
+| `teste-csv.js` | A exportação CSV sem navegador. O caso central é o comentário com ponto e vírgula, aspas e quebra de linha dentro do texto: o teste escreve o arquivo, lê de volta com um leitor de CSV de verdade e confere que tudo voltou inteiro. Arquivo quebrado assim ainda *abre* na planilha — só abre errado, e ninguém percebe. |
 | `teste-dashboard.js` | As contas do relatório sem navegador: os onze recortes de período, o agrupamento e a série diária. Número errado em relatório não aparece como erro — aparece como um número plausível e errado. |
 | `monta-dash.js` / `roda-dash.js` | Montam e testam o dashboard num navegador real, com 55 comentários espalhados em 40 dias, dois dias parados de propósito, três sem data e um na lixeira. Conferem que as somas fecham e que a lixeira não entra na conta. |
 | `monta-bancada.js` | Monta uma página de teste com a tela do Community, dados falsos e um Supabase de mentira. |
