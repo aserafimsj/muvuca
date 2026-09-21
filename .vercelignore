@@ -1,0 +1,8 @@
+# A pasta de testes NUNCA vai para a hospedagem.
+#
+# Não é só economia de espaço: o MUVUCA é um site estático com uma função ao
+# lado, e a Vercel decide isso olhando a raiz do projeto. Um package.json que
+# escape para lá faz a Vercel concluir que o projeto precisa de compilação e
+# a publicação quebra. Os testes têm package.json próprio, dentro de testes/,
+# e esta linha garante que ele não chegue perto da publicação.
+testes/

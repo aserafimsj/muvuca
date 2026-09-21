@@ -1,0 +1,14 @@
+{
+  "name": "muvuca-testes",
+  "private": true,
+  "description": "Bancada de teste do MUVUCA. Fica FORA da publicacao (ver ../.vercelignore).",
+  "scripts": {
+    "teste": "node valida-jsx.js && node teste-classify.js && node monta-bancada.js && node roda-bancada.js"
+  },
+  "devDependencies": {
+    "@babel/standalone": "^7.23.2",
+    "playwright": "^1.40.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

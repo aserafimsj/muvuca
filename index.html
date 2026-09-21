@@ -77,8 +77,26 @@
   .ctrl select{width:auto;min-width:120px}
   .sentbox{display:flex;align-items:center;gap:6px}
   .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-  .reply{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .reply{margin-top:10px;display:flex;flex-direction:column;gap:6px}
   .reply textarea{min-height:64px;resize:vertical}
+  /* --- cartão do comentário (etapa 1: estrutura do Zmetrics, cores do MUVUCA) --- */
+  .txtedit{font-size:13px;color:#4a4a46;line-height:1.5;resize:vertical;min-height:40px;
+    padding:7px 9px;background:#FCFCFA;margin-top:2px}
+  .iatags{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .pill{font-size:11px;font-weight:600;border:1px solid;border-radius:999px;padding:2px 9px}
+  .iatags .motivo{font-size:12px;color:var(--muted)}
+  .campos{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .campo{flex:1 1 130px;min-width:0}
+  .campo>span,.lblcampo{display:block;font-size:10.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+  .campo input,.campo select{width:100%;padding:6px 8px;font-size:13px}
+  .reply .acoes{display:flex;gap:8px;flex-wrap:wrap}
+  .avisoerro{font-size:12.5px;color:var(--neg);background:#FDEDEC;border-radius:6px;padding:7px 9px}
+  @media(max-width:760px){
+    .row{flex-wrap:wrap}
+    .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
+    .campo{flex:1 1 100%}
+  }
   .addwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
   .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
   .field{display:flex;flex-direction:column;gap:4px}
@@ -375,44 +393,150 @@ function Onboarding({user, onDone}){
 /* ============================================================
    COMMUNITY MANAGEMENT (linha, formulário e listagem)
    ============================================================ */
-function Linha({it, cfg, onCampo}){
-  const [aberto, setAberto] = useState(false);
+// Como a recomendação da IA aparece na tela. É informativa: diz o que a IA
+// acha que fazer com o comentário. Não confundir com a coluna "triagem", que
+// é o SEU estado de trabalho (Pendente / Respondido / Ignorar).
+const IA_TRIAGEM = {
+  responder:     {label:'IA: responder',    cor:'#185FA5'},
+  curtir:        {label:'IA: só curtir',    cor:'#1E9E6A'},
+  nao_responder: {label:'IA: não responder',cor:'#8A8F98'},
+};
+
+// Campo de texto que só grava quando você sai dele. Gravar a cada tecla
+// digitada dispararia uma escrita no banco por letra.
+function CampoTexto({rotulo, valor, onGravar, tipo='text', dica}){
+  const [v, setV] = useState(valor || '');
+  useEffect(()=>{ setV(valor || ''); },[valor]);
+  return (
+    <label className="campo">
+      <span>{rotulo}</span>
+      <input type={tipo} value={v} placeholder={dica||''}
+        onChange={e=>setV(e.target.value)}
+        onBlur={()=>{ const novo = v.trim(); if(novo !== String(valor||'')) onGravar(novo || null); }} />
+    </label>
+  );
+}
+
+function Linha({it, cfg, onCampo, onGerarResposta}){
   const [resp, setResp] = useState(it.resposta || "");
+  const [texto, setTexto] = useState(it.texto || "");
+  const [gerando, setGerando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState('');
   useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
+  useEffect(()=>{ setTexto(it.texto || ""); },[it.texto]);
+
   const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
-  const rede = cfg.redes.find(r=>r.id===it.rede_id);
-  const prod = cfg.produtos.find(pp=>pp.id===it.produto_id);
-  const edit = cfg.editorias.find(e=>e.id===it.editoria_id);
+  const iaRec = IA_TRIAGEM[it.ia_triagem];
+  const naoSalvo = resp !== (it.resposta || '');
+
+  async function gerar(){
+    setGerando(true); setAviso('');
+    const r = await onGerarResposta(it);
+    setGerando(false);
+    if(r.erro) setAviso(r.erro);
+  }
+
+  async function copiar(){
+    try {
+      await navigator.clipboard.writeText(resp);
+      setCopiado(true); setTimeout(()=>setCopiado(false), 1600);
+    } catch(e){
+      setAviso('O navegador bloqueou a cópia. Selecione o texto e use Ctrl+C.');
+    }
+  }
+
   return (
     <div className="row">
       <div className="av">{iniciais(it.autor)}</div>
       <div className="body">
         <div className="meta">
           <span className="who">{it.autor || 'Sem autor'}</span>
-          {rede && <span className="net">· {rede.nome}</span>}
           {it.origem && <span className="tag">{it.origem}</span>}
-          {prod && <span className="prod">· {prod.nome}</span>}
-          {edit && <span className="tag">{edit.nome}</span>}
+          {it.link_conteudo && /^https?:\/\//i.test(it.link_conteudo) &&
+            <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
         </div>
-        <div className="txt">{it.texto}</div>
-        {it.link_conteudo && <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
-        <div>
-          <button className="btn" style={{marginTop:10,padding:'5px 10px'}} onClick={()=>setAberto(!aberto)}>
-            {it.resposta ? 'Editar resposta' : 'Responder'}
-          </button>
-        </div>
-        {aberto && (
-          <div className="reply">
-            <textarea value={resp} onChange={e=>setResp(e.target.value)} placeholder="Escreva a resposta sugerida…" />
-            <div>
-              <button className="btn brand" style={{padding:'6px 12px'}}
-                onClick={async()=>{ await onCampo(it.id,'resposta',resp); await onCampo(it.id,'triagem','Respondido'); setAberto(false); }}>
-                Salvar resposta
-              </button>
-            </div>
+
+        {/* Editável: texto colado do Instagram costuma vir torto e antes não
+            havia como corrigir sem apagar e recriar o comentário.
+            Grava ao sair do campo — a cada tecla seria uma escrita no banco
+            por letra digitada. */}
+        <textarea className="txtedit" value={texto} rows={2}
+          onChange={e=>setTexto(e.target.value)}
+          onBlur={()=>{ if(texto !== (it.texto||'')) onCampo(it.id,'texto', texto); }}
+          placeholder="texto do comentário" />
+
+        {(iaRec || it.ia_juridico || it.ia_motivo) && (
+          <div className="iatags">
+            {iaRec && <span className="pill" style={{color:iaRec.cor, borderColor:iaRec.cor+'55', background:iaRec.cor+'14'}}>{iaRec.label}</span>}
+            {it.ia_juridico && <span className="pill" style={{color:'#B5852A', borderColor:'#B5852A55', background:'#B5852A14'}}>Jurídico/STN</span>}
+            {it.ia_motivo && <span className="motivo">· {it.ia_motivo}</span>}
           </div>
         )}
+
+        <div className="campos">
+          <CampoTexto rotulo="Usuário (@)" valor={it.autor} dica="sem @"
+            onGravar={v=>onCampo(it.id,'autor', v && v.replace(/^@+/,''))} />
+          <CampoTexto rotulo="Post" valor={it.link_conteudo} dica="link ou nome do post"
+            onGravar={v=>onCampo(it.id,'link_conteudo', v)} />
+          <CampoTexto rotulo="Data do comentário" valor={it.data_coment} tipo="date"
+            onGravar={v=>onCampo(it.id,'data_coment', v)} />
+        </div>
+
+        <div className="campos">
+          <label className="campo"><span>Rede</span>
+            <select value={it.rede_id || ''} onChange={e=>onCampo(it.id,'rede_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.redes.map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
+            </select>
+          </label>
+          <label className="campo"><span>Origem</span>
+            <select value={it.origem || 'Feed'} onChange={e=>onCampo(it.id,'origem', e.target.value)}>
+              <option>Feed</option><option>DM</option>
+            </select>
+          </label>
+          <label className="campo"><span>Produto</span>
+            <select value={it.produto_id || ''} onChange={e=>onCampo(it.id,'produto_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.produtos.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </label>
+          <label className="campo"><span>Editoria</span>
+            <select value={it.editoria_id || ''} onChange={e=>onCampo(it.id,'editoria_id', e.target.value?Number(e.target.value):null)}>
+              <option value="">—</option>
+              {cfg.editorias.map(ed=><option key={ed.id} value={ed.id}>{ed.nome}</option>)}
+            </select>
+          </label>
+        </div>
+
+        {/* Sempre visível, como no Zmetrics: o rascunho é o que se olha
+            primeiro, e escondê-lo atrás de um clique só somava trabalho. */}
+        <div className="reply">
+          <div className="lblcampo">Resposta sugerida</div>
+          <textarea value={resp} onChange={e=>setResp(e.target.value)}
+            placeholder={gerando ? 'gerando sugestão…' : 'Escreva a resposta sugerida, ou peça uma à IA.'} />
+          <div className="acoes">
+            <button className="btn brand" style={{padding:'6px 12px'}} disabled={!naoSalvo}
+              onClick={async()=>{ await onCampo(it.id,'resposta',resp); await onCampo(it.id,'triagem','Respondido'); }}>
+              {naoSalvo || !it.resposta ? 'Salvar resposta' : 'Salva ✓'}
+            </button>
+            {/* Quando a IA já disse que o comentário não pede resposta (spam,
+                bot, provocação), pedir um rascunho gastaria dinheiro para
+                receber de volta exatamente esse "não há o que responder".
+                A caixa de texto continua aí para quem discordar e escrever. */}
+            {it.ia_triagem !== 'nao_responder' && (
+              <button className="btn" style={{padding:'6px 12px'}} disabled={gerando} onClick={gerar}>
+                {gerando ? 'Gerando…' : (it.resposta ? 'Gerar de novo' : '✨ Gerar sugestão')}
+              </button>
+            )}
+            <button className="btn" style={{padding:'6px 12px'}} disabled={!resp.trim()} onClick={copiar}>
+              {copiado ? 'Copiado ✓' : 'Copiar resposta'}
+            </button>
+          </div>
+          {aviso && <div className="avisoerro">{aviso}</div>}
+        </div>
       </div>
+
       <div className="ctrl">
         <div className="sentbox">
           <span className="dot" style={{background: corSent(sent?.nome)}}></span>
@@ -718,7 +842,7 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
-function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar}){
+function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta}){
   const [busca, setBusca] = useState('');
   const [fOrigem, setFOrigem] = useState('');
   const [fSent, setFSent] = useState('');
@@ -773,7 +897,7 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
       </div>
       {vis.length===0
         ? <div className="empty">Nenhuma interação por aqui ainda. Clique em <b>+ Adicionar</b> para começar.</div>
-        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} />)}
+        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} onGerarResposta={onGerarResposta} />)}
     </div>
   );
 }
@@ -1210,6 +1334,17 @@ function Painel({user, perfil, onSair}){
           // comentário para a fila e fazia pagar de novo pelo mesmo trabalho.
           // Por isso não existe mais atalho de "nada mudou, pula o update".
           mud.ia_em = new Date().toISOString();
+
+          // O que a IA devolve e o MUVUCA descartava. São informativos: dizem
+          // o que ela achou e por quê, sem mexer em nenhuma decisão sua.
+          //
+          // ia_triagem é a RECOMENDAÇÃO dela (responder / curtir / não
+          // responder) e mora em campo próprio de propósito: a coluna
+          // "triagem" do MUVUCA é o seu estado de trabalho (Pendente /
+          // Respondido / Ignorar), e gravar por cima apagaria esse estado.
+          if(r.triagem)  mud.ia_triagem = r.triagem;
+          if(r.motivo)   mud.ia_motivo  = r.motivo;
+          mud.ia_juridico = !!r.needsLegal;
           const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
           if(error){ falhas++; continue; }
           setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
@@ -1224,6 +1359,50 @@ function Painel({user, perfil, onSair}){
 
     const custoReal = ((entrada/1e6)*PRECO_ENTRADA + (saida/1e6)*PRECO_SAIDA).toFixed(4);
     return {ok, falhas, juridico, erro, custoReal, tokens: (entrada||saida) ? {entrada, saida} : null};
+  }
+
+  /* "Gerar de novo", de um comentário só. Diferente do lote de propósito: o
+     lote só preenche o que está vazio, e aqui o pedido é explicitamente para
+     REFAZER — quem clica está dizendo que não gostou do rascunho atual. Por
+     isso a resposta é sobrescrita.
+
+     Sentimento, produto e editoria continuam intocados: esses o usuário pode
+     ter corrigido à mão, e o clique foi no botão da resposta, não neles. */
+  async function onGerarResposta(it){
+    try {
+      const resp = await fetch('/api/classify', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          cliente: clienteNome,
+          batch: [{id: it.id, autor: it.autor, texto: it.texto}]
+        })
+      });
+      if(!resp.ok){
+        let msg = 'Falha ao gerar ('+resp.status+')';
+        try { const j = await resp.json(); if(j.error) msg = j.error; } catch(e){}
+        return {erro: msg};
+      }
+      const {results} = await resp.json();
+      const r = (results || [])[0];
+      if(!r) return {erro: 'A IA não devolveu resposta para este comentário.'};
+      if(!r.rascunho) return {erro: 'A IA entendeu que este comentário não pede resposta (' + (r.motivo || r.triagem || 'sem motivo') + ').'};
+
+      const mud = {
+        resposta: r.rascunho,
+        ia_em: new Date().toISOString(),
+        ia_juridico: !!r.needsLegal,
+      };
+      if(r.triagem) mud.ia_triagem = r.triagem;
+      if(r.motivo)  mud.ia_motivo  = r.motivo;
+
+      const {error} = await sb.from('interacoes').update(mud).eq('id', it.id);
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      setInteracoes(prev => prev.map(x => x.id === it.id ? {...x, ...mud} : x));
+      return {ok: true};
+    } catch(e){
+      return {erro: String(e.message || e)};
+    }
   }
 
   async function novoCliente(nome){
@@ -1275,7 +1454,7 @@ function Painel({user, perfil, onSair}){
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
-              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} />
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>
