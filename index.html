@@ -228,7 +228,11 @@
     /* Tamanho de dedo. O auditor achou botão de 19px e campo de 29px; abaixo
        de ~38px erra o toque com frequência. */
     .btn,.filters input,.filters select,.campo input,.campo select,
-    .aba,.chip,.periodo select,.periodo input{min-height:38px}
+    .aba,.chip,.periodo select,.periodo input,.mesbar .btn{min-height:38px}
+    /* Link de texto no meio de um aviso ("ver esses", "limpar") ficava com a
+       altura da letra — 14px. O auditor mediu; no dedo, não se acerta. */
+    .aviso .linkbtn,.empty .linkbtn,.soon .linkbtn{
+      display:inline-flex;align-items:center;min-height:38px}
     .btnx{min-width:38px;min-height:38px;font-size:22px}
     .seg{min-height:34px;padding:6px 12px}
     .ppe a,.meta a{display:inline-flex;align-items:center;min-height:34px}
@@ -237,6 +241,29 @@
     .row{padding-left:9px}
     .pembed{height:420px}
   }
+  /* --- Aprovação de Conteúdo --- */
+  .mesbar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .mesbar .mesnome{font-size:16px;font-weight:600;min-width:190px;text-align:center}
+  .mesbar .btn{padding:7px 13px}
+  .progresso{margin-bottom:14px}
+  .progresso .trilho{background:var(--line);border-radius:999px;height:10px;overflow:hidden}
+  .progresso .cheio{height:100%;background:#1E9E6A;border-radius:999px;transition:width .3s}
+  .progresso .pctxt{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .historico{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;
+    display:flex;flex-direction:column;gap:5px}
+  .historico .hev{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:12.5px}
+  .historico .quando{color:var(--muted);font-variant-numeric:tabular-nums;min-width:132px}
+  .historico .quem{color:var(--muted)}
+  /* --- tela Manhã ---
+     O bloco vermelho toma o lugar da resposta, não fica ao lado dela: quando
+     o caso é para escalar, NÃO existe texto sugerido para mostrar. Um aviso
+     discreto ao lado de um rascunho pronto seria lido como "pode mandar
+     assim mesmo". */
+  .escalar{background:#FDEDEC;border:1px solid #F3C7C3;border-left:4px solid var(--neg);
+    border-radius:8px;padding:12px 14px;margin-top:10px}
+  .escalar .titulo{font-size:12px;font-weight:700;color:var(--neg);letter-spacing:.04em}
+  .escalar .motivo{font-size:14px;font-weight:600;margin-top:3px}
+  .escalar .oque{font-size:12.5px;color:var(--muted);margin-top:6px}
   .addwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
   .addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
   .field{display:flex;flex-direction:column;gap:4px}
@@ -306,7 +333,14 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const MODULOS = [
   { id:'projetos', nome:'Projetos' },
+  // Primeiro da lista depois de Projetos de propósito: é a tela que se abre
+  // ao chegar, antes de qualquer outra coisa.
+  { id:'manha', nome:'Manhã' },
   { id:'community', nome:'Community' },
+  // Aprovações = a peça ANTES de publicar. Conteúdos = o post JÁ no ar, com
+  // os números. Vizinhas no menu porque a pergunta "cadê aquele post?" pode
+  // ser sobre qualquer uma das duas.
+  { id:'aprovacoes', nome:'Aprovações' },
   { id:'conteudos', nome:'Conteúdos' },
   { id:'upload', nome:'Importar dados' },
   { id:'relatorios', nome:'Relatórios' },
@@ -339,6 +373,8 @@ function Icon({name}){
     conteudos:<g {...p}><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></g>,
     relatorios:<g {...p}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></g>,
     calendario:<g {...p}><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></g>,
+    aprovacoes:<g {...p}><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v4h4"/><path d="m9 14 2 2 4-4"/></g>,
+    manha:<g {...p}><circle cx="12" cy="14" r="4"/><path d="M12 6v2M5 14H3M21 14h-2M6.5 8.5 5 7M17.5 8.5 19 7M2 20h20"/></g>,
     upload:<g {...p}><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/><path d="M12 15V4M8 8l4-4 4 4"/></g>,
     config:<g {...p}><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h6M14 18h6"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></g>,
   };
@@ -2229,6 +2265,843 @@ function Conteudos({cfg, publicacoes, interacoes, clienteNome}){
   );
 }
 
+/* ============================================================
+   APROVAÇÃO DE CONTEÚDO — etapa 1: a fundação
+
+   A peça de conteúdo ANTES de ir ao ar. Não confundir com a tela
+   "Conteúdos", que mostra o post JÁ PUBLICADO com os números dele — são
+   duas coisas diferentes e moram em tabelas diferentes de propósito. A
+   ligação entre elas (`conteudos.publicacao_id`) só é preenchida depois
+   que a peça é publicada, e é isso que evita dois registros do mesmo post.
+
+   Nesta etapa: cadastrar, organizar por mês, mover o status e guardar o
+   histórico. Arquivos, prévia e portal do cliente vêm nas etapas seguintes.
+   ============================================================ */
+
+/* Os estados da peça, na ordem em que a vida acontece. "ordem" serve para
+   ordenar a lista por andamento, não para impedir caminho — a realidade
+   volta atrás com frequência. */
+const APROV_STATUS = {
+  rascunho:          {rotulo:'Rascunho',               cor:'#8A8F98', ordem:1},
+  em_revisao:        {rotulo:'Em revisão interna',     cor:'#B5852A', ordem:2},
+  enviado:           {rotulo:'Enviado para aprovação', cor:'#185FA5', ordem:3},
+  visualizado:       {rotulo:'Visualizado',            cor:'#5B8DEF', ordem:4},
+  aprovado:          {rotulo:'Aprovado',               cor:'#1E9E6A', ordem:5},
+  ajuste_solicitado: {rotulo:'Ajuste solicitado',      cor:'#E63329', ordem:6},
+  em_alteracao:      {rotulo:'Em alteração',           cor:'#F5A623', ordem:7},
+  reenviado:         {rotulo:'Reenviado',              cor:'#185FA5', ordem:8},
+};
+
+/* Para onde cada estado pode ir, com que palavra no botão, e qual é o
+   caminho PRINCIPAL — o que leva a peça adiante rumo à aprovação. Só o
+   principal ganha o botão verde.
+
+   O destaque é marcado à mão, e não deduzido da ordem dos estados, porque
+   "ajuste solicitado" e "em alteração" vêm DEPOIS de "aprovado" na lista
+   (é a ordem em que a vida acontece) sem serem um avanço. Deduzindo pela
+   ordem, "Reabrir para alteração" numa peça já aprovada virava o botão
+   verde em destaque — convidando a desfazer uma aprovação pronta.
+
+   O caminho de volta existe sempre: engano de clique não pode virar
+   trabalho perdido. Ele só nunca é o botão em destaque. */
+const APROV_CAMINHOS = {
+  rascunho:          [['em_revisao','Mandar para revisão interna', true]],
+  em_revisao:        [['enviado','Enviar para aprovação', true], ['rascunho','Voltar para rascunho']],
+  enviado:           [['aprovado','O cliente aprovou', true], ['visualizado','O cliente viu'],
+                      ['ajuste_solicitado','O cliente pediu ajuste'], ['em_revisao','Cancelar o envio']],
+  visualizado:       [['aprovado','O cliente aprovou', true], ['ajuste_solicitado','O cliente pediu ajuste'],
+                      ['em_revisao','Cancelar o envio']],
+  // Peça aprovada não tem "próximo passo". Reabrir é exceção, não rotina.
+  aprovado:          [['em_alteracao','Reabrir para alteração']],
+  ajuste_solicitado: [['em_alteracao','Começar a alteração', true]],
+  em_alteracao:      [['reenviado','Reenviar para aprovação', true], ['em_revisao','Voltar para revisão interna']],
+  reenviado:         [['aprovado','O cliente aprovou', true], ['ajuste_solicitado','O cliente pediu ajuste'],
+                      ['visualizado','O cliente viu'], ['em_alteracao','Voltar para alteração']],
+};
+
+/* Formato é diferente de rede: o mesmo Carrossel existe no Instagram e no
+   Facebook. A rede vem da tabela `redes` do cliente; o formato é esta lista
+   fixa, porque ela define qual prévia será montada nas etapas 3 e 4. */
+const APROV_FORMATOS = ['Feed', 'Carrossel', 'Reels', 'Stories', 'Vídeo', 'Texto', 'Link'];
+
+// Estados que contam como "o cliente ainda tem que responder".
+const APROV_AGUARDANDO = ['enviado', 'visualizado', 'reenviado'];
+// Estados que contam como "voltou com pedido".
+const APROV_EM_AJUSTE  = ['ajuste_solicitado', 'em_alteracao'];
+
+const APROV_FILTRO_VAZIO = {rede:'', formato:'', status:'', editoria:'', produto:'', busca:''};
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+
+// 'AAAA-MM' do mês de uma data, ou null. É a chave de agrupamento do mês.
+function mesDe(data){
+  const s = String(data || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(s) ? s : null;
+}
+function mesDeHoje(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+// Anda N meses para frente ou para trás sem cair na armadilha do dia 31.
+function mesVizinho(mes, passo){
+  const [a, m] = mes.split('-').map(Number);
+  const d = new Date(a, m - 1 + passo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function nomeDoMes(mes){
+  const [a, m] = mes.split('-').map(Number);
+  const nome = new Date(a, m-1, 1).toLocaleDateString('pt-BR', {month:'long'});
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} de ${a}`;
+}
+
+function passaAprov(c, f, cfg){
+  if(f.rede     && String(c.rede_id)     !== f.rede)     return false;
+  if(f.editoria && String(c.editoria_id) !== f.editoria) return false;
+  if(f.produto  && String(c.produto_id)  !== f.produto)  return false;
+  if(f.formato  && (c.formato || '')     !== f.formato)  return false;
+  if(f.status   && (c.status || 'rascunho') !== f.status) return false;
+  if(f.busca){
+    const q = semAcento(f.busca);
+    const alvo = semAcento([c.titulo, c.legenda, c.hashtags, c.campanha, c.observacoes]
+      .filter(Boolean).join(' '));
+    if(!alvo.includes(q)) return false;
+  }
+  return true;
+}
+
+/* O resumo do mês. Conta por grupo de estado, não por estado solto: o que
+   importa para quem olha é "quantos ainda dependem do cliente", e isso são
+   três estados diferentes. */
+function resumoAprovacao(lista){
+  const vivos = (lista || []).filter(c => !c.arquivado);
+  const tem = (...sts) => vivos.filter(c => sts.includes(c.status || 'rascunho')).length;
+  const total = vivos.length;
+  const aprovados = tem('aprovado');
+  return {
+    total,
+    aprovados,
+    aguardando: vivos.filter(c => APROV_AGUARDANDO.includes(c.status || '')).length,
+    ajuste:     vivos.filter(c => APROV_EM_AJUSTE.includes(c.status || '')).length,
+    interno:    tem('rascunho', 'em_revisao'),
+    // Porcentagem só faz sentido com denominador. Sem peça no mês, é null —
+    // e null vira "—" na tela, não "0%", que daria a impressão de atraso.
+    pct: total ? Math.round((aprovados / total) * 100) : null,
+  };
+}
+
+function CartaoConteudo({c, cfg, aoMudar, aoEditar, aoDuplicar, aoArquivar, eventos, aoVerHistorico}){
+  const [abrindo, setAbrindo] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const st = APROV_STATUS[c.status] || APROV_STATUS.rascunho;
+  const nome = (lista, id) => (cfg[lista] || []).find(x => x.id === id)?.nome || null;
+  const caminhos = APROV_CAMINHOS[c.status] || APROV_CAMINHOS.rascunho;
+  const ficha = [nome('redes', c.rede_id), c.formato, nome('produtos', c.produto_id),
+                 nome('editorias', c.editoria_id), c.campanha].filter(Boolean);
+
+  return (
+    <div className="row" style={{borderLeft:`3px solid ${st.cor}`, paddingLeft:11,
+      opacity: c.arquivado ? .6 : 1}}>
+      <div className="body">
+        <div className="meta">
+          <span className="who">{c.data_prevista ? fmtBR(dataLocal(c.data_prevista)) : 'sem data'}</span>
+          {c.hora_prevista && <span className="tag">{String(c.hora_prevista).slice(0,5)}</span>}
+          <span className="pill" style={{color:st.cor, borderColor:st.cor+'55', background:st.cor+'14'}}>{st.rotulo}</span>
+          {c.versao > 1 && <span className="tag">versão {c.versao}</span>}
+          {c.arquivado && <span className="tag">arquivado</span>}
+        </div>
+
+        <div style={{fontSize:14,fontWeight:600,marginTop:2}}>
+          {c.titulo || <span style={{color:'var(--muted)',fontWeight:400}}>sem título</span>}
+        </div>
+        {ficha.length > 0 && <div style={{fontSize:12.5,color:'var(--muted)',marginTop:2}}>{ficha.join(' · ')}</div>}
+        {c.legenda && <div className="txt" style={{marginTop:6}}>{c.legenda}</div>}
+        {c.hashtags && <div style={{fontSize:12.5,color:'#185FA5',marginTop:4}}>{c.hashtags}</div>}
+        {c.observacoes && (
+          <div style={{fontSize:12.5,color:'var(--muted)',marginTop:6,fontStyle:'italic'}}>
+            Observação: {c.observacoes}
+          </div>
+        )}
+
+        <div className="fluxo">
+          {!c.arquivado && caminhos.map(([para, rotulo, principal]) => (
+            <button key={para} className={"btn" + (principal ? ' ok' : '')}
+              style={{padding:'7px 14px'}} onClick={()=>aoMudar(c, para)}>
+              {rotulo}
+            </button>
+          ))}
+        </div>
+
+        <div className="fluxo" style={{borderTop:'none',paddingTop:0,marginTop:6}}>
+          {!c.arquivado && <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoEditar(c)}>Editar</button>}
+          <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoDuplicar(c)}>Duplicar</button>
+          <button className="btn" style={{padding:'6px 12px'}}
+            onClick={()=>{ setAbrindo(!abrindo); if(!abrindo) aoVerHistorico(c.id); }}>
+            {abrindo ? 'Fechar histórico' : 'Histórico'}
+          </button>
+          {/* Arquivar não apaga: a peça sai da lista do mês e continua
+              inteira, com histórico, atrás do filtro "Arquivados". */}
+          {c.arquivado ? (
+            <button className="btn" style={{padding:'6px 12px'}} onClick={()=>aoArquivar(c, false)}>↩ Desarquivar</button>
+          ) : confirmando ? (
+            <>
+              <span className="confirma">Arquivar tira da lista do mês. Nada é apagado.</span>
+              <button className="btn" style={{padding:'6px 12px'}} onClick={()=>{setConfirmando(false); aoArquivar(c, true);}}>Arquivar</button>
+              <button className="btn" style={{padding:'6px 12px'}} onClick={()=>setConfirmando(false)}>Cancelar</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'6px 12px'}} onClick={()=>setConfirmando(true)}>Arquivar</button>
+          )}
+        </div>
+
+        {abrindo && (
+          <div className="historico">
+            {eventos === undefined
+              ? <div style={{color:'var(--muted)'}}>Carregando…</div>
+              : eventos.length === 0
+                ? <div style={{color:'var(--muted)'}}>Nenhuma mudança de status ainda.</div>
+                : eventos.map(e => (
+                    <div key={e.id} className="hev">
+                      <span className="quando">{new Date(e.criado_em).toLocaleString('pt-BR')}</span>
+                      <span>
+                        {e.de ? `${(APROV_STATUS[e.de]||{}).rotulo || e.de} → ` : ''}
+                        <b>{(APROV_STATUS[e.para]||{}).rotulo || e.para}</b>
+                      </span>
+                      {e.quem && <span className="quem">{e.quem}</span>}
+                    </div>
+                  ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FormConteudo({inicial, cfg, aoSalvar, aoCancelar}){
+  const vazio = {titulo:'', formato:'', rede_id:'', produto_id:'', editoria_id:'',
+    data_prevista:'', hora_prevista:'', legenda:'', hashtags:'', cta:'',
+    campanha:'', observacoes:'', responsavel:''};
+  const [f, setF] = useState({...vazio, ...(inicial || {})});
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const p = (k, v) => setF(prev => ({...prev, [k]: v}));
+
+  async function salvar(){
+    // A data é o único campo obrigatório: sem ela a peça não aparece em mês
+    // nenhum e some da vista. O resto se preenche com o tempo.
+    if(!f.data_prevista){ setErro('Informe a data prevista — é por ela que a peça entra no mês.'); return; }
+    setSalvando(true); setErro('');
+    const r = await aoSalvar(f);
+    setSalvando(false);
+    if(r && r.erro) setErro(r.erro);
+  }
+
+  return (
+    <div className="addwrap">
+      <div style={{fontWeight:600,marginBottom:10}}>{inicial && inicial.id ? 'Editar conteúdo' : 'Novo conteúdo'}</div>
+
+      <div className="campos">
+        <label className="campo" style={{flex:'2 1 260px'}}><span>Título</span>
+          <input value={f.titulo || ''} onChange={e=>p('titulo', e.target.value)}
+            placeholder="Como você chama esta peça internamente" />
+        </label>
+        <label className="campo"><span>Data prevista *</span>
+          <input type="date" value={f.data_prevista || ''} onChange={e=>p('data_prevista', e.target.value)} />
+        </label>
+        <label className="campo"><span>Hora prevista</span>
+          <input type="time" value={f.hora_prevista ? String(f.hora_prevista).slice(0,5) : ''}
+            onChange={e=>p('hora_prevista', e.target.value)} />
+        </label>
+      </div>
+
+      <div className="campos">
+        <label className="campo"><span>Rede</span>
+          <select value={f.rede_id || ''} onChange={e=>p('rede_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.redes.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Formato</span>
+          <select value={f.formato || ''} onChange={e=>p('formato', e.target.value)}>
+            <option value="">—</option>
+            {APROV_FORMATOS.map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Produto</span>
+          <select value={f.produto_id || ''} onChange={e=>p('produto_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.produtos.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+          </select>
+        </label>
+        <label className="campo"><span>Editoria</span>
+          <select value={f.editoria_id || ''} onChange={e=>p('editoria_id', e.target.value)}>
+            <option value="">—</option>
+            {cfg.editorias.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="campos">
+        <label className="campo"><span>Campanha</span>
+          <input value={f.campanha || ''} onChange={e=>p('campanha', e.target.value)} placeholder="opcional" />
+        </label>
+        <label className="campo"><span>Responsável</span>
+          <input value={f.responsavel || ''} onChange={e=>p('responsavel', e.target.value)} placeholder="quem produz" />
+        </label>
+        <label className="campo"><span>CTA</span>
+          <input value={f.cta || ''} onChange={e=>p('cta', e.target.value)} placeholder="Saiba mais, Arraste para o lado…" />
+        </label>
+      </div>
+
+      <div className="reply">
+        <div className="lblcampo">Legenda</div>
+        <textarea value={f.legenda || ''} onChange={e=>p('legenda', e.target.value)}
+          placeholder="O texto que vai junto com a publicação." />
+      </div>
+      <div className="reply">
+        <div className="lblcampo">Hashtags</div>
+        <textarea style={{minHeight:44}} value={f.hashtags || ''} onChange={e=>p('hashtags', e.target.value)}
+          placeholder="#TesouroDireto #Investimentos" />
+      </div>
+      <div className="reply">
+        <div className="lblcampo">Observações internas</div>
+        <textarea style={{minHeight:44}} value={f.observacoes || ''} onChange={e=>p('observacoes', e.target.value)}
+          placeholder="O que a equipe precisa saber. Não aparece para o cliente." />
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginTop:10}}>{erro}</div>}
+
+      <div className="fluxo">
+        <button className="btn brand" style={{padding:'9px 20px'}} disabled={salvando} onClick={salvar}>
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+        <button className="btn" style={{padding:'9px 16px'}} onClick={aoCancelar}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+function Aprovacoes({clienteId, clienteNome, cfg, perfil}){
+  const [itens, setItens] = useState(null);   // null = ainda carregando
+  const [erro, setErro] = useState('');
+  const [mes, setMes] = useState(mesDeHoje());
+  const [f, setF] = useState(APROV_FILTRO_VAZIO);
+  const [editando, setEditando] = useState(null);   // null = fechado
+  const [verArquivados, setVerArquivados] = useState(false);
+  const [verSemData, setVerSemData] = useState(false);
+  const [eventos, setEventos] = useState({});       // {conteudoId: [...]}
+
+  const quem = (perfil && perfil.nome) || 'equipe';
+
+  useEffect(()=>{
+    let cancelado = false;
+    (async ()=>{
+      setErro(''); setItens(null);
+      if(!clienteId){ if(!cancelado) setItens([]); return; }
+      const { data, error } = await sb.from('conteudos').select('*')
+        .eq('cliente_id', clienteId).order('data_prevista', {ascending:true});
+      if(cancelado) return;
+      if(error){ setErro(aprovErro(error.message)); setItens([]); return; }
+      setItens(data || []);
+    })();
+    // Trocar de cliente no meio de um carregamento fazia a lista do cliente
+    // anterior chegar depois e sobrescrever a certa.
+    return ()=>{ cancelado = true; };
+  }, [clienteId]);
+
+  /* Toda mudança de status grava DUAS coisas: o novo estado na peça e uma
+     linha no histórico. O histórico nunca é apagado — é o que responde
+     "quem mandou isso para o cliente, e quando?". */
+  async function aoMudar(c, para){
+    const de = c.status || 'rascunho';
+    if(de === para) return;
+    const mud = {status: para, atualizado_em: new Date().toISOString()};
+    const { error } = await sb.from('conteudos').update(mud).eq('id', c.id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    const ev = await sb.from('conteudo_eventos')
+      .insert({conteudo_id: c.id, de, para, quem}).select().single();
+    setErro('');
+    setItens(prev => (prev||[]).map(x => x.id === c.id ? {...x, ...mud} : x));
+    // Mantém o histórico aberto coerente sem ir ao banco de novo.
+    if(!ev.error && eventos[c.id]) setEventos(p => ({...p, [c.id]: [ev.data, ...p[c.id]]}));
+  }
+
+  async function aoArquivar(c, valor){
+    const { error } = await sb.from('conteudos')
+      .update({arquivado: valor, atualizado_em: new Date().toISOString()}).eq('id', c.id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    setErro('');
+    setItens(prev => (prev||[]).map(x => x.id === c.id ? {...x, arquivado: valor} : x));
+  }
+
+  async function verHistorico(id){
+    if(eventos[id] !== undefined) return;
+    setEventos(p => ({...p, [id]: undefined}));
+    const { data, error } = await sb.from('conteudo_eventos').select('*')
+      .eq('conteudo_id', id).order('criado_em', {ascending:false});
+    setEventos(p => ({...p, [id]: error ? [] : (data || [])}));
+  }
+
+  // Campo vazio na tela tem que virar null no banco, não string vazia:
+  // "" numa coluna de número quebra o insert, e "" numa data também.
+  function limpar(f){
+    const n = v => (v === '' || v === undefined) ? null : v;
+    return {
+      titulo: n(f.titulo), formato: n(f.formato),
+      rede_id: f.rede_id ? Number(f.rede_id) : null,
+      produto_id: f.produto_id ? Number(f.produto_id) : null,
+      editoria_id: f.editoria_id ? Number(f.editoria_id) : null,
+      data_prevista: n(f.data_prevista), hora_prevista: n(f.hora_prevista),
+      legenda: n(f.legenda), hashtags: n(f.hashtags), cta: n(f.cta),
+      campanha: n(f.campanha), observacoes: n(f.observacoes), responsavel: n(f.responsavel),
+    };
+  }
+
+  async function salvar(form){
+    const payload = limpar(form);
+    if(editando && editando.id){
+      const mud = {...payload, atualizado_em: new Date().toISOString()};
+      const { error } = await sb.from('conteudos').update(mud).eq('id', editando.id);
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      setItens(prev => (prev||[]).map(x => x.id === editando.id ? {...x, ...mud} : x));
+    } else {
+      const { data, error } = await sb.from('conteudos')
+        .insert({...payload, cliente_id: clienteId, status:'rascunho'}).select().single();
+      if(error) return {erro: 'Não consegui salvar: ' + error.message};
+      await sb.from('conteudo_eventos').insert({conteudo_id: data.id, de: null, para: 'rascunho', quem});
+      setItens(prev => [...(prev||[]), data]);
+      // Cadastrou para outro mês? Leva a tela até lá, senão a peça "some".
+      const m = mesDe(data.data_prevista);
+      if(m && m !== mes) setMes(m);
+    }
+    setEditando(null);
+    return {};
+  }
+
+  async function duplicar(c){
+    const copia = limpar({...c, titulo: c.titulo ? c.titulo + ' (cópia)' : null});
+    const { data, error } = await sb.from('conteudos')
+      .insert({...copia, cliente_id: clienteId, status:'rascunho'}).select().single();
+    if(error){ setErro('Não consegui duplicar: ' + error.message); return; }
+    await sb.from('conteudo_eventos').insert({conteudo_id: data.id, de: null, para: 'rascunho', quem});
+    setErro('');
+    setItens(prev => [...(prev||[]), data]);
+  }
+
+  const todos = itens || [];
+  const semData  = todos.filter(c => !mesDe(c.data_prevista) && !c.arquivado);
+  const doMes    = todos.filter(c => mesDe(c.data_prevista) === mes);
+  const base     = verSemData ? semData : doMes;
+  const naLista  = base.filter(c => verArquivados ? c.arquivado : !c.arquivado);
+  const vis      = naLista.filter(c => passaAprov(c, f, cfg));
+  const resumo   = resumoAprovacao(doMes);
+  const filtrando = Object.keys(APROV_FILTRO_VAZIO).some(k => f[k] !== APROV_FILTRO_VAZIO[k]);
+  const arquivados = base.filter(c => c.arquivado).length;
+  const p = (k, v) => setF({...f, [k]: v});
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          <h1>Aprovação de Conteúdo</h1>
+          <p>{clienteNome} · planejamento e aprovação das peças antes de publicar</p>
+        </div>
+        <div style={{display:'flex',gap:8,flexShrink:0}}>
+          <button className="btn brand" onClick={()=>setEditando(editando ? null : {})}>
+            {editando ? 'Fechar' : '+ Novo conteúdo'}
+          </button>
+        </div>
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginBottom:14}}>{erro}</div>}
+
+      <div className="mesbar">
+        <button className="btn" onClick={()=>{setMes(mesVizinho(mes,-1)); setVerSemData(false);}}>‹</button>
+        <div className="mesnome">{nomeDoMes(mes)}</div>
+        <button className="btn" onClick={()=>{setMes(mesVizinho(mes,1)); setVerSemData(false);}}>›</button>
+        {mes !== mesDeHoje() &&
+          <button className="btn" onClick={()=>{setMes(mesDeHoje()); setVerSemData(false);}}>hoje</button>}
+      </div>
+
+      {itens === null ? (
+        <div className="empty">Carregando…</div>
+      ) : erro ? null : (
+        <>
+          {/* O painel do mês. A barra mostra a fração aprovada do mês inteiro,
+              não da lista filtrada — filtrar não pode mudar o andamento real. */}
+          <div className="cards">
+            <div className="card"><div className="lbl">Conteúdos no mês</div><div className="val">{resumo.total}</div></div>
+            <div className="card"><div className="lbl">Aprovados</div><div className="val" style={{color:'#1E9E6A'}}>{resumo.aprovados}</div></div>
+            <div className="card"><div className="lbl">Com o cliente</div><div className="val" style={{color:'#185FA5'}}>{resumo.aguardando}</div></div>
+            <div className="card"><div className="lbl">Em ajuste</div><div className="val" style={{color: resumo.ajuste ? 'var(--neg)' : 'inherit'}}>{resumo.ajuste}</div></div>
+            <div className="card"><div className="lbl">Ainda internos</div><div className="val">{resumo.interno}</div></div>
+          </div>
+
+          <div className="progresso">
+            <div className="trilho"><div className="cheio" style={{width:(resumo.pct || 0)+'%'}} /></div>
+            <div className="pctxt">
+              {resumo.pct === null
+                ? 'Nada planejado para este mês ainda.'
+                : `${resumo.pct}% do mês aprovado — ${resumo.aprovados} de ${resumo.total}.`}
+            </div>
+          </div>
+
+          {resumo.aguardando > 0 && (
+            <div className="aviso">{resumo.aguardando} conteúdo(s) aguardando resposta do cliente.</div>
+          )}
+          {resumo.ajuste > 0 && (
+            <div className="aviso">{resumo.ajuste} conteúdo(s) com ajuste pedido — precisam de revisão.</div>
+          )}
+          {/* Peça sem data não aparece em mês nenhum. Avisar é obrigatório:
+              sem isto, ela some da vista e ninguém sabe que existe. */}
+          {semData.length > 0 && !verSemData && (
+            <div className="aviso">
+              {semData.length} conteúdo(s) <b>sem data prevista</b> não aparecem em nenhum mês.{' '}
+              <button className="linkbtn" onClick={()=>setVerSemData(true)}>ver esses</button>
+            </div>
+          )}
+          {verSemData && (
+            <div className="aviso">
+              Mostrando os conteúdos <b>sem data prevista</b>.{' '}
+              <button className="linkbtn" onClick={()=>setVerSemData(false)}>voltar para {nomeDoMes(mes)}</button>
+            </div>
+          )}
+
+          {editando && (
+            <FormConteudo inicial={editando} cfg={cfg}
+              aoSalvar={salvar} aoCancelar={()=>setEditando(null)} />
+          )}
+
+          <div className="filtros">
+            <div className="chips">
+              <button className={"chip"+(f.status===''?' on':'')} onClick={()=>p('status','')}>
+                Todos<span className="n">{naLista.length}</span>
+              </button>
+              {Object.entries(APROV_STATUS).map(([id, s]) => {
+                const n = naLista.filter(c => (c.status||'rascunho') === id).length;
+                if(!n && f.status !== id) return null;
+                return (
+                  <button key={id} className={"chip"+(f.status===id?' on':'')} onClick={()=>p('status',id)}>
+                    {s.rotulo}<span className="n">{n}</span>
+                  </button>
+                );
+              })}
+              {arquivados > 0 && (
+                <button className={"chip"+(verArquivados?' on':'')} onClick={()=>setVerArquivados(!verArquivados)}>
+                  Arquivados<span className="n">{arquivados}</span>
+                </button>
+              )}
+            </div>
+            <div className="filters">
+              <input value={f.busca} onChange={e=>p('busca', e.target.value)}
+                placeholder="Buscar por título, legenda, hashtag ou campanha…" />
+              <select value={f.rede} onChange={e=>p('rede', e.target.value)}>
+                <option value="">Rede: todas</option>
+                {cfg.redes.map(r => <option key={r.id} value={String(r.id)}>{r.nome}</option>)}
+              </select>
+              <select value={f.formato} onChange={e=>p('formato', e.target.value)}>
+                <option value="">Formato: todos</option>
+                {APROV_FORMATOS.map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select value={f.editoria} onChange={e=>p('editoria', e.target.value)}>
+                <option value="">Editoria: todas</option>
+                {cfg.editorias.map(x => <option key={x.id} value={String(x.id)}>{x.nome}</option>)}
+              </select>
+              <select value={f.produto} onChange={e=>p('produto', e.target.value)}>
+                <option value="">Produto: todos</option>
+                {cfg.produtos.map(x => <option key={x.id} value={String(x.id)}>{x.nome}</option>)}
+              </select>
+              {filtrando && <button className="btn" onClick={()=>setF(APROV_FILTRO_VAZIO)}>Limpar filtros</button>}
+            </div>
+          </div>
+
+          {vis.length === 0 ? (
+            naLista.length === 0 ? (
+              <div className="soon">
+                <div style={{fontSize:16,fontWeight:600,color:'var(--ink)'}}>
+                  {verArquivados ? 'Nada arquivado aqui.'
+                    : verSemData ? 'Nenhum conteúdo sem data.'
+                    : `Nenhum conteúdo planejado para ${nomeDoMes(mes)}`}
+                </div>
+                {!verArquivados && !verSemData &&
+                  <div style={{marginTop:6}}>Clique em <b>+ Novo conteúdo</b> para montar o mês.</div>}
+              </div>
+            ) : (
+              <div className="empty">
+                Nenhum conteúdo corresponde ao que você filtrou.{' '}
+                <button className="linkbtn" onClick={()=>setF(APROV_FILTRO_VAZIO)}>limpar</button>
+              </div>
+            )
+          ) : vis.map(c => (
+            <CartaoConteudo key={c.id} c={c} cfg={cfg} eventos={eventos[c.id]}
+              aoMudar={aoMudar} aoEditar={x=>setEditando(x)} aoDuplicar={duplicar}
+              aoArquivar={aoArquivar} aoVerHistorico={verHistorico} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* O erro do banco em linguagem de gente. Mesma ideia da tela Manhã:
+   "relation does not exist" não diz nada para quem não é programador, e a
+   saída é sempre a mesma — rodar o guia de migração. */
+function aprovErro(msg){
+  const m = String(msg || '');
+  if(/conteudo|aprovacao_link/.test(m) && /does not exist|not find|schema cache/i.test(m)){
+    return 'As tabelas do módulo de Aprovação ainda não existem no banco. Rode o guia MIGRACAO-APROVACAO.md — leva uns 3 minutos.';
+  }
+  return m;
+}
+
+/* ============================================================
+   MANHÃ — o que chegou desde ontem, com sugestão pronta
+
+   Esta tela NÃO ENVIA NADA. Não existe aqui — nem em nenhum outro canto do
+   MUVUCA — ligação de envio para o Instagram. O que ela faz é juntar o que
+   chegou, mostrar uma sugestão de resposta e deixar copiar. Quem manda é uma
+   pessoa, com o texto na mão, olhando a conversa.
+
+   "Marcar como respondido" quer dizer "eu já respondi lá", não "o sistema
+   respondeu". É uma fila de leitura.
+   ============================================================ */
+
+const MANHA_SITUACOES = {
+  pendente:   {rotulo:'Na fila',    cor:'var(--neu)'},
+  respondido: {rotulo:'Respondido', cor:'#1E9E6A'},
+  ignorado:   {rotulo:'Ignorado',   cor:'var(--bot)'},
+};
+
+const MANHA_FILTRO_VAZIO = {origem:'', status:'pendente', escalar:false};
+
+/* Puras e fora do componente, para poderem ser testadas sem navegador. */
+function manhaPassa(it, f){
+  if(f.origem  && (it.source||'feed') !== f.origem)  return false;
+  if(f.status  && (it.status||'pendente') !== f.status) return false;
+  if(f.escalar && !it.escalate)                      return false;
+  return true;
+}
+
+/* Conta SÓ o que ainda está na fila. Somar respondido e ignorado junto faria
+   o aviso do topo crescer para sempre e nunca voltar a zero — e número que
+   nunca zera ninguém olha. */
+function manhaResumo(itens){
+  const fila = (itens||[]).filter(i => (i.status||'pendente') === 'pendente');
+  return {
+    feed:    fila.filter(i => (i.source||'feed') === 'feed').length,
+    dm:      fila.filter(i => i.source === 'dm').length,
+    escalar: fila.filter(i => i.escalate).length,
+    total:   fila.length,
+  };
+}
+
+function manhaTitulo(r){
+  if(!r.total) return 'Nada novo hoje 💙';
+  return 'Novidades desde ontem — ' +
+    [ r.feed === 1 ? '1 comentário' : r.feed + ' comentários',
+      r.dm   === 1 ? '1 DM'         : r.dm   + ' DMs',
+      r.escalar === 1 ? '1 para escalar' : r.escalar + ' para escalar',
+    ].join(' · ');
+}
+
+/* O erro do banco em linguagem de gente. "relation does not exist" não diz
+   nada para quem não é programador — e a saída, aqui, é sempre a mesma:
+   rodar o guia de migração. */
+function manhaErro(msg){
+  const m = String(msg || '');
+  if(/manha_items/.test(m) && /does not exist|not find|schema cache/i.test(m)){
+    return 'A tabela da tela Manhã ainda não existe no banco. Rode o guia MIGRACAO-MANHA.md — leva uns 3 minutos.';
+  }
+  return m;
+}
+
+function LinhaManha({it, aoMudar}){
+  const [resp, setResp] = useState(it.reply || '');
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState('');
+  useEffect(()=>{ setResp(it.reply || ''); },[it.reply]);
+
+  const status = it.status || 'pendente';
+  const sit = MANHA_SITUACOES[status] || MANHA_SITUACOES.pendente;
+  const lab = it.label || {};
+  const iaRec = IA_TRIAGEM[lab.triagem];
+  const editado = resp !== (it.reply || '');
+
+  /* Copiar também guarda o texto ajustado. Sem isso, quem corrigisse a
+     sugestão perderia a correção ao recarregar a página — e descobriria
+     tarde, sem entender por quê. */
+  async function copiar(){
+    try{
+      await navigator.clipboard.writeText(resp);
+      setCopiado(true); setTimeout(()=>setCopiado(false), 1600);
+      if(editado) aoMudar(it.id, {reply: resp});
+    }catch(e){
+      setAviso('O navegador bloqueou a cópia. Selecione o texto e use Ctrl+C.');
+    }
+  }
+
+  return (
+    <div className="row" style={{borderLeft:`3px solid ${sit.cor}`, paddingLeft:11,
+      opacity: status === 'pendente' ? 1 : .75}}>
+      <div className="av">{iniciais(it.author)}</div>
+      <div className="body">
+        <div className="meta">
+          <span className="who">{it.author || 'Sem autor'}</span>
+          <span className="tag">{it.source === 'dm' ? 'DM' : 'Feed'}</span>
+          <span style={{fontSize:11,fontWeight:700,color:sit.cor}}>{sit.rotulo}</span>
+          {it.url && /^https?:\/\//i.test(it.url) &&
+            <a href={it.url} target="_blank" rel="noopener noreferrer"
+               style={{fontSize:12,color:'#185FA5'}}>abrir no Instagram ↗</a>}
+        </div>
+
+        <div className="txt">{it.text || '(mensagem sem texto)'}</div>
+
+        {(iaRec || lab.needsLegal || lab.motivo) && (
+          <div className="iatags">
+            {iaRec && <span className="pill" style={{color:iaRec.cor, borderColor:iaRec.cor+'55', background:iaRec.cor+'14'}}>{iaRec.label}</span>}
+            {lab.needsLegal && <span className="pill" style={{color:'#B5852A', borderColor:'#B5852A55', background:'#B5852A14'}}>Jurídico/STN</span>}
+            {lab.motivo && <span className="motivo">· {lab.motivo}</span>}
+          </div>
+        )}
+
+        {/* Ou o bloco vermelho, ou a resposta. Nunca os dois: mostrar um texto
+            pronto ao lado de "isto precisa escalar" é convite para mandar
+            assim mesmo. */}
+        {it.escalate ? (
+          <div className="escalar">
+            <div className="titulo">ESCALAR</div>
+            <div className="motivo">{it.escalate_reason || 'motivo não informado'}</div>
+            <div className="oque">Não há resposta sugerida para este caso, de propósito. Leve para quem decide antes de responder qualquer coisa.</div>
+          </div>
+        ) : (
+          <div className="reply">
+            <div className="lblcampo">Resposta sugerida — leia, ajuste e copie</div>
+            <textarea value={resp} onChange={e=>setResp(e.target.value)}
+              placeholder="Sem sugestão para esta mensagem. Escreva a sua." />
+            <div className="acoes">
+              <button className="btn brand" style={{padding:'6px 12px'}}
+                disabled={!resp.trim()} onClick={copiar}>
+                {copiado ? 'Copiado ✓' : 'Copiar'}
+              </button>
+              {editado && <span style={{fontSize:12,color:'var(--muted)',alignSelf:'center'}}>o texto ajustado é salvo ao copiar</span>}
+            </div>
+            {aviso && <div className="avisoerro">{aviso}</div>}
+          </div>
+        )}
+
+        <div className="fluxo">
+          {status === 'pendente' ? (
+            <>
+              <button className="btn ok" style={{padding:'8px 18px'}}
+                onClick={()=>aoMudar(it.id, {status:'respondido', ...(editado?{reply:resp}:{})})}>
+                ✓ Marcar como respondido
+              </button>
+              <button className="btn" style={{padding:'8px 16px'}}
+                onClick={()=>aoMudar(it.id, {status:'ignorado'})}>Ignorar</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'8px 16px'}}
+              onClick={()=>aoMudar(it.id, {status:'pendente'})}>↩ Voltar para a fila</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Manha({clienteId, clienteNome}){
+  // null é "ainda não sei", [] é "sei que não tem nada". Misturar os dois faz
+  // a tela dizer "nada novo" enquanto o banco ainda está respondendo.
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState('');
+  const [f, setF] = useState(MANHA_FILTRO_VAZIO);
+
+  useEffect(()=>{
+    let cancelado = false;
+    (async ()=>{
+      setErro(''); setItens(null);
+      if(!clienteId){ if(!cancelado) setItens([]); return; }
+      const { data, error } = await sb.from('manha_items').select('*')
+        .eq('cliente_id', clienteId).order('created_at', {ascending:false});
+      if(cancelado) return;
+      if(error){ setErro(manhaErro(error.message)); setItens([]); return; }
+      setItens(data || []);
+    })();
+    // Trocar de cliente no meio de um carregamento fazia a lista do cliente
+    // anterior chegar depois e sobrescrever a certa.
+    return ()=>{ cancelado = true; };
+  }, [clienteId]);
+
+  async function aoMudar(id, mud){
+    const { error } = await sb.from('manha_items').update(mud).eq('id', id);
+    if(error){ setErro('Não consegui salvar: ' + error.message); return; }
+    setErro('');
+    setItens(p => (p||[]).map(x => x.id === id ? {...x, ...mud} : x));
+  }
+
+  const p = (k,v) => setF({...f, [k]:v});
+  const resumo = manhaResumo(itens || []);
+  const vis = (itens || []).filter(i => manhaPassa(i, f));
+  const filtrando = Object.keys(MANHA_FILTRO_VAZIO)
+    .some(k => f[k] !== MANHA_FILTRO_VAZIO[k]);
+
+  return (
+    <div>
+      <div className="head">
+        <div>
+          {/* Com erro na tela, o título NÃO pode dizer "Nada novo hoje": a
+              lista veio vazia porque a consulta falhou, não porque não há
+              novidade. Seriam duas afirmações contraditórias na mesma tela,
+              e a tranquilizadora é a que se lê primeiro. */}
+          <h1>{(itens === null || erro) ? 'Manhã' : manhaTitulo(resumo)}</h1>
+          <p>{clienteNome}{' · '}o MUVUCA sugere; quem responde é você</p>
+        </div>
+      </div>
+
+      {erro && <div className="avisoerro" style={{marginBottom:14}}>{erro}</div>}
+
+      {itens === null ? (
+        <div className="empty">Carregando…</div>
+      ) : itens.length === 0 && !erro ? (
+        <div className="soon">
+          <div style={{fontSize:16,fontWeight:600,color:'var(--ink)'}}>Nada novo hoje 💙</div>
+          <div style={{marginTop:6}}>Quando a varredura trouxer comentários e DMs novos, eles aparecem aqui já com uma sugestão de resposta.</div>
+        </div>
+      ) : (
+        <>
+          <div className="cards">
+            <div className="card"><div className="lbl">Na fila</div><div className="val">{resumo.total}</div></div>
+            <div className="card"><div className="lbl">Comentários</div><div className="val">{resumo.feed}</div></div>
+            <div className="card"><div className="lbl">DMs</div><div className="val">{resumo.dm}</div></div>
+            <div className="card"><div className="lbl">Para escalar</div><div className="val" style={{color: resumo.escalar ? 'var(--neg)' : 'inherit'}}>{resumo.escalar}</div></div>
+          </div>
+
+          <div className="filtros">
+            <div className="chips">
+              <button className={"chip"+(f.origem===''?' on':'')} onClick={()=>p('origem','')}>Tudo</button>
+              <button className={"chip"+(f.origem==='feed'?' on':'')} onClick={()=>p('origem','feed')}>Comentários</button>
+              <button className={"chip"+(f.origem==='dm'?' on':'')} onClick={()=>p('origem','dm')}>DMs</button>
+              <span style={{width:10}} />
+              <button className={"chip"+(f.status==='pendente'?' on':'')} onClick={()=>p('status','pendente')}>Na fila</button>
+              <button className={"chip"+(f.status==='respondido'?' on':'')} onClick={()=>p('status','respondido')}>Respondidos</button>
+              <button className={"chip"+(f.status==='ignorado'?' on':'')} onClick={()=>p('status','ignorado')}>Ignorados</button>
+              <button className={"chip"+(f.status===''?' on':'')} onClick={()=>p('status','')}>Todos</button>
+              <span style={{width:10}} />
+              <button className={"chip juri"+(f.escalar?' on':'')} onClick={()=>p('escalar',!f.escalar)}>
+                Só para escalar{resumo.escalar>0 && <span className="n">{resumo.escalar}</span>}
+              </button>
+              {filtrando && <button className="chip" onClick={()=>setF(MANHA_FILTRO_VAZIO)}>limpar filtros</button>}
+            </div>
+          </div>
+
+          {vis.length === 0
+            ? <div className="empty">Nenhuma novidade com esses filtros. <button className="linkbtn" onClick={()=>setF(MANHA_FILTRO_VAZIO)}>limpar</button></div>
+            : vis.map(it => <LinhaManha key={it.id} it={it} aoMudar={aoMudar} />)}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta, onExcluir}){
   const [aba, setAba] = useState('comentarios');
   const [busca, setBusca] = useState('');
@@ -2904,6 +3777,10 @@ function Painel({user, perfil, onSair}){
             ? <div className="empty">Carregando…</div>
             : modulo==='projetos'
               ? <Projetos clientes={clientes} clienteId={clienteId} setClienteId={setClienteId} cfg={cfg} interacoes={interacoes} publicacoes={publicacoes} onNovoCliente={novoCliente} irPara={setModulo} />
+            : modulo==='manha'
+              ? <Manha clienteId={clienteId} clienteNome={clienteNome} />
+            : modulo==='aprovacoes'
+              ? <Aprovacoes clienteId={clienteId} clienteNome={clienteNome} cfg={cfg} perfil={perfil} />
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'

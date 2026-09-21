@@ -12,35 +12,21 @@
 //   - há limite de tamanho do lote (o endpoint do Zmetrics não tinha nenhum,
 //     e um POST gigante podia gerar uma conta alta numa única chamada).
 
+// As regras de tom e as proibições da CVM vivem em UM lugar só. Copiar o
+// texto para cá de novo faria a classificação e a geração de resposta
+// divergirem com o tempo — e ninguém perceberia.
+const { regrasDe, contextoDe } = require('./_regras.js');
+const { verificar } = require('./_proibidas.js');
+
 const LOTE_MAXIMO = 40;
 
 // Muda a cada alteração desta função. Serve para saber, de fora, QUAL versão a
 // hospedagem está servindo — sem isso, "já publicou?" vira adivinhação.
 const VERSAO = "2026-09-20-d";
 
-// Regras específicas do Tesouro Direto. Produto financeiro público tem
-// exigências de linguagem que não valem para outros clientes.
-const REGRAS_TESOURO_DIRETO = `
-PRODUTO (um, inferido do texto): selic | prefixado | ipca | reserva | educa | nenhum
-needsLegal (bool): true para tema sensível que exige aval jurídico/STN (política, crise, acusações, comparação com apostas).
-
-TOM: caloroso, direto, inclusivo e próximo — a voz do Tesouro Direto democratiza o investimento, sem elitismo e sem jargão. 💙 com moderação.
-Do's: trate pelo @ quando houver; linguagem clara; direcione a recurso oficial quando útil ("Como Investir no Tesouro Direto" / atendimento oficial); problema técnico (cadastro, login, saque) -> atendimento oficial.
-Dont's (CVM — inquebráveis): NUNCA prometa retorno garantido, "sem erro", "lucro certo", "sem risco". "seguro" só como baixo risco de crédito de título público. Reframes: Prefixado="você já sabe quanto vai receber se levar até o vencimento"; IPCA+="acompanha e supera a inflação"; Selic="acompanha a Selic, com liquidez diária"; Reserva=liquidez e preparo para imprevistos. NÃO oriente transações de banco/corretora -> direcione ao banco/corretora do investidor. Disponibilidade em um banco específico ("posso investir pelo X?"): diga que varia conforme a instituição e recomende consultar o app/site da própria corretora, sem confirmar nem citar bancos. Reserva nos bancos: está sendo liberado gradualmente pelas instituições; direcione ao canal oficial. Apostas: reforce o posicionamento educativo, sem atacar.`;
-
-const REGRAS_GENERICAS = `
-PRODUTO: deixe sempre "nenhum" — este cliente ainda não tem regras de produto configuradas.
-needsLegal (bool): true quando o tema for sensível e pedir revisão humana antes de responder (jurídico, crise, acusação grave).
-
-TOM: cordial, direto e prestativo. Responda em 1–3 frases.
-Dont's: não prometa resultados; não faça afirmações sobre assuntos que o comentário não deixa claros; na dúvida, direcione ao canal oficial de atendimento do cliente.`;
-
 function montarSystem(cliente) {
-  const ehTesouroDireto = /tesouro\s*direto/i.test(cliente || "");
-  const regras = ehTesouroDireto ? REGRAS_TESOURO_DIRETO : REGRAS_GENERICAS;
-  const contexto = ehTesouroDireto
-    ? "Você é o assistente de Community Management do Tesouro Direto (conta institucional, parceria B3 + Secretaria do Tesouro Nacional — STN)."
-    : `Você é o assistente de Community Management da marca "${cliente || "cliente"}".`;
+  const regras = regrasDe(cliente);
+  const contexto = contextoDe(cliente);
 
   return `${contexto} Classifique cada comentário e gere uma sugestão de resposta seguindo RIGOROSAMENTE as regras.
 
@@ -225,9 +211,31 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    /* Rede de segurança da linguagem, a mesma da tela Manhã.
+     *
+     * O prompt já proíbe prometer retorno e citar banco ou corretora, mas
+     * prompt é pedido, não garantia. Aqui o rascunho é DESCARTADO quando
+     * escorrega — não remendado: remendar texto de compliance é como o
+     * problema volta disfarçado, e sem ninguém perceber.
+     *
+     * Sem rascunho, o front-end já se comporta certo sozinho: o lote não
+     * preenche a resposta e o botão "Gerar de novo" mostra o motivo. O
+     * needsLegal acende a etiqueta "Jurídico/STN", que é exatamente o que
+     * este caso é — um texto que só uma pessoa pode liberar. */
+    let bloqueados = 0;
+    for (const r of results) {
+      if (!r || !r.rascunho) continue;
+      const { limpo, motivo } = verificar(r.rascunho);
+      if (limpo) continue;
+      bloqueados++;
+      r.rascunho = "";
+      r.needsLegal = true;
+      r.motivo = `linguagem proibida — ${motivo}`;
+    }
+
     // uso real devolvido pela API — permite mostrar custo verdadeiro, não só estimativa
     const uso = data.usage || null;
-    res.status(200).json({ results, uso });
+    res.status(200).json({ results, uso, bloqueados });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }

@@ -40,8 +40,8 @@ require('./monta-app.js');
   check('mostra o nome do usuario', (await page.locator('.who .nm').textContent()).includes('Adilson'));
 
   console.log('\n--- todo modulo do menu abre ---');
-  const MODULOS = ['Projetos','Community','Conteúdos','Importar dados','Relatórios','Configurações'];
-  check('o menu tem os seis modulos', await page.locator('.nav').count() === MODULOS.length,
+  const MODULOS = ['Projetos','Manhã','Community','Aprovações','Conteúdos','Importar dados','Relatórios','Configurações'];
+  check('o menu tem os oito modulos', await page.locator('.nav').count() === MODULOS.length,
     await page.locator('.nav').count()+'');
   for(const m of MODULOS){
     await irPara(m);
@@ -50,6 +50,30 @@ require('./monta-app.js');
     check(`${m}: abre e desenha algo`, !!titulo && emBranco.trim().length > 20, titulo || '(sem titulo)');
     check(`${m}: sem erro de execucao`, erros.length === 0, erros.slice(0,1).join(''));
   }
+
+  console.log('\n--- a Manha dentro do App inteiro ---');
+  await irPara('Manhã');
+  await page.waitForTimeout(400);
+  check('mostra as duas novidades do cliente aberto', await page.locator('.row').count() === 2,
+    String(await page.locator('.row').count()));
+  check('e nao a do outro cliente',
+    !(await page.locator('.main').innerText()).includes('nao deveria aparecer'));
+  // A mesma regra do roda-manha.js, agora com a fiacao de verdade: o cartao
+  // escalado nao pode ter resposta nem dentro do App.
+  check('o cartao escalado nao tem resposta', await page.evaluate(() =>
+    [...document.querySelectorAll('.row')]
+      .filter(l => l.querySelector('.escalar') && l.querySelector('textarea')).length) === 0);
+  check('e mostra o motivo', await page.getByText('tema político, eleitoral ou de governo').count() === 1);
+
+  console.log('\n--- a Aprovacao dentro do App inteiro ---');
+  await irPara('Aprovações');
+  await page.waitForTimeout(400);
+  check('mostra a peca do cliente aberto', await page.locator('.row').count() === 1,
+    String(await page.locator('.row').count()));
+  check('e nao a peca do outro cliente',
+    !(await page.locator('.main').innerText()).includes('peca de outro cliente'));
+  check('com o status em portugues',
+    await page.locator('.row .pill', {hasText:'Enviado para aprovação'}).count() === 1);
 
   console.log('\n--- um cliente nao ve o dado do outro ---');
   await irPara('Community');
@@ -105,9 +129,18 @@ require('./monta-app.js');
   // rodaram: o codigo gravava ia_em numa coluna inexistente.
   const fs2 = require('fs');
   const esquema = JSON.parse(fs2.readFileSync(path.join(__dirname,'esquema-real.json'),'utf8'));
-  const gravadas = await page.evaluate(() =>
-    [...new Set(window.__gravacoes.flatMap(g => Object.keys(g).filter(k => k !== 'tabela' && k !== 'id')))]);
-  const desconhecidas = gravadas.filter(c => !esquema.interacoes.includes(c));
+  // Por TABELA: window.__gravacoes carrega escritas de varias telas agora, e
+  // conferir todas contra as colunas de "interacoes" acusaria errado na
+  // primeira vez que um teste gravasse numa tabela nova.
+  const gravacoes = await page.evaluate(() => window.__gravacoes.map(g => ({
+    tabela: g.tabela, colunas: Object.keys(g).filter(k => k !== 'tabela' && k !== 'id') })));
+  const colunasDe = t => esquema[t] || ((esquema._pendentes || {})[t] || {}).colunas || null;
+  const desconhecidas = [];
+  gravacoes.forEach(g => {
+    const conhecidas = colunasDe(g.tabela);
+    if(!conhecidas) return;   // tabela sem dump: nao da para conferir, e isso e dito no teste-esquema
+    g.colunas.forEach(c => { if(!conhecidas.includes(c)) desconhecidas.push(g.tabela + '.' + c); });
+  });
   check('nenhuma coluna gravada esta fora do esquema confirmado',
     desconhecidas.length === 0, desconhecidas.join(', ') || 'nenhuma');
 

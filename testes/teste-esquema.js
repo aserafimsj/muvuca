@@ -18,27 +18,97 @@ const r = [];
 const check = (nome, ok, extra='') => { r.push(!!ok); console.log((ok?'  OK  ':' FALHA')+` | ${nome}${extra?' -> '+extra:''}`); };
 const achar = re => [...html.matchAll(re)].map(m => m[1]);
 
-console.log('--- colunas que o codigo grava em interacoes ---');
-const gravadas = new Set([
-  // mud.coluna = ... (a classificacao pela IA)
-  ...achar(/\bmud\.([a-z_]+)\s*=/g),
-  // onCampo(id, 'coluna', valor) — edicao no cartao
-  ...achar(/onCampo\([^,]+,\s*'([a-z_]+)'/g),
-  // update({ coluna: ... }) direto
-  ...achar(/\bmud = \{\s*([a-z_]+):/g),
-]);
+console.log('--- colunas que o codigo grava, tabela por tabela ---');
+
+/* Um objeto `mud` e montado campo a campo e so depois entregue a um
+ * .update(). Para saber EM QUE TABELA aquela coluna cai, cada `mud.x =`
+ * e atribuido ao primeiro `from('tabela').update(mud)` que vem depois dele.
+ *
+ * Antes este teste jogava todo `mud.` na conta de `interacoes`. Funcionava
+ * enquanto so existia uma tela que gravava assim; quando a Aprovacao passou
+ * a montar o proprio `mud`, o teste acusou "falta migracao para status" —
+ * uma coluna que existe, so que em outra tabela. Acusacao errada treina
+ * quem le a ignorar, que e o comeco do fim de um teste. */
+function tabelaDe(indice){
+  const m = html.slice(indice).match(/from\('([a-z_]+)'\)\s*\n?\s*\.?\s*update\(/);
+  return m ? m[1] : null;
+}
+const porTabela = {};
+const anota = (tabela, coluna) => {
+  if(!tabela) return;
+  (porTabela[tabela] = porTabela[tabela] || new Set()).add(coluna);
+};
+
+/* Le TODAS as chaves de um objeto literal, nao so a primeira.
+ * A versao anterior pegava so a primeira chave, entao
+ * `.update({arquivado: v, atualizado_em: x})` era conferido pela metade —
+ * a segunda coluna podia nao existir e ninguem saberia. */
+function chavesDoObjeto(texto, inicio){
+  let profundidade = 0, fim = inicio;
+  for(let i = inicio; i < texto.length; i++){
+    const ch = texto[i];
+    if(ch === '{') profundidade++;
+    else if(ch === '}'){ profundidade--; if(profundidade === 0){ fim = i; break; } }
+  }
+  const corpo = texto.slice(inicio + 1, fim);
+  // So o nivel de cima: `{a: 1, b: {c: 2}}` da a e b, nunca c.
+  const topo = corpo.replace(/\{[^{}]*\}/g, '');
+  return [...topo.matchAll(/(?:^|,)\s*([a-z_]+)\s*:/g)].map(m => m[1]);
+}
+
+// 1) mud.coluna = ...  (montado campo a campo)
+for(const m of html.matchAll(/\bmud\.([a-z_]+)\s*=/g)) anota(tabelaDe(m.index), m[1]);
+// 2) mud = { ... }  e  const mud = { ... }
+for(const m of html.matchAll(/\bmud\s*=\s*\{/g)){
+  const tabela = tabelaDe(m.index);
+  chavesDoObjeto(html, m.index + m[0].length - 1).forEach(c => anota(tabela, c));
+}
+// 3) from('tabela').update({ ... }) direto, sem passar por mud
+for(const m of html.matchAll(/from\('([a-z_]+)'\)\s*\n?\s*\.?\s*update\(\{/g)){
+  chavesDoObjeto(html, m.index + m[0].length - 1).forEach(c => anota(m[1], c));
+}
+// 4) from('tabela').insert({ ... })
+for(const m of html.matchAll(/from\('([a-z_]+)'\)\s*\n?\s*\.?\s*insert\(\{/g)){
+  chavesDoObjeto(html, m.index + m[0].length - 1).forEach(c => anota(m[1], c));
+}
+// onCampo(id, 'coluna', valor) — a edicao no cartao do Community, sempre
+// em interacoes.
+achar(/onCampo\([^,]+,\s*'([a-z_]+)'/g).forEach(c => anota('interacoes', c));
 // Os payloads de insert, listados a mao porque vem de objetos literais
 // grandes; o teste de cobertura abaixo garante que nao esqueci nenhum.
 ['cliente_id','autor','texto','link_conteudo','origem','rede_id','produto_id',
  'editoria_id','sentimento_id','triagem','resposta','data_publicacao']
-  .forEach(c => gravadas.add(c));
+  .forEach(c => anota('interacoes', c));
 
-const conhecidas = new Set(esquema.interacoes);
-const fora = [...gravadas].filter(c => !conhecidas.has(c));
+// As colunas conhecidas de cada tabela: as confirmadas no banco, mais as
+// que um guia de migracao promete criar (conferido logo abaixo).
+const colunasDe = (t) => new Set(
+  esquema[t] || ((esquema._pendentes || {})[t] || {}).colunas || []);
 
-console.log('   grava: ' + [...gravadas].sort().join(', '));
-check('toda coluna gravada existe no banco confirmado', fora.length === 0,
-  fora.length ? 'FALTA MIGRACAO para: ' + fora.join(', ') : 'nenhuma fora da lista');
+/* Tabelas que existem e funcionam, mas cujas colunas nunca foram lidas do
+ * banco. Este teste NAO pode conferir o que nao conhece — entao ele diz
+ * isso, em vez de reprovar (seria alarme falso) ou de calar (seria fingir
+ * que conferiu). */
+const semDump = new Set((esquema._sem_dump || {}).tabelas || []);
+
+let algumaFora = false;
+Object.entries(porTabela).sort().forEach(([tabela, cols]) => {
+  const conhecidas = colunasDe(tabela);
+  if(semDump.has(tabela)){
+    console.log(`  ----  | ${tabela}: colunas NAO conferidas (falta o dump do banco) -> grava ${[...cols].sort().join(', ')}`);
+    return;
+  }
+  if(!conhecidas.size){
+    algumaFora = true;
+    check(`${tabela}: tabela desconhecida`, false, 'nao esta no esquema, nem em _pendentes, nem em _sem_dump');
+    return;
+  }
+  const fora = [...cols].filter(c => !conhecidas.has(c));
+  if(fora.length) algumaFora = true;
+  check(`${tabela}: toda coluna gravada existe`, fora.length === 0,
+    fora.length ? 'FALTA MIGRACAO para: ' + fora.join(', ') : [...cols].sort().join(', '));
+});
+check('nenhuma gravacao aponta para coluna inexistente', !algumaFora);
 
 console.log('\n--- colunas removidas nao podem voltar ---');
 Object.keys(esquema._removidas || {}).forEach(c => {
@@ -50,7 +120,7 @@ Object.keys(esquema._removidas || {}).forEach(c => {
 console.log('\n--- as quatro colunas da IA estao em uso e documentadas ---');
 ['ia_em','ia_triagem','ia_motivo','ia_juridico'].forEach(c => {
   check(`${c}: no esquema e usada no codigo`,
-    conhecidas.has(c) && html.includes(c));
+    colunasDe('interacoes').has(c) && html.includes(c));
 });
 
 console.log('\n--- o guia de migracao cria o que o codigo precisa ---');
@@ -72,9 +142,36 @@ METRICAS.forEach(base => {
 console.log('\n--- nada de tabela inventada ---');
 const tabelas = [...new Set(achar(/from\('([a-z_]+)'\)/g))];
 const TABELAS_OK = ['interacoes','publicacoes','clientes','redes','produtos','editorias','categorias_sentimento','perfis'];
-const tabelasFora = tabelas.filter(t => !TABELAS_OK.includes(t));
-check('o codigo so fala com as tabelas que existem', tabelasFora.length === 0,
+// Tabela que um guia de migracao cria mas que ainda nao foi confirmada no
+// banco. O codigo pode usar; o que nao pode e nao existir guia que a crie —
+// foi exatamente assim que as colunas ia_* ficaram orfas.
+const pendentes = { ...(esquema._pendentes || {}) };
+delete pendentes._porque;
+const tabelasFora = tabelas.filter(t => !TABELAS_OK.includes(t) && !pendentes[t]);
+check('o codigo so fala com as tabelas que existem ou tem migracao', tabelasFora.length === 0,
   tabelasFora.join(', ') || tabelas.join(', '));
+
+console.log('\n--- toda tabela pendente tem um guia que a cria de verdade ---');
+Object.entries(pendentes).forEach(([tabela, info]) => {
+  const arq = path.join(__dirname, '..', info.migracao);
+  const existe = fs.existsSync(arq);
+  check(`${tabela}: o guia ${info.migracao} existe`, existe);
+  if(!existe) return;
+  const guia = fs.readFileSync(arq, 'utf8');
+  check(`${tabela}: o guia tem o create table`,
+    new RegExp('create table if not exists\\s+' + tabela).test(guia));
+  // Cada coluna que o guia promete tem que estar escrita nele. Sem isso, uma
+  // coluna podia entrar no codigo e nunca ser criada — o erro original.
+  const faltando = info.colunas.filter(c => !new RegExp('^\\s+' + c + '\\s', 'm').test(guia));
+  check(`${tabela}: o guia cria as ${info.colunas.length} colunas`, faltando.length === 0,
+    faltando.length ? 'falta no guia: ' + faltando.join(', ') : 'todas presentes');
+  // E o codigo so pode gravar nas colunas que o guia cria.
+  const gravadasNa = new Set(achar(
+    new RegExp("from\\('" + tabela + "'\\)[\\s\\S]{0,120}?update\\(\\{\\s*([a-z_]+)", 'g')));
+  const foraDoGuia = [...gravadasNa].filter(c => !info.colunas.includes(c));
+  check(`${tabela}: o codigo nao grava coluna fora do guia`, foraDoGuia.length === 0,
+    foraDoGuia.join(', ') || 'nenhuma');
+});
 
 console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
 process.exit(r.every(Boolean) ? 0 : 1);

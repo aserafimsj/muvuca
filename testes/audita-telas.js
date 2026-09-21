@@ -16,6 +16,8 @@ const TELAS = [
   ['Community',  'bancada.html',  '.row'],
   ['Relatórios', 'dash.html',     '.periodo'],
   ['Conteúdos',  'conteudos.html','.mural'],
+  ['Manhã',      'manha.html',    '.row'],
+  ['Aprovações', 'aprovacao.html','.mesbar'],
 ];
 
 (async () => {
@@ -23,6 +25,8 @@ const TELAS = [
   require('./monta-bancada.js');
   require('./monta-dash.js');
   require('./monta-conteudos.js');
+  require('./monta-manha.js');
+  require('./monta-aprovacao.js');
 
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const achados = [];

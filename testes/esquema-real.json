@@ -1,26 +1,192 @@
 {
-  "_origem": "Colunas lidas do banco de producao pelo dono do projeto em 21/09/2026, com a consulta de information_schema do COMO-CONFERIR-O-BANCO.md, mais as quatro colunas ia_* criadas pela MIGRACAO-TELA-DE-COMENTARIOS.md e confirmadas na tela.",
-  "_porque": "Guarda contra o erro que aconteceu de verdade nesta obra: o codigo passou a gravar ia_em, ia_triagem, ia_motivo e ia_juridico em colunas que nunca foram criadas. O botao da IA respondia, o custo era cobrado, e a gravacao morria. Ninguem percebeu por varias etapas. Se o codigo voltar a usar coluna que nao esta nesta lista, o teste reprova e diz que falta migracao.",
-  "_como_atualizar": "So acrescente uma coluna aqui DEPOIS de ela existir no banco de verdade, e cite a migracao que a criou.",
-
-  "interacoes": [
-    "id", "cliente_id", "rede_id", "origem", "editoria_id", "produto_id",
-    "sentimento_id", "autor", "texto", "link_conteudo", "triagem", "resposta",
-    "data_publicacao", "criado_em",
-    "ia_em", "ia_triagem", "ia_motivo", "ia_juridico"
-  ],
-
-  "publicacoes": [
-    "id", "cliente_id", "rede_id", "produto_id", "editoria_id", "data_post",
-    "link", "formato", "status",
-    "visu_org", "alcance_org", "curtidas_org", "coment_org", "compart_org",
-    "salvos_org", "engaj_org", "tx_engaj_org",
-    "visu_pago", "alcance_pago", "curtidas_pago", "coment_pago", "compart_pago",
-    "salvos_pago", "engaj_pago", "tx_engaj_pago",
+ "_origem": "Colunas lidas do banco de producao pelo dono do projeto em 21/09/2026, com a consulta de information_schema do COMO-CONFERIR-O-BANCO.md, mais as quatro colunas ia_* criadas pela MIGRACAO-TELA-DE-COMENTARIOS.md e confirmadas na tela.",
+ "_porque": "Guarda contra o erro que aconteceu de verdade nesta obra: o codigo passou a gravar ia_em, ia_triagem, ia_motivo e ia_juridico em colunas que nunca foram criadas. O botao da IA respondia, o custo era cobrado, e a gravacao morria. Ninguem percebeu por varias etapas. Se o codigo voltar a usar coluna que nao esta nesta lista, o teste reprova e diz que falta migracao.",
+ "_como_atualizar": "So acrescente uma coluna aqui DEPOIS de ela existir no banco de verdade, e cite a migracao que a criou.",
+ "interacoes": [
+  "id",
+  "cliente_id",
+  "rede_id",
+  "origem",
+  "editoria_id",
+  "produto_id",
+  "sentimento_id",
+  "autor",
+  "texto",
+  "link_conteudo",
+  "triagem",
+  "resposta",
+  "data_publicacao",
+  "criado_em",
+  "ia_em",
+  "ia_triagem",
+  "ia_motivo",
+  "ia_juridico"
+ ],
+ "publicacoes": [
+  "id",
+  "cliente_id",
+  "rede_id",
+  "produto_id",
+  "editoria_id",
+  "data_post",
+  "link",
+  "formato",
+  "status",
+  "visu_org",
+  "alcance_org",
+  "curtidas_org",
+  "coment_org",
+  "compart_org",
+  "salvos_org",
+  "engaj_org",
+  "tx_engaj_org",
+  "visu_pago",
+  "alcance_pago",
+  "curtidas_pago",
+  "coment_pago",
+  "compart_pago",
+  "salvos_pago",
+  "engaj_pago",
+  "tx_engaj_pago",
+  "criado_em"
+ ],
+ "_removidas": {
+  "data_coment": "Criada por engano na etapa 1, duplicando data_publicacao. Nunca chegou a existir no banco; o codigo foi corrigido para usar data_publicacao."
+ },
+ "_pendentes": {
+  "_porque": "Tabela ou coluna que um guia de MIGRACAO cria mas que AINDA NAO foi confirmada no banco de producao. Fica separada de proposito: o codigo pode usar, mas ninguem pode dizer que ja existe. Quando o dono do projeto rodar o guia e mandar a conferencia, a entrada sai daqui e vira uma chave normal.",
+  "manha_items": {
+   "migracao": "MIGRACAO-MANHA.md",
+   "colunas": [
+    "id",
+    "cliente_id",
+    "source",
+    "external_id",
+    "author",
+    "text",
+    "url",
+    "received_at",
+    "label",
+    "reply",
+    "escalate",
+    "escalate_reason",
+    "status",
+    "created_at"
+   ]
+  },
+  "conteudos": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "cliente_id",
+    "rede_id",
+    "produto_id",
+    "editoria_id",
+    "publicacao_id",
+    "titulo",
+    "formato",
+    "data_prevista",
+    "hora_prevista",
+    "legenda",
+    "hashtags",
+    "cta",
+    "campanha",
+    "observacoes",
+    "responsavel",
+    "status",
+    "versao",
+    "arquivado",
+    "criado_em",
+    "atualizado_em"
+   ]
+  },
+  "conteudo_arquivos": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "conteudo_id",
+    "versao",
+    "tipo",
+    "caminho",
+    "url",
+    "nome",
+    "tamanho",
+    "largura",
+    "altura",
+    "duracao",
+    "ordem",
     "criado_em"
-  ],
-
-  "_removidas": {
-    "data_coment": "Criada por engano na etapa 1, duplicando data_publicacao. Nunca chegou a existir no banco; o codigo foi corrigido para usar data_publicacao."
+   ]
+  },
+  "conteudo_versoes": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "conteudo_id",
+    "versao",
+    "retrato",
+    "motivo",
+    "quem",
+    "criado_em"
+   ]
+  },
+  "conteudo_eventos": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "conteudo_id",
+    "de",
+    "para",
+    "quem",
+    "observacao",
+    "criado_em"
+   ]
+  },
+  "conteudo_comentarios": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "conteudo_id",
+    "versao",
+    "autor",
+    "autor_tipo",
+    "alvo",
+    "texto",
+    "criado_em"
+   ]
+  },
+  "aprovacao_links": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "cliente_id",
+    "token",
+    "titulo",
+    "periodo",
+    "expira_em",
+    "revogado",
+    "visto_em",
+    "criado_em"
+   ]
+  },
+  "aprovacao_link_itens": {
+   "migracao": "MIGRACAO-APROVACAO.md",
+   "colunas": [
+    "id",
+    "link_id",
+    "conteudo_id"
+   ]
   }
+ },
+ "_sem_dump": {
+  "_porque": "Tabelas que existem e funcionam ha tempos, mas cujas colunas NUNCA foram lidas do banco: a consulta de information_schema do COMO-CONFERIR-O-BANCO.md so pediu 'interacoes' e 'publicacoes'. Este teste nao pode conferir coluna que ele nao conhece, entao ele diz isso em voz alta em vez de fingir que conferiu. Para fechar a lacuna, rode a mesma consulta trocando a lista de tabelas e acrescente o resultado aqui.",
+  "tabelas": [
+   "clientes",
+   "redes",
+   "produtos",
+   "editorias",
+   "categorias_sentimento",
+   "perfis"
+  ]
+ }
 }
