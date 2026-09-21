@@ -19,14 +19,20 @@ const check = (nome, ok, extra='') => { r.push(!!ok); console.log((ok?'  OK  ':'
 const DIA = 86400000;
 
 console.log('--- que data vale para o comentario ---');
-check('usa a data informada',
-  M.chaveDia(M.dataDoComentario({data_coment:'2026-09-15', ia_em:'2026-01-01T00:00:00Z'})) === '2026-09-15');
-check('sem data informada, usa a da analise',
-  M.dataDoComentario({data_coment:null, ia_em:'2026-09-10T12:00:00Z'}) !== null);
-check('sem nenhuma das duas, nao tem data',
-  M.dataDoComentario({data_coment:null, ia_em:null}) === null);
-check('data informada ganha da data de analise',
-  M.chaveDia(M.dataDoComentario({data_coment:'2026-03-02', ia_em:'2026-09-10T12:00:00Z'})) === '2026-03-02');
+// Regra: a data analitica e UMA SO, a de publicacao. Nada de reserva.
+// Um comentario publicado em 10/09 e analisado em 12/09 nao pode contar como
+// 12/09 — o relatorio diria que houve movimento num dia em que nao houve.
+check('usa a data de publicacao',
+  M.chaveDia(M.dataDoComentario({data_publicacao:'2026-09-15'})) === '2026-09-15');
+check('NAO cai na data em que a IA analisou',
+  M.dataDoComentario({data_publicacao:null, ia_em:'2026-09-10T12:00:00Z'}) === null);
+check('NAO cai na data de importacao',
+  M.dataDoComentario({data_publicacao:null, criado_em:'2026-09-12T12:00:00Z'}) === null);
+check('sem data de publicacao, nao tem data',
+  M.dataDoComentario({data_publicacao:null}) === null);
+check('a data de publicacao ganha de qualquer outra',
+  M.chaveDia(M.dataDoComentario({data_publicacao:'2026-03-02', ia_em:'2026-09-10T12:00:00Z',
+    criado_em:'2026-09-12T12:00:00Z'})) === '2026-03-02');
 
 console.log('\n--- recortes de periodo ---');
 const p7 = M.resolvePeriodo('7d');
@@ -57,16 +63,16 @@ check('datas escolhidas a mao viram o intervalo certo',
 check('"todo o periodo" nao limita', M.resolvePeriodo('total').de === null);
 
 console.log('\n--- quem entra no periodo ---');
-const dentro = {data_coment:'2026-09-15'}, fora = {data_coment:'2020-01-01'}, semdata = {data_coment:null, ia_em:null};
+const dentro = {data_publicacao:'2026-09-15'}, fora = {data_publicacao:'2020-01-01'}, semdata = {data_publicacao:null, ia_em:null};
 const jan = M.resolvePeriodo('custom','2026-09-01','2026-09-30');
 check('dentro do intervalo entra',  M.noPeriodo(dentro, 'custom', jan.de, jan.ate) === true);
 check('fora do intervalo nao entra', M.noPeriodo(fora, 'custom', jan.de, jan.ate) === false);
 check('SEM DATA nao entra em recorte', M.noPeriodo(semdata, 'custom', jan.de, jan.ate) === false);
 check('SEM DATA entra em "todo o periodo"', M.noPeriodo(semdata, 'total', null, null) === true);
 check('no primeiro dia do intervalo entra',
-  M.noPeriodo({data_coment:'2026-09-01'}, 'custom', jan.de, jan.ate) === true);
+  M.noPeriodo({data_publicacao:'2026-09-01'}, 'custom', jan.de, jan.ate) === true);
 check('no ultimo dia do intervalo entra',
-  M.noPeriodo({data_coment:'2026-09-30'}, 'custom', jan.de, jan.ate) === true);
+  M.noPeriodo({data_publicacao:'2026-09-30'}, 'custom', jan.de, jan.ate) === true);
 
 console.log('\n--- agrupamento ---');
 const itens = [
@@ -86,8 +92,8 @@ check('lista vazia nao quebra', M.contarPor([], i=>i.s).length === 0);
 
 console.log('\n--- serie diaria ---');
 const serie = M.serieDiaria([
-  {data_coment:'2026-09-01'}, {data_coment:'2026-09-01'},
-  {data_coment:'2026-09-04'},   // dias 2 e 3 sem nada
+  {data_publicacao:'2026-09-01'}, {data_publicacao:'2026-09-01'},
+  {data_publicacao:'2026-09-04'},   // dias 2 e 3 sem nada
 ]);
 check('vai do primeiro ao ultimo dia', serie.length === 4, serie.length+' dias');
 check('primeiro dia com 2', serie[0].dia === '2026-09-01' && serie[0].n === 2);
@@ -96,8 +102,8 @@ check('primeiro dia com 2', serie[0].dia === '2026-09-01' && serie[0].n === 2);
 check('dia sem comentario vale zero', serie[1].n === 0 && serie[2].n === 0);
 check('ultimo dia com 1', serie[3].dia === '2026-09-04' && serie[3].n === 1);
 check('a soma bate com a entrada', serie.reduce((a,p)=>a+p.n,0) === 3);
-check('sem datas, serie vazia', M.serieDiaria([{data_coment:null, ia_em:null}]).length === 0);
-check('um dia so nao quebra', M.serieDiaria([{data_coment:'2026-09-01'}]).length === 1);
+check('sem datas, serie vazia', M.serieDiaria([{data_publicacao:null, ia_em:null}]).length === 0);
+check('um dia so nao quebra', M.serieDiaria([{data_publicacao:'2026-09-01'}]).length === 1);
 
 console.log('\n--- topo do eixo ---');
 // Com maximo 11 a linha do meio cai em 5,5 e o rotulo arredondado dizia "6".
@@ -132,8 +138,8 @@ check('lista vazia nao quebra', M.cruzarPor([], i=>i.s, i=>i.rede).linhas.length
 
 console.log('\n--- linha do tempo por sentimento ---');
 const porSent = M.serieDiariaPor([
-  {data_coment:'2026-09-01', s:'Negativo'}, {data_coment:'2026-09-01', s:'Dúvida'},
-  {data_coment:'2026-09-03', s:'Negativo'},
+  {data_publicacao:'2026-09-01', s:'Negativo'}, {data_publicacao:'2026-09-01', s:'Dúvida'},
+  {data_publicacao:'2026-09-03', s:'Negativo'},
 ], i=>i.s);
 check('os dias sao os mesmos da serie total', porSent.dias.join(',') === '2026-09-01,2026-09-02,2026-09-03',
   porSent.dias.join(','));
@@ -144,7 +150,7 @@ const neg = porSent.series.find(s=>s.nome==='Negativo');
 check('Negativo: 1, 0, 1', neg.valores.join(',') === '1,0,1', neg.valores.join(','));
 check('a soma das linhas bate com o total de entrada',
   porSent.series.reduce((a,s)=>a+s.valores.reduce((x,v)=>x+v,0),0) === 3);
-check('sem datas nao quebra', M.serieDiariaPor([{data_coment:null, ia_em:null}], i=>i.s).dias.length === 0);
+check('sem datas nao quebra', M.serieDiariaPor([{data_publicacao:null, ia_em:null}], i=>i.s).dias.length === 0);
 
 console.log(`\n${r.filter(Boolean).length}/${r.length} verificacoes passaram`);
 process.exit(r.every(Boolean) ? 0 : 1);

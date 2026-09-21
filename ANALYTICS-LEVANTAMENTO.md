@@ -12,6 +12,34 @@ marcado como **a confirmar** depende de você rodar as consultas da seção 6.
 
 ## 1. Dois defeitos encontrados
 
+> ## ATUALIZAÇÃO — schema real confirmado
+>
+> A consulta ao banco revelou algo que muda as conclusões abaixo:
+> **as migrações das etapas 1 e 2 nunca chegaram a este banco.** A tabela
+> `interacoes` tem 14 colunas e **nenhuma** das que o código espera:
+> `ia_em`, `ia_triagem`, `ia_motivo`, `ia_juridico`, `data_coment`.
+>
+> Consequências:
+>
+> 1. **"Classificar com IA" não funciona hoje.** A IA responde, o custo é
+>    cobrado, e a gravação falha por coluna inexistente.
+> 2. **O problema das duas colunas de data nunca existiu no banco** — só no
+>    meu código. Como `data_coment` nunca foi criada, não há migração de dados
+>    nem conflito a resolver. **Já corrigi o código para usar
+>    `data_publicacao`.**
+>
+> Confirmado no schema real:
+>
+> | Coluna | Tipo | Observação |
+> |---|---|---|
+> | `interacoes.data_publicacao` | `date` | sem hora, como suspeitado |
+> | `interacoes.criado_em` | `timestamptz` | data de **importação** — não serve de data analítica |
+> | `publicacoes.data_post` | `date` | |
+> | `publicacoes.criado_em` | `timestamptz` | |
+> | as 16 métricas | `numeric` | exatamente como eu tinha deduzido do código |
+>
+> `interacoes` **não tem** `post_id` nem `projeto_id`, como previsto.
+
 ### 1.1 A data do comentário está partida em duas colunas — culpa minha
 
 Na etapa 1 eu criei a coluna `data_coment` para o campo "Data do comentário"

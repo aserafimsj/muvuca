@@ -530,15 +530,18 @@ function dataLocal(s){
 }
 function segundaDe(d){ const x = inicioDoDia(d); return new Date(x.getTime() - ((x.getDay()+6)%7)*DIA_MS); }
 
-/* A data que vale para um comentário: a que você informou; na falta dela, a de
-   quando a IA o analisou. Sem nenhuma das duas ele não tem data, e aparece só
-   em "Todo o período" — entrar num recorte de datas sem ter data faria o
-   número do relatório mentir. */
+/* A data analítica de um comentário é UMA SÓ: quando ele foi publicado
+   (`data_publicacao`). Nada de reserva.
+
+   Antes eu caía na data em que a IA o analisou quando faltava a de
+   publicação. É o mesmo erro de usar a data de importação: um comentário
+   publicado em 10/09 e analisado em 12/09 apareceria como 12/09, e o
+   relatório diria que houve movimento num dia em que não houve.
+
+   Sem data de publicação, o comentário não tem data: entra em "Todo o
+   período" e fica de fora de qualquer recorte. A tela avisa quantos são. */
 function dataDoComentario(i){
-  const d = dataLocal(i.data_coment);
-  if(d) return d;
-  if(i.ia_em){ const x = new Date(i.ia_em); if(!isNaN(x.getTime())) return x; }
-  return null;
+  return dataLocal(i.data_publicacao);
 }
 
 function resolvePeriodo(chave, de, ate){
@@ -592,8 +595,8 @@ function passaNoFiltro(i, f, busca){
   if(f.post      && (i.link_conteudo||'')       !== f.post)     return false;
   // Comentário sem data não entra em recorte de data. Deixá-lo passar faria
   // "de 1 a 5 de setembro" devolver coisa de data desconhecida junto.
-  if(f.de   && !(i.data_coment && i.data_coment >= f.de))   return false;
-  if(f.ate  && !(i.data_coment && i.data_coment <= f.ate))  return false;
+  if(f.de   && !(i.data_publicacao && i.data_publicacao >= f.de))   return false;
+  if(f.ate  && !(i.data_publicacao && i.data_publicacao <= f.ate))  return false;
   if(busca){
     const q = busca.toLowerCase();
     const achou = (i.texto||'').toLowerCase().includes(q)
@@ -798,8 +801,8 @@ function Linha({it, cfg, onCampo, onGerarResposta, onExcluir}){
             onGravar={v=>onCampo(it.id,'autor', v && v.replace(/^@+/,''))} />
           <CampoTexto rotulo="Post" valor={it.link_conteudo} dica="link ou nome do post"
             onGravar={v=>onCampo(it.id,'link_conteudo', v)} />
-          <CampoTexto rotulo="Data do comentário" valor={it.data_coment} tipo="date"
-            onGravar={v=>onCampo(it.id,'data_coment', v)} />
+          <CampoTexto rotulo="Data do comentário" valor={it.data_publicacao} tipo="date"
+            onGravar={v=>onCampo(it.id,'data_publicacao', v)} />
         </div>
 
         <div className="campos">

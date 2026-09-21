@@ -39,7 +39,7 @@ for(let atras = 39; atras >= 0; atras--){
       editoria_id: id % 5 === 0 ? null : (id % 2) + 1,
       origem: id % 4 === 0 ? 'DM' : 'Feed',
       triagem: id % 5 === 0 ? 'Respondido' : (id % 7 === 0 ? 'Ignorar' : 'Pendente'),
-      data_coment: dia(atras), link_conteudo: null,
+      data_publicacao: dia(atras), link_conteudo: null,
       ia_em: '2026-09-20T23:00:00Z', ia_triagem: 'responder',
       ia_juridico: id % 11 === 0,
     });
@@ -49,13 +49,13 @@ for(let atras = 39; atras >= 0; atras--){
 for(let k = 0; k < 3; k++){
   COMENTARIOS.push({id: id++, autor:'semdata', texto:'sem data', resposta:'',
     sentimento_id:1, rede_id:1, produto_id:1, editoria_id:1, origem:'Feed',
-    triagem:'Pendente', data_coment:null, link_conteudo:null, ia_em:null,
+    triagem:'Pendente', data_publicacao:null, link_conteudo:null, ia_em:null,
     ia_triagem:null, ia_juridico:false});
 }
 // Um na lixeira: nao pode aparecer em lugar nenhum do relatorio.
 COMENTARIOS.push({id: id++, autor:'lixo', texto:'jogado fora', resposta:'',
   sentimento_id:2, rede_id:1, produto_id:1, editoria_id:1, origem:'Feed',
-  triagem:'Lixeira', data_coment:dia(1), link_conteudo:null, ia_em:null,
+  triagem:'Lixeira', data_publicacao:dia(1), link_conteudo:null, ia_em:null,
   ia_triagem:null, ia_juridico:true});
 
 const pagina = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
@@ -74,7 +74,7 @@ ${src}
 const CFG = ${JSON.stringify(CFG)};
 const COMENTARIOS = ${JSON.stringify(COMENTARIOS)};
 window.__total = COMENTARIOS.length;
-window.__semData = COMENTARIOS.filter(c => !c.data_coment && !c.ia_em).length;
+window.__semData = COMENTARIOS.filter(c => !c.data_publicacao).length;
 window.__naLixeira = COMENTARIOS.filter(c => c.triagem === 'Lixeira').length;
 ReactDOM.createRoot(document.getElementById('root'))
   .render(<Dashboard cfg={CFG} interacoes={COMENTARIOS} clienteNome="Tesouro Direto" />);

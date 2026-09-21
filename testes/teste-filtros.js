@@ -31,7 +31,7 @@ const COM = {
   id: 1, autor: 'valdirene', texto: 'Como faco para investir no Selic?',
   resposta: 'Oi! Voce precisa de CPF ativo.', sentimento_id: 4, rede_id: 1,
   produto_id: 2, editoria_id: 3, origem: 'Feed', link_conteudo: 'https://insta/p/abc',
-  data_coment: '2026-09-15', ia_triagem: 'responder', ia_juridico: false,
+  data_publicacao: '2026-09-15', ia_triagem: 'responder', ia_juridico: false,
 };
 
 console.log('--- sem filtro nenhum ---');
@@ -69,7 +69,7 @@ check('depois do fim fica de fora',   passaNoFiltro(COM, filtro({ate:'2026-09-10
 check('no limite de baixo entra',     passaNoFiltro(COM, filtro({de:'2026-09-15'}), '') === true);
 check('no limite de cima entra',      passaNoFiltro(COM, filtro({ate:'2026-09-15'}), '') === true);
 // O caso chato: comentario sem data nao pode aparecer num recorte de datas.
-const semData = {...COM, data_coment: null};
+const semData = {...COM, data_publicacao: null};
 check('sem data fica fora do recorte',     passaNoFiltro(semData, filtro({de:'2026-09-01'}), '') === false);
 check('sem data aparece quando nao ha recorte', passaNoFiltro(semData, FILTRO_VAZIO, '') === true);
 
@@ -91,7 +91,7 @@ check('filtro bate mas busca nao', passaNoFiltro(COM, filtro({sent:'4'}), 'bitco
 console.log('\n--- campos vazios nao viram coringa ---');
 const vazio = {id:2, autor:null, texto:'oi', resposta:'', sentimento_id:null,
   rede_id:null, produto_id:null, editoria_id:null, origem:null,
-  link_conteudo:null, data_coment:null, ia_triagem:null, ia_juridico:null};
+  link_conteudo:null, data_publicacao:null, ia_triagem:null, ia_juridico:null};
 check('sem sentimento nao entra em "Negativo"', passaNoFiltro(vazio, filtro({sent:'2'}), '') === false);
 check('sem rede nao entra em "Instagram"',      passaNoFiltro(vazio, filtro({rede:'1'}), '') === false);
 check('sem nada passa quando nao ha filtro',    passaNoFiltro(vazio, FILTRO_VAZIO, '') === true);

@@ -1,82 +1,112 @@
-# Migração — campos da tela de comentários completa
+# Migração — campos da IA
 
-**Por que isto existe:** a IA já devolve três informações que o MUVUCA está
-jogando fora hoje, porque não tem onde guardar: a **recomendação** (responder,
-só curtir ou não responder), o **motivo** da classificação e o alerta de
-**Jurídico/STN**. Esta migração cria o lugar delas, mais a **data do
-comentário**.
+> **Esta migração precisa ser rodada de novo.** A consulta que você fez no
+> banco mostrou que **nenhuma** destas colunas existe hoje. Alguma coisa deu
+> errado na primeira tentativa, e este guia tem uma conferência no fim para a
+> gente ver, na hora, se funcionou.
 
-**É seguro.** Só acrescenta campos — não apaga nem reescreve nada. Rodar duas
-vezes por engano não faz mal.
+**Por que isto existe:** a IA já devolve três informações que o MUVUCA joga
+fora por não ter onde guardar — a **recomendação** (responder, só curtir ou
+não responder), o **motivo** da classificação e o alerta de **Jurídico/STN**
+— mais o carimbo de **quando ela analisou** cada comentário, que é o que
+impede o sistema de cobrar duas vezes pelo mesmo trabalho.
 
-> **Rode a `MIGRACAO-CARIMBO-DA-IA.md` antes desta**, se ainda não tiver
-> rodado. As duas são independentes, mas a ordem mantém as coisas simples.
+**Sem estas colunas, o botão "Classificar com IA" não funciona.** A IA
+responde, o custo é cobrado, e a gravação falha.
+
+**É seguro.** Só acrescenta colunas — não apaga nem reescreve nada. Rodar
+duas vezes não faz mal: o comando diz "se ainda não existir, crie".
+
+> **O que mudou desde a primeira versão deste guia:** a coluna `data_coment`
+> saiu. A data do comentário passa a usar `data_publicacao`, que **já existe**
+> no banco desde antes. Eu tinha criado uma coluna repetida sem perceber; como
+> ela nunca chegou a ser criada de fato, não há nada a corrigir no banco.
 
 ---
 
-## Passo 1 — Abrir o editor de SQL do Supabase
+## Passo 1 — Confirmar que você está no projeto certo
+
+Este é o passo que provavelmente falhou da última vez.
 
 1. Entre em **https://supabase.com** e faça login.
-2. Na lista de projetos, clique no projeto do **MUVUCA**.
-3. No **menu da esquerda**, clique em **`SQL Editor`** (ícone de folha de
-   papel com `SQL` escrito).
-4. Clique em **`New query`**, no alto.
+2. Clique no projeto do **MUVUCA**.
+3. **Olhe o endereço na barra do navegador.** Ele tem este formato:
+
+   `https://supabase.com/dashboard/project/`**`fkhbjpyoajkadpfjexkb`**
+
+4. **Confira se o código depois de `/project/` é exatamente
+   `fkhbjpyoajkadpfjexkb`.**
+
+   - **É esse?** Ótimo, siga para o passo 2.
+   - **É outro código?** **Pare.** Você está num projeto diferente daquele
+     que o MUVUCA usa. Volte para a lista de projetos e escolha outro. Se não
+     achar nenhum com esse código, me avise — o problema é outro.
 
 ---
 
-## Passo 2 — Colar o comando
+## Passo 2 — Abrir o editor de SQL
 
-Copie o bloco abaixo **inteiro** e cole na área vazia:
+1. No **menu da esquerda**, clique em **`SQL Editor`** (ícone de folha de
+   papel com as letras `SQL`).
+2. Clique em **`New query`**, no alto.
+
+**Você vai ver:** uma caixa de texto grande e vazia.
+
+---
+
+## Passo 3 — Colar e rodar
+
+Copie o bloco abaixo **inteiro**, cole na caixa (**`Command + V`**) e clique
+em **`Run`**, no canto de baixo à direita.
 
 ```sql
-alter table interacoes add column if not exists ia_triagem   text;
-alter table interacoes add column if not exists ia_motivo    text;
-alter table interacoes add column if not exists ia_juridico  boolean;
-alter table interacoes add column if not exists data_coment  date;
+alter table interacoes add column if not exists ia_em       timestamptz;
+alter table interacoes add column if not exists ia_triagem  text;
+alter table interacoes add column if not exists ia_motivo   text;
+alter table interacoes add column if not exists ia_juridico boolean;
+
+select column_name as coluna_criada, data_type as tipo
+from information_schema.columns
+where table_schema = 'public'
+  and table_name  = 'interacoes'
+  and column_name in ('ia_em','ia_triagem','ia_motivo','ia_juridico')
+order by column_name;
 ```
 
-Clique em **`Run`** (canto de baixo à direita; em algumas telas é um
-triângulo ▶).
+**O que você vai ver:** uma tabela com **exatamente quatro linhas**:
 
-**O que você vai ver:** faixa verde escrito **`Success. No rows returned`**.
+| coluna_criada | tipo |
+|---|---|
+| ia_em | timestamp with time zone |
+| ia_juridico | boolean |
+| ia_motivo | text |
+| ia_triagem | text |
 
-> Faixa vermelha? **Pare** e me mande o texto do erro.
+**Essa tabela é a prova de que funcionou.** Se as quatro linhas aparecerem,
+está feito.
+
+### Se algo diferente aparecer
+
+- **Tabela vazia, ou com menos de quatro linhas:** as colunas não foram
+  criadas. Tire um print da tela inteira e me mande.
+- **Faixa vermelha:** tire um print e me mande o texto do erro. Não tente de
+  novo antes disso.
+- **Diz `Success. No rows returned` e nenhuma tabela:** a conferência não
+  rodou junto. Apague tudo da caixa, cole só a parte do `select` (as cinco
+  últimas linhas do bloco) e clique em `Run` de novo.
 
 ---
 
-## Passo 3 — Conferir no MUVUCA
+## Passo 4 — Conferir no MUVUCA
 
 1. Volte para o MUVUCA e recarregue a página (**`F5`**).
-2. Abra **Community**.
+2. Abra **Community** e clique em **`Classificar com IA`** com **poucos**
+   comentários — dois ou três. Se algo ainda estiver errado, falha pequena é
+   mais barata.
 
-**O que você vai ver em cada comentário:**
+**O que você vai ver se deu certo:** os comentários recebem sentimento e
+rascunho, e aparecem etiquetas novas no cartão — a recomendação da IA e, nos
+casos sensíveis, o alerta **Jurídico/STN**.
 
-- Campos novos para preencher: **Post**, **Data do comentário**, e listas
-  para escolher **Rede**, **Origem**, **Produto** e **Editoria** — antes
-  esses quatro só apareciam, não dava para mudar.
-- O texto do comentário agora é **editável** (dá para corrigir um texto que
-  veio torto da colagem).
-- Nos comentários que a IA já analisou depois desta migração, uma etiqueta
-  com a **recomendação dela** e o **motivo** em poucas palavras.
-- Dois botões na resposta: **Gerar de novo** (pede outro rascunho à IA, só
-  daquele comentário) e **Copiar resposta**.
-
----
-
-## O que NÃO mudou
-
-- Nada do que você escreveu ou corrigiu à mão foi tocado.
-- O campo **Post** reaproveita o `link_conteudo` que o MUVUCA já usava —
-  não criei um campo repetido. O que você já tinha colado continua lá.
-- O seletor **Pendente / Respondido / Ignorar** continua sendo o seu estado
-  de trabalho. A recomendação da IA é uma etiqueta separada, informativa: ela
-  **não** mexe nesse seletor.
-
----
-
-## Ainda não é esta etapa
-
-O campo **Status** do Zmetrics (Em andamento, Escalado, Arquivado) e as abas
-**Respondidos / Não Respondidos / Histórico / Lixeira** vêm na etapa seguinte,
-junto com o fluxo de trabalho inteiro. Pôr o seletor de Status agora, sem as
-abas que dão sentido a ele, só deixaria um controle solto na tela.
+**Se aparecer uma janela de erro** dizendo "Erro ao salvar", copie a mensagem
+e me mande: quer dizer que ainda falta alguma coluna.
