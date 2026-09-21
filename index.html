@@ -92,6 +92,22 @@
   .campo input,.campo select{width:100%;padding:6px 8px;font-size:13px}
   .reply .acoes{display:flex;gap:8px;flex-wrap:wrap}
   .avisoerro{font-size:12.5px;color:var(--neg);background:#FDEDEC;border-radius:6px;padding:7px 9px}
+  /* --- fluxo de trabalho (etapa 2) --- */
+  .abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .aba{background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 13px;
+    font-size:13px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .aba:hover{border-color:var(--brand)}
+  .aba.on{background:#FDF3D6;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+  .aba .n{font-size:11px;font-weight:700;background:var(--bg);border-radius:999px;padding:1px 6px}
+  .aba.on .n{background:#fff}
+  .btnx{background:transparent;border:none;color:#C2C8D0;font-size:19px;line-height:1;
+    padding:0 4px;cursor:pointer;flex-shrink:0}
+  .btnx:hover{color:var(--neg)}
+  .fluxo{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
+    border-top:1px solid var(--line);padding-top:11px}
+  .btn.ok{background:#1E9E6A;border-color:#1E9E6A;color:#fff;font-weight:700}
+  .btn.perigo{background:var(--neg);border-color:var(--neg);color:#fff;font-weight:600}
+  .confirma{font-size:12.5px;color:var(--neg);font-weight:600}
   @media(max-width:760px){
     .row{flex-wrap:wrap}
     .ctrl{flex-direction:row;align-items:center;width:100%;flex-wrap:wrap}
@@ -393,6 +409,41 @@ function Onboarding({user, onDone}){
 /* ============================================================
    COMMUNITY MANAGEMENT (linha, formulário e listagem)
    ============================================================ */
+/* Os quatro estados de trabalho de um comentário.
+   A coluna "triagem" do MUVUCA já era exatamente isto, com três dos quatro
+   estados do Zmetrics escritos com outros nomes:
+     Pendente   = a fila         (Zmetrics: pendente)
+     Respondido = já respondido  (Zmetrics: respondido)
+     Ignorar    = decidiu não responder (Zmetrics: nao_respondido)
+   Só a Lixeira faltava. Os valores GRAVADOS continuam os mesmos de sempre —
+   trocar 'Ignorar' por 'Não respondido' no banco obrigaria a reescrever
+   comentário antigo, e reescrever dado do usuário é o que não se faz. O nome
+   novo é só de tela. */
+const SITUACOES = {
+  'Pendente':   {rotulo:null,              cor:'var(--brand)'},
+  'Respondido': {rotulo:'✓ Respondido',    cor:'#1E9E6A'},
+  'Ignorar':    {rotulo:'Não respondido',  cor:'#8A8F98'},
+  'Lixeira':    {rotulo:'Na lixeira',      cor:'var(--neg)'},
+};
+
+const ABAS = [
+  {id:'comentarios',     nome:'Comentários a responder', sit:'Pendente',
+   vazio:'Comentário novo chega aqui. Use Responder ou Não responder para tirá-lo da fila.'},
+  {id:'respondidos',     nome:'Respondidos',             sit:'Respondido',
+   vazio:'Quando você marcar Responder na fila, o comentário vem para cá.'},
+  {id:'nao_respondidos', nome:'Não Respondidos',         sit:'Ignorar',
+   vazio:'Comentários que você decidir não responder (bots, spam, provocação) vêm para cá.'},
+  {id:'historico',       nome:'Histórico',               sit:null,
+   vazio:'Todos os comentários aparecem aqui, menos os da Lixeira.'},
+  {id:'lixeira',         nome:'Lixeira',                 sit:'Lixeira',
+   vazio:'O × manda o comentário para cá. Dá para restaurar ou excluir de vez.'},
+];
+
+// Na lixeira o comentário está fora de tudo: não conta nas estatísticas, não
+// entra em filtro e, principalmente, não vai para a IA — pagar para
+// classificar o que você jogou fora seria dinheiro no lixo, literalmente.
+const naLixeira = i => i.triagem === 'Lixeira';
+
 // Como a recomendação da IA aparece na tela. É informativa: diz o que a IA
 // acha que fazer com o comentário. Não confundir com a coluna "triagem", que
 // é o SEU estado de trabalho (Pendente / Respondido / Ignorar).
@@ -417,7 +468,7 @@ function CampoTexto({rotulo, valor, onGravar, tipo='text', dica}){
   );
 }
 
-function Linha({it, cfg, onCampo, onGerarResposta}){
+function Linha({it, cfg, onCampo, onGerarResposta, onExcluir}){
   const [resp, setResp] = useState(it.resposta || "");
   const [texto, setTexto] = useState(it.texto || "");
   const [gerando, setGerando] = useState(false);
@@ -426,9 +477,13 @@ function Linha({it, cfg, onCampo, onGerarResposta}){
   useEffect(()=>{ setResp(it.resposta || ""); },[it.resposta]);
   useEffect(()=>{ setTexto(it.texto || ""); },[it.texto]);
 
+  const [confirmando, setConfirmando] = useState(false);
   const sent = cfg.sentimentos.find(s=>s.id===it.sentimento_id);
   const iaRec = IA_TRIAGEM[it.ia_triagem];
   const naoSalvo = resp !== (it.resposta || '');
+  const sit = it.triagem || 'Pendente';
+  const sitInfo = SITUACOES[sit] || SITUACOES['Pendente'];
+  const noLixo = sit === 'Lixeira';
 
   async function gerar(){
     setGerando(true); setAviso('');
@@ -447,14 +502,17 @@ function Linha({it, cfg, onCampo, onGerarResposta}){
   }
 
   return (
-    <div className="row">
+    <div className="row" style={{borderLeft:`3px solid ${sitInfo.cor}`, paddingLeft:11, opacity: noLixo ? .8 : 1}}>
       <div className="av">{iniciais(it.autor)}</div>
       <div className="body">
         <div className="meta">
           <span className="who">{it.autor || 'Sem autor'}</span>
           {it.origem && <span className="tag">{it.origem}</span>}
+          {sitInfo.rotulo && <span style={{fontSize:11,fontWeight:700,color:sitInfo.cor}}>{sitInfo.rotulo}</span>}
           {it.link_conteudo && /^https?:\/\//i.test(it.link_conteudo) &&
             <a href={it.link_conteudo} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:'#185FA5'}}>ver conteúdo</a>}
+          <span style={{flex:1}} />
+          {!noLixo && <button className="btnx" title="Mover para a Lixeira" onClick={()=>onCampo(it.id,'triagem','Lixeira')}>×</button>}
         </div>
 
         {/* Editável: texto colado do Instagram costuma vir torto e antes não
@@ -516,9 +574,13 @@ function Linha({it, cfg, onCampo, onGerarResposta}){
           <textarea value={resp} onChange={e=>setResp(e.target.value)}
             placeholder={gerando ? 'gerando sugestão…' : 'Escreva a resposta sugerida, ou peça uma à IA.'} />
           <div className="acoes">
+            {/* Salvar o rascunho NÃO marca mais o comentário como respondido.
+                Antes marcava, porque não havia outro jeito de sair da fila.
+                Agora existe o botão Responder, embaixo, e juntar as duas
+                coisas fazia o comentário sumir da fila no meio da escrita. */}
             <button className="btn brand" style={{padding:'6px 12px'}} disabled={!naoSalvo}
-              onClick={async()=>{ await onCampo(it.id,'resposta',resp); await onCampo(it.id,'triagem','Respondido'); }}>
-              {naoSalvo || !it.resposta ? 'Salvar resposta' : 'Salva ✓'}
+              onClick={()=>onCampo(it.id,'resposta',resp)}>
+              {naoSalvo || !it.resposta ? 'Salvar rascunho' : 'Salvo ✓'}
             </button>
             {/* Quando a IA já disse que o comentário não pede resposta (spam,
                 bot, provocação), pedir um rascunho gastaria dinheiro para
@@ -535,6 +597,32 @@ function Linha({it, cfg, onCampo, onGerarResposta}){
           </div>
           {aviso && <div className="avisoerro">{aviso}</div>}
         </div>
+
+        {/* O que tira o comentário da fila. Separado do rascunho de propósito:
+            escrever a resposta e decidir que ela está pronta são dois momentos. */}
+        <div className="fluxo">
+          {noLixo ? (
+            <>
+              <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Pendente')}>↩ Restaurar</button>
+              {confirmando ? (
+                <>
+                  <span className="confirma">Excluir para sempre? Não dá para desfazer.</span>
+                  <button className="btn perigo" style={{padding:'8px 14px'}} onClick={()=>onExcluir(it.id)}>Sim, excluir</button>
+                  <button className="btn" style={{padding:'8px 14px'}} onClick={()=>setConfirmando(false)}>Cancelar</button>
+                </>
+              ) : (
+                <button className="btn" style={{padding:'8px 14px',color:'var(--neg)'}} onClick={()=>setConfirmando(true)}>Excluir definitivo</button>
+              )}
+            </>
+          ) : sit === 'Pendente' ? (
+            <>
+              <button className="btn ok" style={{padding:'8px 18px'}} onClick={()=>onCampo(it.id,'triagem','Respondido')}>✓ Respondi</button>
+              <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Ignorar')}>Não responder</button>
+            </>
+          ) : (
+            <button className="btn" style={{padding:'8px 16px'}} onClick={()=>onCampo(it.id,'triagem','Pendente')}>↩ Voltar para a fila</button>
+          )}
+        </div>
       </div>
 
       <div className="ctrl">
@@ -545,11 +633,6 @@ function Linha({it, cfg, onCampo, onGerarResposta}){
             {cfg.sentimentos.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
           </select>
         </div>
-        <select value={it.triagem || 'Pendente'} onChange={e=>onCampo(it.id,'triagem', e.target.value)}>
-          <option>Pendente</option>
-          <option>Respondido</option>
-          <option>Ignorar</option>
-        </select>
       </div>
     </div>
   );
@@ -842,32 +925,44 @@ function Adicionar({cfg, clienteId, onAdd}){
   );
 }
 
-function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta}){
+function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onAddLote, onClassificar, onGerarResposta, onExcluir}){
+  const [aba, setAba] = useState('comentarios');
   const [busca, setBusca] = useState('');
   const [fOrigem, setFOrigem] = useState('');
   const [fSent, setFSent] = useState('');
   const [mostrarAdd, setMostrarAdd] = useState(false);
   const [mostrarColar, setMostrarColar] = useState(false);
   const [mostrarIA, setMostrarIA] = useState(false);
+
+  // Tudo que não está na lixeira. É esta lista que alimenta estatísticas, IA e
+  // histórico — o que foi jogado fora não deve pesar em conta nenhuma.
+  const vivos = interacoes.filter(i => !naLixeira(i));
+
   // O número no botão é quantos a IA ainda NÃO analisou — o que ela tem de
   // novo para fazer. Contar "campos vazios" mostrava 29 quando havia 3 novos,
   // e o número só crescia, porque campo vazio de propósito nunca se resolve.
-  const semClass = interacoes.filter(i => !i.ia_em).length;
+  const semClass = vivos.filter(i => !i.ia_em).length;
   // O botão continua clicável quando não há novidade mas sobrou algum buraco:
   // é por ele que se chega à opção de pagar de novo por aqueles. Sem isso, o
   // botão ficaria cinza e a opção ficaria inalcançável.
-  const podeIA = semClass > 0 || interacoes.some(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim());
+  const podeIA = semClass > 0 || vivos.some(i => !i.sentimento_id || !i.produto_id || !String(i.resposta||'').trim());
   const nomeSent = it => cfg.sentimentos.find(s=>s.id===it.sentimento_id)?.nome;
-  const total = interacoes.length;
-  const pend = interacoes.filter(i=>i.triagem==='Pendente').length;
-  const duv = interacoes.filter(i=>nomeSent(i)==='Dúvida').length;
-  const neg = interacoes.filter(i=>nomeSent(i)==='Negativo').length;
-  const vis = interacoes.filter(i=>{
+  const total = vivos.length;
+  const pend = vivos.filter(i=>(i.triagem||'Pendente')==='Pendente').length;
+  const duv = vivos.filter(i=>nomeSent(i)==='Dúvida').length;
+  const neg = vivos.filter(i=>nomeSent(i)==='Negativo').length;
+
+  // Quantos há em cada aba, para o número ao lado do nome.
+  const daAba = a => a.sit === null ? vivos : interacoes.filter(i => (i.triagem||'Pendente') === a.sit);
+  const abaAtual = ABAS.find(a => a.id === aba) || ABAS[0];
+
+  const vis = daAba(abaAtual).filter(i=>{
     if(fOrigem && i.origem!==fOrigem) return false;
     if(fSent && String(i.sentimento_id)!==fSent) return false;
     if(busca){ const q=busca.toLowerCase(); if(!((i.texto||'').toLowerCase().includes(q) || (i.autor||'').toLowerCase().includes(q))) return false; }
     return true;
   });
+  const filtrando = !!(busca || fOrigem || fSent);
   return (
     <div>
       <div className="head">
@@ -884,9 +979,23 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
         <div className="card"><div className="lbl">Dúvidas</div><div className="val">{duv}</div></div>
         <div className="card"><div className="lbl">Negativos</div><div className="val">{neg}</div></div>
       </div>
-      {mostrarIA && <ClassificarIA interacoes={interacoes} clienteNome={clienteNome} onClassificar={onClassificar} onFechar={()=>setMostrarIA(false)} />}
+      {/* A lista de alvos da IA exclui a lixeira: não se paga para classificar
+          o que foi jogado fora. */}
+      {mostrarIA && <ClassificarIA interacoes={vivos} clienteNome={clienteNome} onClassificar={onClassificar} onFechar={()=>setMostrarIA(false)} />}
       {mostrarColar && <ColarLote cfg={cfg} clienteId={clienteId} onAddLote={onAddLote} />}
       {mostrarAdd && <Adicionar cfg={cfg} clienteId={clienteId} onAdd={onAdd} />}
+
+      <div className="abas">
+        {ABAS.map(a=>{
+          const n = daAba(a).length;
+          return (
+            <button key={a.id} className={"aba"+(aba===a.id?' on':'')} onClick={()=>setAba(a.id)}>
+              {a.nome}{n>0 && <span className="n">{n}</span>}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="filters">
         <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por autor ou texto…" />
         <select value={fOrigem} onChange={e=>setFOrigem(e.target.value)}><option value="">Origem: todas</option><option>Feed</option><option>DM</option></select>
@@ -896,8 +1005,8 @@ function Community({cfg, interacoes, clienteId, clienteNome, onCampo, onAdd, onA
         </select>
       </div>
       {vis.length===0
-        ? <div className="empty">Nenhuma interação por aqui ainda. Clique em <b>+ Adicionar</b> para começar.</div>
-        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} onGerarResposta={onGerarResposta} />)}
+        ? <div className="empty">{filtrando ? 'Nenhum comentário corresponde ao que você filtrou.' : abaAtual.vazio}</div>
+        : vis.map(it=><Linha key={it.id} it={it} cfg={cfg} onCampo={onCampo} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />)}
     </div>
   );
 }
@@ -1268,6 +1377,14 @@ function Painel({user, perfil, onSair}){
     if(error){ alert('Erro ao salvar: '+error.message); return; }
     setInteracoes(prev=>prev.map(x=>x.id===id?{...x,[campo]:valor}:x));
   }
+  /* Apaga o comentário do banco de vez. É o ÚNICO lugar do MUVUCA que destrói
+     dado, e só se chega aqui por dentro da Lixeira e depois de confirmar na
+     tela — dois passos de propósito. */
+  async function onExcluir(id){
+    const {error} = await sb.from('interacoes').delete().eq('id', id);
+    if(error){ alert('Erro ao excluir: '+error.message); return; }
+    setInteracoes(prev => prev.filter(x => x.id !== id));
+  }
   async function onAdd(payload){
     const {data,error} = await sb.from('interacoes').insert(payload).select().single();
     if(error){ alert('Erro ao adicionar: '+error.message); return false; }
@@ -1454,7 +1571,7 @@ function Painel({user, perfil, onSair}){
             : modulo==='upload'
               ? <Importar clienteId={clienteId} cfg={cfg} onFim={()=>carregar(clienteId)} />
             : modulo==='community'
-              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} />
+              ? <Community cfg={cfg} interacoes={interacoes} clienteId={clienteId} clienteNome={clienteNome} onCampo={onCampo} onAdd={onAdd} onAddLote={onAddLote} onClassificar={onClassificar} onGerarResposta={onGerarResposta} onExcluir={onExcluir} />
               : <div>
                   <div className="head"><div><h1>{MODULOS.find(m=>m.id===modulo).nome}</h1><p>{clienteNome}</p></div></div>
                   <div className="soon">Módulo em construção — vem depois do Community, reaproveitando este mesmo esqueleto.</div>

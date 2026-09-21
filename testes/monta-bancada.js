@@ -26,6 +26,15 @@ const COMENTARIOS = [
   {id:4, autor:'maria', texto:'Boa noite', origem:'Feed', rede_id:null, produto_id:null,
    editoria_id:null, sentimento_id:null, triagem:'Pendente', resposta:'',
    link_conteudo:null, data_coment:null, ia_em:null},
+  {id:5, autor:'ana', texto:'Ja respondi esse', origem:'Feed', rede_id:1, produto_id:null,
+   editoria_id:null, sentimento_id:1, triagem:'Respondido', resposta:'Obrigado!',
+   link_conteudo:null, data_coment:null, ia_em:'2026-09-20T23:00:00Z', ia_triagem:'curtir'},
+  {id:6, autor:'bot123', texto:'segue de volta', origem:'Feed', rede_id:1, produto_id:null,
+   editoria_id:null, sentimento_id:5, triagem:'Ignorar', resposta:'',
+   link_conteudo:null, data_coment:null, ia_em:'2026-09-20T23:00:00Z', ia_triagem:'nao_responder'},
+  {id:7, autor:'lixo', texto:'comentario jogado fora', origem:'Feed', rede_id:1, produto_id:null,
+   editoria_id:null, sentimento_id:null, triagem:'Lixeira', resposta:'',
+   link_conteudo:null, data_coment:null, ia_em:null},
 ];
 
 const CFG = {
@@ -77,7 +86,14 @@ function Bancada(){
     setItens(p => p.map(x => x.id===it.id ? {...x, resposta:nova, ia_motivo:'gerado no teste'} : x));
     return {ok:true};
   };
-  return <div>{itens.map(it => <Linha key={it.id} it={it} cfg={CFG} onCampo={onCampo} onGerarResposta={onGerarResposta} />)}</div>;
+  const onExcluir = async (id) => {
+    window.__excluidos = (window.__excluidos||[]).concat(id);
+    setItens(p => p.filter(x => x.id !== id));
+  };
+  return <Community cfg={CFG} interacoes={itens} clienteId={1} clienteNome="Tesouro Direto"
+    onCampo={onCampo} onAdd={async()=>true} onAddLote={async()=>true}
+    onClassificar={async()=>({ok:0,falhas:0,juridico:0,custoReal:'0'})}
+    onGerarResposta={onGerarResposta} onExcluir={onExcluir} />;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<Bancada/>);
 </script></body></html>`;
